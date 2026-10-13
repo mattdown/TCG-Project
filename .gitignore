@@ -1,0 +1,45 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+*.so
+PythonServer/data/
+wandb/
+
+# --- Unity (TCGClient/) ---
+TCGClient/[Ll]ibrary/
+TCGClient/[Tt]emp/
+TCGClient/[Oo]bj/
+TCGClient/[Bb]uild/
+TCGClient/[Bb]uilds/
+TCGClient/[Ll]ogs/
+TCGClient/[Uu]ser[Ss]ettings/
+TCGClient/[Mm]emoryCaptures/
+TCGClient/[Rr]ecordings/
+TCGClient/.vs/
+TCGClient/.gradle/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.apk
+*.aab
+*.unitypackage
+crashlytics-build.properties
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+.DS_Store
+.claude/

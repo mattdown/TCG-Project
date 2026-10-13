@@ -1,0 +1,9 @@
+[project]
+name = "tcg-project"
+version = "0.1.0"
+description = "Self-play and GNN training to design a balanced set of trading card game cards"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0.2",
+    "torch>=2.8.0",
+]
