@@ -4,6 +4,9 @@ Using graph neural networks and self-play to design a novel, balanced set of car
 trading card game. The rules engine and ML training live in Python; Unity handles the
 playable client and rendering.
 
+See [docs/technical-plan.md](docs/technical-plan.md) for the design of the rules engine,
+state graph and model.
+
 ## Repository layout
 
 ```
@@ -13,6 +16,7 @@ PythonServer/          Game engine, agents and training (Python, managed with uv
   src/model/           GNN models
   scripts/             entry points: training, self-play, analysis
   models/              trained model checkpoints
+docs/                  technical plan and draw.io diagrams
 TCGClient/             Unity client
 ```
 
