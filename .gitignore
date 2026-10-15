@@ -19,6 +19,16 @@ TCGClient/[Mm]emoryCaptures/
 TCGClient/[Rr]ecordings/
 TCGClient/.vs/
 TCGClient/.gradle/
+TCGClient/[Ee]xportedObj/
+TCGClient/.consulo/
+TCGClient/[Aa]ssets/AssetStoreTools*
+TCGClient/[Aa]ssets/[Ss]treamingAssets/aa/
+TCGClient/[Aa]ssets/[Pp]lugins/[Ee]ditor/[Jj]et[Bb]rains*
+*_BurstDebugInformation_DoNotShip/
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
 *.csproj
 *.unityproj
 *.sln
