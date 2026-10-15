@@ -53,3 +53,6 @@ crashlytics-build.properties
 .vscode/
 .DS_Store
 .claude/
+
+# --- Training outputs ---
+PythonServer/models/*.pt

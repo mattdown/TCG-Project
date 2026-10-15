@@ -204,6 +204,7 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 | `same_name` | static | links cards that share a name (Evolve, "named X" checks) without a name embedding |
 | `owns`, `in_zone` | dynamic | player → card, card → zone |
 | `at_site`, `evolved_from` | dynamic | board structure |
+| `faces` | dynamic | between every unit in play and every opposing unit, so units can weigh up direct threats |
 | `matches` | dynamic | filter → every card it currently matches, computed by the engine (respects Veiled, Elusive, etc.) |
 | `affects`, `source_of` | dynamic | active effect → affected card; card → effect it created |
 
