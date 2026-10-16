@@ -40,7 +40,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
 TCGClient/      Unity 6000.3.10f1, URP 2D template
-docs/           technical plan, client protocol, draw.io diagrams (+ PNG exports)
+docs/           technical plan, client protocol and design, draw.io diagrams (+ PNG exports)
 ```
 
 ## Commands (from `PythonServer/`)
@@ -78,6 +78,10 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
 - **Protocol:** [docs/client-protocol.md](docs/client-protocol.md) has every request with
   real example responses, the state fields and the client flow. The server code is
   `PythonServer/src/server/session.py`.
+- **Design:** [docs/client-design.md](docs/client-design.md) has the agreed look (colours,
+  fonts, layout, the card and its states) and the interaction model (drag targets driven by
+  `legal_actions`, tap to inspect). It links the mockup canvas; read the canvas with the
+  Artifact tool when you need exact markup.
 - **Reference implementation:** the PyTenTen project (`~/Documents/PyTenTen/PyTenTenClient`)
   already solves the plumbing.
   - `Assets/Scripts/NetworkClient.cs`: NetMQ REQ socket on a background thread, with a queue.
