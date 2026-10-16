@@ -76,11 +76,17 @@ Only valid when `state.decision_player == state.human_seat`. `action_index` is t
 of one of `state.legal_actions`.
 
 ```json
-→ {"type": "act", "action_index": 0}
+→ {"type": "act", "action_index": 8}
 ← {"status": "ok",
-   "action": {"type": "mulligan", "card": 58, "target": null, "player": 0, "text": "Put back Brave Keeper"},
+   "action": {"type": "duel", "card": 4, "target": 104, "player": 0, "text": "Duel: Tidal Trickster → Tidal Vagabond",
+              "result": {"damage": [{"uid": 4, "amount": 1}, {"uid": 104, "amount": 1}], "defeated": [4, 104],
+                         "vp": [], "energy_spent": [], "exhausted": [4], "readied": [],
+                         "moves": [{"uid": 4, "card_id": "V1-010", "player": 0, "from": "play", "to": "discard"},
+                                   {"uid": 104, "card_id": "V1-059", "player": 1, "from": "play", "to": "discard"}]}},
    "state": {…}}
 ```
+
+`action` is the action record, with its `result` (see [Results](#results-and-previews)).
 
 ### `ai_move`: the AI makes one decision
 
@@ -89,8 +95,13 @@ at a time.
 
 ```json
 → {"type": "ai_move"}
-← {"status": "ok", "action": {"type": "play", "card": 79, "target": null, "player": 1, "text": "Play Bright Warden"}, "state": {…}}
+← {"status": "ok", "action": {"type": "end_turn", "card": null, "target": null, "player": 1, "text": "End turn",
+     "result": {"damage": [], "defeated": [], "vp": [], "energy_spent": [], "exhausted": [], "readied": [37],
+                "moves": [{"uid": 53, "card_id": "V1-098", "player": 0, "from": "deck", "to": "hand"}]}},
+   "state": {…}}
 ```
+
+Ending the AI's turn starts yours: it readies your exhausted cards and you draw.
 
 ### `ai_turn`: the AI decides until it's the human's decision or the game ends
 
@@ -106,6 +117,8 @@ The quick option when no step-by-step animation is needed.
      {"type": "end_turn", "card": null, "target": null, "player": 1, "text": "End turn"}],
    "state": {…}}
 ```
+
+(Each record also has its `result`; left out here.)
 
 ## The state
 
@@ -159,6 +172,7 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand trimmed):
 | `hand` | the human's hand, or `null` for the AI (use `hand_count`) |
 | `play` | units in play, in the order they were played |
 | `mulligan_marked` | uids the human has marked to put back during the mulligan |
+| `vp_to_win` | VP needed to win (20) |
 | `legal_actions` | empty unless it's the human's decision |
 
 **Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
@@ -179,8 +193,45 @@ target. Action types:
 | `duel` | exhaust a ready, non-fresh unit to fight an exhausted opposing unit | unit | opposing unit |
 | `end_turn` | pass the turn | — | — |
 
-Action records (in `act`, `ai_move`, `ai_turn` responses) don't include results such as
-damage dealt or units defeated. To animate those, compare the states before and after.
+## Results and previews
+
+The server reports every change an action makes, so the client never works one out itself.
+The engine records them while it applies the rules (`StepResult` in `src/game/engine.py`).
+
+- **`result`** on every action record (`act`, `ai_move`, `ai_turn`): what the action did.
+- **`preview`** on legal `play`, `score` and `duel` actions: the same shape, from trying the
+  action on a copy of the game. Use it while dragging ("Drop to score · +2 VP", "Defeated").
+  It's `null` for other actions, which could reveal a draw.
+
+```json
+"preview": {"damage": [{"uid": 4, "amount": 1}, {"uid": 104, "amount": 1}], "defeated": [4, 104],
+            "vp": [], "energy_spent": [], "exhausted": [4], "readied": [],
+            "moves": [{"uid": 4, "card_id": "V1-010", "player": 0, "from": "play", "to": "discard"},
+                      {"uid": 104, "card_id": "V1-059", "player": 1, "from": "play", "to": "discard"}]}
+```
+
+| Field | Meaning |
+|---|---|
+| `damage` | damage dealt to each unit (uid, amount) |
+| `defeated` | uids of units defeated (they also move from `play` to `discard`) |
+| `vp` | VP gained per player |
+| `energy_spent` | ready energy exhausted per player to pay a cost |
+| `exhausted` | units exhausted by acting (scoring, dueling) |
+| `readied` | cards readied at the start of a turn (units and energy) |
+| `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `energy`, `discard` |
+
+**Hidden moves.** The AI's draws and mulligan put-backs keep only who and where:
+`{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}`. Every other move
+names the card: your own cards, and anything going into or out of play, energy or discard.
+
+Examples, from the game above (seed 7):
+
+```json
+play:   "preview": {…, "energy_spent": [{"player": 0, "amount": 1}],
+                    "moves": [{"uid": 4, "card_id": "V1-010", "player": 0, "from": "hand", "to": "play"}]}
+score:  "preview": {…, "vp": [{"player": 0, "amount": 1}], "exhausted": [4]}
+your end_turn: "result": {…, "moves": [{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}]}
+```
 
 ## Client flow
 
@@ -191,7 +242,7 @@ loop:
   if state.game_over:                       show the winner, offer a new game
   elif decision_player == human_seat:       show legal_actions; on a choice → act(index)
   else:                                     ai_move (animate each step) or ai_turn
-  render the returned state
+  animate the action's result, then render the returned state
 ```
 
 - **Mulligan:** both players mulligan before turn 1, the first player first. The human picks

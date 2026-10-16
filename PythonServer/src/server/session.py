@@ -21,10 +21,13 @@ from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
 from src.cards.schema import CardSet
-from src.game.actions import Action
+from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
-from src.game.engine import Game, describe_action
-from src.game.state import Phase
+from src.game.engine import Game, Move, StepResult, describe_action
+from src.game.state import Phase, Zone
+
+# Zones whose cards both players see. Energy counts: adding a card as energy names it.
+PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD, Zone.ENERGY)
 
 
 class GameSession:
@@ -107,7 +110,7 @@ class GameSession:
     def _apply(self, action: Action) -> dict:
         record = {**action.to_dict(), "player": self.game.state.decision_player,
                   "text": describe_action(self.game, action)}
-        self.game.step(action)
+        record["result"] = self._result_view(self.game.step(action, record=True))
         return record
 
     def view(self) -> dict:
@@ -142,5 +145,35 @@ class GameSession:
             "game_over": s.phase == Phase.GAME_OVER,
             "winner": s.winner,
             "players": players,
-            "legal_actions": [{"index": i, **a.to_dict(), "text": describe_action(g, a)} for i, a in enumerate(legal)],
+            "vp_to_win": g.config.vp_to_win,
+            "legal_actions": [{"index": i, **a.to_dict(), "text": describe_action(g, a), "preview": self._preview(a)}
+                              for i, a in enumerate(legal)],
         }
+
+    def _preview(self, action: Action) -> dict | None:
+        """What a play, score or duel would do: the action tried on a copy of the game.
+
+        The client shows these while dragging ("+2 VP", "Defeated") without knowing any rules.
+        Only actions that draw nothing are previewed, so no hidden card is revealed.
+        """
+        if action.type not in (ActionType.PLAY, ActionType.SCORE, ActionType.DUEL):
+            return None
+        return self._result_view(self.game.clone().step(action, validate=False, record=True))
+
+    def _result_view(self, r: StepResult) -> dict:
+        """A step result as the human may see it: hidden moves keep only who and where."""
+        return {
+            "damage": [{"uid": uid, "amount": n} for uid, n in r.damage.items()],
+            "defeated": r.defeated,
+            "vp": [{"player": p, "amount": n} for p, n in r.vp.items()],
+            "energy_spent": [{"player": p, "amount": n} for p, n in r.energy_spent.items()],
+            "exhausted": r.exhausted,
+            "readied": r.readied,
+            "moves": [self._move_view(m) for m in r.moves],
+        }
+
+    def _move_view(self, m: Move) -> dict:
+        public = m.owner == self.human_seat or m.dest in PUBLIC_ZONES or m.source in PUBLIC_ZONES
+        return {"uid": m.uid if public else None,
+                "card_id": self.game.card(m.uid).card.id if public else None,
+                "player": m.owner, "from": m.source.name.lower(), "to": m.dest.name.lower()}

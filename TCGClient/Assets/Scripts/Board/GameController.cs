@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Tcg.Protocol;
 using Tcg.View;
@@ -7,13 +8,14 @@ namespace Tcg.Board
 {
     /// <summary>
     /// The client flow from docs/client-protocol.md: card_set, new_game, then render each state.
-    /// The human acts only through the END TURN button for now (the matching legal action);
-    /// the AI's decisions run through ai_turn.
+    /// The human acts by dragging, by the inspect buttons, or with END TURN; the AI's decisions
+    /// run one ai_move at a time so each can be shown, animated from the server's action results.
     /// </summary>
     public class GameController : MonoBehaviour
     {
         public NetworkClient Network;
         public BoardView Board;
+        public BoardInteraction Interaction;
 
         [Tooltip("neural, heuristic or random.")]
         public string Opponent = "neural";
@@ -22,6 +24,8 @@ namespace Tcg.Board
         public int HumanSeat = 0;
         [Tooltip("Negative: a random game each time.")]
         public int Seed = -1;
+        [Tooltip("Pause between the AI's decisions, in seconds.")]
+        public float AiStepDelay = 0.6f;
 
         readonly Dictionary<string, CardDef> _cards = new Dictionary<string, CardDef>();
         GameState _state;
@@ -32,8 +36,9 @@ namespace Tcg.Board
         {
             Network.ConnectionError += OnConnectionError;
             Board.EndTurnButton.onClick.AddListener(OnEndTurnPressed);
-            Board.SetEndTurnButton(UiText.Waiting, false);
-            _busy = true;
+            Interaction.ActionChosen += Act;
+            Interaction.NewGameRequested += () => NewGame(Opponent);
+            SetBusy(true);
             Network.Send<CardSetResponse>(new Request("card_set"), OnCardSet);
         }
 
@@ -48,7 +53,7 @@ namespace Tcg.Board
 
         void NewGame(string opponent)
         {
-            _busy = true;
+            SetBusy(true);
             Network.Send<StateResponse>(new NewGameRequest(opponent, HumanSeat, Seed >= 0 ? Seed : (int?)null), r =>
             {
                 if (!r.Ok && opponent != FallbackOpponent && !string.IsNullOrEmpty(FallbackOpponent))
@@ -59,8 +64,26 @@ namespace Tcg.Board
                 }
                 if (!Check(r)) return;
                 _opponentName = r.opponent;
+                _state = null;  // a fresh board: nothing to animate from
                 Board.ShowMessage(null);
-                Apply(r);
+                StartCoroutine(Advance(r));
+            });
+        }
+
+        /// <summary>Sends the human's choice: legal_actions[index].</summary>
+        void Act(int index)
+        {
+            if (_busy || _state == null || !_state.HumanDecides)
+            {
+                Board.Relayout();
+                return;
+            }
+            SetBusy(true);
+            Network.Send<StateResponse>(new ActRequest(index), r =>
+            {
+                if (!Check(r)) return;
+                Debug.Log($"You: {r.action.text}");
+                StartCoroutine(Advance(r));
             });
         }
 
@@ -74,39 +97,48 @@ namespace Tcg.Board
             }
             var action = PrimaryAction(_state);
             if (action == null) return;
-            _busy = true;
             Board.SetEndTurnButton(action.text.ToUpperInvariant(), false);
-            Network.Send<StateResponse>(new ActRequest(action.index), r =>
-            {
-                if (!Check(r)) return;
-                Debug.Log($"You: {r.action.text}");
-                Apply(r);
-            });
+            Act(action.index);
         }
 
-        /// <summary>Renders a state, then hands the decision to the AI if it's theirs.</summary>
-        void Apply(StateResponse r)
+        /// <summary>Shows a reply's action and state, then hands the decision to the AI if it's theirs.</summary>
+        IEnumerator Advance(StateResponse r)
         {
+            SetBusy(true);
+            bool fromOpponent = _state != null && r.action != null && r.action.player.HasValue &&
+                                r.action.player.Value != _state.human_seat;
+            if (fromOpponent)
+            {
+                Debug.Log($"{_opponentName}: {r.action.text}");
+                yield return Board.ShowAction(r.action, Interaction.Arrow);
+            }
+            bool animate = _state != null;
             _state = r.state;
-            Board.Render(_state, _cards, _opponentName);
+            Board.Render(_state, _cards, _opponentName, animate, r.action?.result);
+            Interaction.OnStateChanged(_state, _cards, _opponentName);
+
             if (!_state.game_over && !_state.HumanDecides)
             {
-                _busy = true;
                 Board.SetEndTurnButton(UiText.Waiting, false);
-                Network.Send<StateResponse>(new Request("ai_turn"), ai =>
+                yield return new WaitForSeconds(AiStepDelay);
+                Network.Send<StateResponse>(new Request("ai_move"), ai =>
                 {
-                    if (!Check(ai)) return;
-                    foreach (var a in ai.actions) Debug.Log($"{_opponentName}: {a.text}");
-                    Apply(ai);
+                    if (Check(ai)) StartCoroutine(Advance(ai));
                 });
-                return;
+                yield break;
             }
-            _busy = false;
-            UpdateButton();
+            SetBusy(false);
         }
 
-        void UpdateButton()
+        void SetBusy(bool busy)
         {
+            _busy = busy;
+            Interaction.Interactive = !busy && _state != null && _state.HumanDecides;
+            if (busy || _state == null)
+            {
+                if (busy) Board.SetEndTurnButton(Board.EndTurnLabel.text, false);
+                return;
+            }
             if (_state.game_over)
             {
                 Board.SetEndTurnButton(UiText.NewGame, true);
@@ -133,8 +165,8 @@ namespace Tcg.Board
             if (r.Ok) return true;
             Debug.LogWarning($"Server error: {r.msg}");
             Board.ShowMessage(r.msg);
-            _busy = false;
-            if (_state != null) UpdateButton();
+            SetBusy(false);
+            Board.Relayout();
             return false;
         }
 
@@ -142,13 +174,12 @@ namespace Tcg.Board
         {
             Debug.LogError(msg);
             Board.ShowMessage(msg);
-            _busy = false;
-            if (_state != null) UpdateButton();
-            else Board.SetEndTurnButton(UiText.Waiting, false);
+            SetBusy(false);
+            Board.Relayout();
             // Still starting up: keep trying until the server answers.
             if (_cards.Count == 0)
             {
-                _busy = true;
+                SetBusy(true);
                 Network.Send<CardSetResponse>(new Request("card_set"), OnCardSet);
             }
         }

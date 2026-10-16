@@ -35,15 +35,18 @@ public static class ClientAssetBuilder
         public Material LilitaOutline;
     }
 
-    static Sprite _rounded, _glow;
+    const string ThemePath = "Assets/Art/UiTheme.asset";
+    static Sprite _glow;
 
     [MenuItem("TCG/Rebuild Client Assets")]
     public static void BuildAll()
     {
         ImportSprites();
         var fonts = BuildFonts();
+        var theme = BuildTheme(fonts);
+        Ui.Theme = theme;
         var card = BuildCardPrefab(fonts);
-        BuildBoardScene(fonts, card);
+        BuildBoardScene(fonts, card, theme);
         AssetDatabase.SaveAssets();
         Debug.Log("TCG client assets rebuilt");
     }
@@ -64,18 +67,46 @@ public static class ClientAssetBuilder
             ti.alphaIsTransparency = true;
             ti.textureCompression = TextureImporterCompression.Uncompressed;
             ti.filterMode = FilterMode.Bilinear;
-            ti.wrapMode = file == "field_tile" ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+            ti.wrapMode = file == "field_tile" || file == "stripes" ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
             ti.spritePixelsPerUnit = file.StartsWith("field") ? 100f : SpritePpu;
             var settings = new TextureImporterSettings();
             ti.ReadTextureSettings(settings);
             settings.spriteMeshType = SpriteMeshType.FullRect;
             ti.SetTextureSettings(settings);
-            float border = file == "rounded" ? SliceRadius * 4f : file == "glow" ? 40f * 4f : 0f;
+            float border = file == "rounded" || file == "ring" ? SliceRadius * 4f : file == "glow" ? 40f * 4f : 0f;
             ti.spriteBorder = new Vector4(border, border, border, border);
             ti.SaveAndReimport();
         }
-        _rounded = Sprite("rounded");
         _glow = Sprite("glow");
+    }
+
+    static UiTheme BuildTheme(Fonts f)
+    {
+        var theme = AssetDatabase.LoadAssetAtPath<UiTheme>(ThemePath);
+        if (theme == null)
+        {
+            theme = ScriptableObject.CreateInstance<UiTheme>();
+            AssetDatabase.CreateAsset(theme, ThemePath);
+        }
+        theme.Rounded = Sprite("rounded");
+        theme.Ring = Sprite("ring");
+        theme.Glow = Sprite("glow");
+        theme.Dot = Sprite("dot");
+        theme.TargetRing = Sprite("target_ring");
+        theme.ArrowHead = Sprite("arrow_head");
+        theme.Stripes = Sprite("stripes");
+        theme.GemFill = Sprite("gem_fill");
+        theme.GemRim = Sprite("gem_rim");
+        theme.GemShine = Sprite("gem_shine");
+        theme.GemDashed = Sprite("gem_dashed");
+        theme.Crown = Sprite("crown");
+        theme.Lilita = f.Lilita;
+        theme.Nunito = f.Nunito;
+        theme.NunitoBlack = f.NunitoBlack;
+        theme.LilitaOutline = f.LilitaOutline;
+        EditorUtility.SetDirty(theme);
+        AssetDatabase.SaveAssets();
+        return theme;
     }
 
     static Sprite Sprite(string name) => AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtDir}/{name}.png");
@@ -151,6 +182,8 @@ public static class ClientAssetBuilder
         var rootRt = (RectTransform)root.transform;
         rootRt.sizeDelta = new Vector2(CardView.Width, CardView.Height);
         var cv = root.AddComponent<CardView>();
+        root.AddComponent<CardInput>();
+        cv.Group = root.AddComponent<CanvasGroup>();
 
         var visual = Stretch("Visual", rootRt, 0, 0, 0, 0);
         cv.Visual = visual;
@@ -159,8 +192,10 @@ public static class ClientAssetBuilder
         cv.GlowRing = Rounded(Stretch("GlowRing", visual, -3, -3, -3, -3), Color.white, 16);
         cv.GlowHalo.gameObject.SetActive(false);
         cv.GlowRing.gameObject.SetActive(false);
+        cv.TargetOutline = Ui.Outline(Stretch("TargetRing", visual, -7, -7, -7, -7), Palette.GlowTarget, 16);
+        cv.TargetOutline.gameObject.SetActive(false);
         Rounded(Stretch("Shadow", visual, 0, 5, 0, -5), Palette.CardShadow, 13);
-        Rounded(Stretch("Body", visual, 0, 0, 0, 0), Palette.CardNavy, 13);
+        Rounded(Stretch("Body", visual, 0, 0, 0, 0), Palette.CardNavy, 13).raycastTarget = true;  // taps and drags
         cv.FrameEdge = Rounded(Stretch("FrameEdge", visual, 4, 4, 4, 6), Palette.Aspect(1), 10);
         var frame = Stretch("Frame", cv.FrameEdge.rectTransform, 2, 2, 2, 2);
         Rounded(frame, Palette.TextBox, 8);
@@ -248,7 +283,7 @@ public static class ClientAssetBuilder
 
     // --- the board
 
-    static void BuildBoardScene(Fonts f, CardView cardPrefab)
+    static void BuildBoardScene(Fonts f, CardView cardPrefab, UiTheme theme)
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -273,6 +308,7 @@ public static class ClientAssetBuilder
         var board = Stretch("Board", canvasGo.transform, 0, 0, 0, 0);
         var bv = board.gameObject.AddComponent<BoardView>();
         bv.CardPrefab = cardPrefab;
+        bv.Theme = theme;
 
         Img(Stretch("Background", board, 0, 0, 0, 0), null, Palette.UiNavy);
         var field = Img(Stretch("Field", board, 0, 0, 0, 0), Sprite("field_tile"), Color.white);
@@ -323,6 +359,8 @@ public static class ClientAssetBuilder
         var game = new GameObject("Game").AddComponent<GameController>();
         game.Network = net;
         game.Board = bv;
+        game.Interaction = board.gameObject.AddComponent<BoardInteraction>();
+        game.Interaction.Board = bv;
 
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -416,14 +454,6 @@ public static class ClientAssetBuilder
         bv.MessageText.enableAutoSizing = true;
         bv.MessageText.fontSizeMin = 10;
         bv.MessageText.fontSizeMax = 14;
-
-        var over = Node("GameOver", board);
-        Anchor(over, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 75), new Vector2(420, 150));
-        Rounded(over, Palette.Outline, 18);
-        Rounded(Stretch("Inner", over, 3, 3, 3, 3), Palette.UiNavy, 15);
-        bv.GameOverText = Text(Stretch("Text", over, 10, 10, 10, 10), "", f.Lilita, 44, Palette.Gold,
-            TextAlignmentOptions.Center, f.LilitaOutline);
-        bv.GameOverPanel = over.gameObject;
     }
 
     // --- pieces
@@ -483,77 +513,23 @@ public static class ClientAssetBuilder
     static TMP_Text Number(RectTransform rt, Fonts f, float size) =>
         Text(rt, "0", f.Lilita, size, Color.white, TextAlignmentOptions.Center, f.LilitaOutline);
 
-    // --- layout helpers (positions in mockup px from the parent's top-left, y down)
+    // --- layout helpers: the shared ones in Tcg.View.Ui
 
-    static RectTransform Node(string name, Transform parent)
-    {
-        var go = new GameObject(name, typeof(RectTransform)) { layer = 5 };
-        var rt = (RectTransform)go.transform;
-        rt.SetParent(parent, false);
-        return rt;
-    }
+    static RectTransform Node(string name, Transform parent) => Ui.Node(name, parent);
 
-    /// <summary>A fixed box at (x, y) from the parent's top-left; <paramref name="bottom"/> anchors it
-    /// to the bottom edge of the 720 px board instead, so it stays in the corner on taller screens.</summary>
-    static RectTransform Box(string name, Transform parent, float x, float y, float w, float h, bool bottom = false)
-    {
-        var rt = Node(name, parent);
-        rt.anchorMin = rt.anchorMax = new Vector2(0, bottom ? 0 : 1);
-        rt.pivot = new Vector2(0, 1);
-        rt.anchoredPosition = new Vector2(x, bottom ? 720 - y : -y);
-        rt.sizeDelta = new Vector2(w, h);
-        return rt;
-    }
+    static RectTransform Box(string name, Transform parent, float x, float y, float w, float h, bool bottom = false) =>
+        Ui.Box(name, parent, x, y, w, h, bottom);
 
-    static RectTransform Stretch(string name, Transform parent, float left, float top, float right, float bottom)
-    {
-        var rt = Node(name, parent);
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = new Vector2(left, bottom);
-        rt.offsetMax = new Vector2(-right, -top);
-        return rt;
-    }
+    static RectTransform Stretch(string name, Transform parent, float left, float top, float right, float bottom) =>
+        Ui.Stretch(name, parent, left, top, right, bottom);
 
-    static void Anchor(RectTransform rt, Vector2 anchor, Vector2 pivot, Vector2 position, Vector2 size)
-    {
-        rt.anchorMin = rt.anchorMax = anchor;
-        rt.pivot = pivot;
-        rt.anchoredPosition = position;
-        rt.sizeDelta = size;
-    }
+    static void Anchor(RectTransform rt, Vector2 anchor, Vector2 pivot, Vector2 position, Vector2 size) =>
+        Ui.Anchor(rt, anchor, pivot, position, size);
 
-    static Image Img(RectTransform rt, Sprite sprite, Color colour)
-    {
-        var img = rt.gameObject.AddComponent<Image>();
-        img.sprite = sprite;
-        img.color = colour;
-        img.raycastTarget = false;
-        return img;
-    }
+    static Image Img(RectTransform rt, Sprite sprite, Color colour) => Ui.Img(rt, sprite, colour);
 
-    static Image Rounded(RectTransform rt, Color colour, float radius)
-    {
-        var img = Img(rt, _rounded, colour);
-        img.type = Image.Type.Sliced;
-        img.pixelsPerUnitMultiplier = SliceRadius / Mathf.Max(radius, 0.5f);
-        return img;
-    }
+    static Image Rounded(RectTransform rt, Color colour, float radius) => Ui.Rounded(rt, colour, radius);
 
     static TextMeshProUGUI Text(RectTransform rt, string text, TMP_FontAsset font, float size, Color colour,
-        TextAlignmentOptions align, Material material = null)
-    {
-        var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
-        t.font = font;
-        if (material != null) t.fontSharedMaterial = material;
-        t.text = text;
-        t.fontSize = size;
-        t.color = colour;
-        t.alignment = align;
-        t.textWrappingMode = TextWrappingModes.NoWrap;
-        t.overflowMode = TextOverflowModes.Overflow;
-        t.raycastTarget = false;
-        t.richText = true;
-        return t;
-    }
+        TextAlignmentOptions align, Material material = null) => Ui.Text(rt, text, font, size, colour, align, material);
 }

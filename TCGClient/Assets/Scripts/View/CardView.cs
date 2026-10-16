@@ -7,6 +7,9 @@ namespace Tcg.View
 {
     public enum CardMark { None, Playable, Selected, Target }
 
+    /// <summary>While a unit's arrow is out: a valid duel target, or the one under the finger.</summary>
+    public enum TargetRing { None, Valid, Hovered }
+
     /// <summary>
     /// The one card design (docs/client-design.md, "The card"): 150x210 at 100%. Shows a card
     /// definition plus its instance state; it never decides anything about the rules.
@@ -25,6 +28,8 @@ namespace Tcg.View
         public Image[] Crowns;
         public TMP_Text NameText, BodyText, TraitText, CostText, PowerText, HealthText;
         public Image CostRim;
+        public Image TargetOutline;
+        public CanvasGroup Group;
 
         [Header("Art")]
         [Tooltip("Placeholder art: 4 silhouettes per aspect, aspect-major (aspect_1 first).")]
@@ -36,6 +41,11 @@ namespace Tcg.View
         public CardMark Mark { get; private set; }
 
         public RectTransform Rect => (RectTransform)transform;
+        public CardInput Input => _input ? _input : _input = GetComponent<CardInput>();
+
+        CardInput _input;
+        RectTransform _badge;
+        TMPro.TMP_Text _badgeText;
 
         /// <summary>Shows <paramref name="def"/> with the state of <paramref name="instance"/> (null: a bare definition).</summary>
         public void Bind(CardDef def, CardInstance instance)
@@ -103,6 +113,41 @@ namespace Tcg.View
                 GlowHalo.color = c.WithAlpha(mark == CardMark.Selected ? 0.75f : 0.65f);
             }
             Visual.anchoredPosition = new Vector2(0f, mark == CardMark.Selected ? SelectedLift : 0f);
+        }
+
+        public void SetDimmed(bool dimmed) => Group.alpha = dimmed ? 0.4f : 1f;
+
+        public void SetTargetRing(TargetRing ring)
+        {
+            TargetOutline.gameObject.SetActive(ring != TargetRing.None);
+            TargetOutline.color = ring == TargetRing.Hovered ? Palette.GlowTarget : Palette.GlowTarget.WithAlpha(0.75f);
+            TargetOutline.pixelsPerUnitMultiplier = Ui.SliceRadius / (ring == TargetRing.Hovered ? 21f : 16f);
+            if (ring == TargetRing.Hovered)
+            {
+                GlowHalo.gameObject.SetActive(true);
+                GlowHalo.color = Palette.GlowTarget.WithAlpha(0.7f);
+            }
+            else
+            {
+                SetMark(Mark);
+            }
+        }
+
+        /// <summary>A pill above the card, e.g. a duel preview ("Defeated"); null hides it.</summary>
+        public void SetBadge(string text, Color background)
+        {
+            if (_badge == null)
+            {
+                if (string.IsNullOrEmpty(text)) return;
+                _badge = Ui.Node("Badge", Visual);
+                Ui.Anchor(_badge, new Vector2(0.5f, 1f), new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(60, 26));
+                _badgeText = Ui.Pill(_badge, text, background, 16f);
+                _badge.gameObject.AddComponent<CanvasGroup>().ignoreParentGroups = true;  // not dimmed with the card
+            }
+            _badge.gameObject.SetActive(!string.IsNullOrEmpty(text));
+            if (string.IsNullOrEmpty(text)) return;
+            _badgeText.text = text;
+            _badge.Find("Face").GetComponent<Image>().color = background;
         }
 
         Sprite PickArt(CardDef def, int aspect)

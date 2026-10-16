@@ -5,7 +5,7 @@ import pytest
 from src.cards.vanilla import generate_vanilla_set
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
-from src.game.engine import Game, GameConfig
+from src.game.engine import Game, GameConfig, Move
 from src.game.state import Phase, Zone
 from tests.helpers import filler_deck, give_energy, put_in_hand, put_in_play, started_game, unit
 
@@ -170,3 +170,62 @@ def test_random_games_finish_and_conserve_cards(seed):
             assert len(zones) == 60 and all(game.card(u).owner == p for u in zones)
             assert all(game.card(u).zone == Zone.PLAY for u in ps.play)
     assert game.state.winner in (0, 1, None)
+
+
+# --- step results (what the client animates and previews)
+
+def test_step_records_nothing_unless_asked():
+    game = started_game()
+    assert game.step(END) is None
+
+
+def test_duel_result_has_damage_defeat_and_moves():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=3, health=4))
+    defender = put_in_play(game, 1, unit(power=2, health=3), exhausted=True)
+    result = game.step(Action(ActionType.DUEL, attacker, defender), record=True)
+    assert result.damage == {attacker: 2, defender: 3}
+    assert result.defeated == [defender] and result.exhausted == [attacker]
+    assert result.moves == [Move(defender, 1, Zone.PLAY, Zone.DISCARD)]
+
+
+def test_play_score_and_energy_results():
+    game = started_game()
+    card = put_in_hand(game, 0, unit(cost=2))
+    source = put_in_hand(game, 0, unit())
+    scorer = put_in_play(game, 0, unit(score=3))
+    give_energy(game, 0, 3)
+    played = game.step(Action(ActionType.PLAY, card), record=True)
+    assert played.energy_spent == {0: 2} and played.moves == [Move(card, 0, Zone.HAND, Zone.PLAY)]
+    added = game.step(Action(ActionType.ADD_ENERGY, source), record=True)
+    assert added.moves == [Move(source, 0, Zone.HAND, Zone.ENERGY)]
+    scored = game.step(Action(ActionType.SCORE, scorer), record=True)
+    assert scored.vp == {0: 3} and scored.exhausted == [scorer]
+
+
+def test_end_turn_result_has_ready_and_draw():
+    game = started_game()
+    unit_uid = put_in_play(game, 1, unit(), exhausted=True)
+    top = game.state.players[1].deck[-1]
+    result = game.step(END, record=True)
+    assert result.readied == [unit_uid]
+    assert result.moves == [Move(top, 1, Zone.DECK, Zone.HAND)]
+
+
+def test_keep_hand_result_has_mulligan_moves():
+    game = Game(filler_deck(), filler_deck(), seed=0, first_player=0)
+    marked = game.state.players[0].hand[0]
+    game.step(Action(ActionType.MULLIGAN, marked))
+    result = game.step(Action(ActionType.KEEP_HAND), record=True)
+    assert result.moves[0] == Move(marked, 0, Zone.HAND, Zone.DECK)
+    assert result.moves[1].source == Zone.DECK and result.moves[1].dest == Zone.HAND
+
+
+def test_recorded_step_matches_unrecorded_step():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=2, health=2))
+    defender = put_in_play(game, 1, unit(power=2, health=2), exhausted=True)
+    plain = game.clone()
+    game.step(Action(ActionType.DUEL, attacker, defender), record=True)
+    plain.step(Action(ActionType.DUEL, attacker, defender))
+    assert game.state == plain.state

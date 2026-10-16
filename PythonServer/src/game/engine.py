@@ -7,7 +7,7 @@ an empty deck loses.
 """
 import copy
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.cards.schema import Card
 from src.game.actions import Action, ActionType
@@ -22,11 +22,36 @@ class GameConfig:
     max_turns: int = 100  # safety cap: the game is a draw after this many turns
 
 
+@dataclass
+class Move:
+    uid: int
+    owner: int
+    source: Zone
+    dest: Zone
+
+
+@dataclass
+class StepResult:
+    """What one step changed, recorded by the rules as they apply it.
+
+    The Unity client animates these and shows them as previews, so it never works out a result
+    itself; recording them here keeps them from drifting from the rules.
+    """
+    damage: dict[int, int] = field(default_factory=dict)  # uid → damage dealt
+    defeated: list[int] = field(default_factory=list)
+    vp: dict[int, int] = field(default_factory=dict)  # player → VP gained
+    energy_spent: dict[int, int] = field(default_factory=dict)  # player → energy exhausted to pay
+    exhausted: list[int] = field(default_factory=list)  # units exhausted by acting
+    readied: list[int] = field(default_factory=list)  # cards readied at the start of a turn
+    moves: list[Move] = field(default_factory=list)
+
+
 class Game:
     def __init__(self, deck_a: list[Card], deck_b: list[Card], seed: int | None = None,
                  first_player: int | None = None, config: GameConfig = GameConfig()):
         self.config = config
         self.rng = random.Random(seed)
+        self._result: StepResult | None = None
         cards, players = [], []
         for owner, deck in enumerate((deck_a, deck_b)):
             uids = []
@@ -85,9 +110,18 @@ class Game:
 
     # --- actions
 
-    def step(self, action: Action, validate: bool = True):
+    def step(self, action: Action, validate: bool = True, record: bool = False) -> StepResult | None:
+        """Applies an action; with record=True, returns what it changed."""
         if validate and action not in self.legal_actions():
             raise ValueError(f"illegal action {action}")
+        self._result = StepResult() if record else None
+        try:
+            self._apply(action)
+        finally:
+            result, self._result = self._result, None
+        return result
+
+    def _apply(self, action: Action):
         s = self.state
         p = s.decision_player
         ps = s.players[p]
@@ -107,6 +141,9 @@ class Game:
                 unit = self.card(action.card)
                 unit.exhausted = True
                 ps.vp += unit.card.score
+                if self._result:
+                    self._result.exhausted.append(unit.uid)
+                    self._result.vp[p] = unit.card.score
                 if ps.vp >= self.config.vp_to_win:
                     self._end_game(p)
             case ActionType.DUEL:
@@ -128,6 +165,8 @@ class Game:
             ps.hand.remove(uid)
             ps.deck.insert(0, uid)
             self.card(uid).zone = Zone.DECK
+            if self._result:
+                self._result.moves.append(Move(uid, p, Zone.HAND, Zone.DECK))
         for _ in marked:
             self._draw(p)
         self.rng.shuffle(ps.deck)
@@ -149,6 +188,8 @@ class Game:
         ps = s.players[p]
         ps.added_energy_this_turn = False
         for uid in ps.play + ps.energy:
+            if self._result and self.card(uid).exhausted:
+                self._result.readied.append(uid)
             self.card(uid).exhausted = False
             self.card(uid).fresh = False
         if s.turn > 1:  # the first player skips their first draw
@@ -162,23 +203,35 @@ class Game:
         uid = ps.deck.pop()
         ps.hand.append(uid)
         self.card(uid).zone = Zone.HAND
+        if self._result:
+            self._result.moves.append(Move(uid, p, Zone.DECK, Zone.HAND))
 
     def _pay(self, p: int, cost: int):
         ready = [u for u in self.state.players[p].energy if not self.card(u).exhausted]
         for uid in ready[:cost]:
             self.card(uid).exhausted = True
+        if self._result:
+            self._result.energy_spent[p] = min(cost, len(ready))
 
     def _duel(self, attacker_uid: int, defender_uid: int):
         attacker, defender = self.card(attacker_uid), self.card(defender_uid)
         attacker.exhausted = True
         attacker.damage += defender.card.power
         defender.damage += attacker.card.power
+        if self._result:
+            self._result.exhausted.append(attacker_uid)
+            self._result.damage[attacker_uid] = defender.card.power
+            self._result.damage[defender_uid] = attacker.card.power
         for unit in (attacker, defender):
             if unit.damage >= unit.card.health:
+                if self._result:
+                    self._result.defeated.append(unit.uid)
                 self._move(unit.uid, Zone.DISCARD)
 
     def _move(self, uid: int, zone: Zone):
         c = self.card(uid)
+        if self._result:
+            self._result.moves.append(Move(uid, c.owner, c.zone, zone))
         zones = self._zone_lists(c.owner)
         zones[c.zone].remove(uid)
         zones[zone].append(uid)

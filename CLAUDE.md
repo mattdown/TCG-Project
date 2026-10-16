@@ -91,8 +91,14 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   - JSON uses Newtonsoft.Json. Animation uses DOTween (free).
 - **Client code** (`TCGClient/Assets/Scripts/`): `Net/` (NetMQ REQ socket on a thread +
   main-thread dispatcher), `Protocol/` (JSON models, snake_case like the protocol), `View/`
-  (`CardView`, palette, the client's few chrome strings in `UiText`), `Board/` (`BoardView`
-  renders a state, `GameController` runs the request flow).
+  (`CardView`, palette, `Ui` building blocks and `UiTheme`, the client's few chrome strings in
+  `UiText`), `Board/` (`BoardView` renders a state and animates action results,
+  `BoardInteraction` handles drags, drop zones and taps, `Overlays.cs` has inspect, mulligan
+  and game over, `GameController` runs the request flow and steps the AI with `ai_move`).
+- **No rules in C#.** Drop zones come only from `legal_actions`; drag previews ("+2 VP",
+  "Defeated") come from each legal action's `preview`, and animations from each action
+  record's `result`; the engine records both as it applies the rules (`StepResult`), so the
+  client never works out a result. Animation uses DOTween (free; its TMP tweens are Pro-only, so tween TMP values by hand).
 - **Generated assets:** the card prefab, `Scenes/Main.unity`, TMP font assets and sprite import
   settings are built by `Scripts/Editor/ClientAssetBuilder.cs` (menu **TCG > Rebuild Client
   Assets**, or `-executeMethod ClientAssetBuilder.BuildAll` in batch mode). Change layout there,
@@ -100,6 +106,3 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   `TCGClient/Tools/make_placeholder_sprites.py` (`uv run --no-project --with pillow python Tools/make_placeholder_sprites.py`).
 - **NetMQ shutdown:** `NetMQConfig.Cleanup` can hang in Unity; it runs on the network thread,
   which is abandoned if slow. Never call it on the main thread (it froze the editor).
-- **Known protocol gap:** action records don't include results (damage dealt, units
-  defeated). The client has to compare states to animate them; extend the server if that
-  gets awkward.

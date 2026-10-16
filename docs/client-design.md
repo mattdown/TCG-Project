@@ -95,10 +95,18 @@ dueled; a unit can duel or score only if it's ready and wasn't played this turn;
 added once per turn and only from energy-source cards; a card can be played if its cost is at
 most your ready energy.
 
-## Not designed yet
+Drag previews come from each legal action's server-side `preview`
+([client-protocol.md](client-protocol.md)), so the client never computes a result itself.
 
-- Mulligan screen and game-over screen.
-- The opponent's turn: how AI actions are shown and paced (`ai_move` one step at a time).
-- Duel and defeat animations. Action records don't include results, so the client has to
-  compare states (see the protocol gap in `CLAUDE.md`).
+## Built without a design (simple placeholders, same style)
+
+- **Mulligan:** the hand large over a dimmed board; tap a card to put it back (it dims with a
+  PUT BACK badge), then KEEP HAND. The server can't unmark a card.
+- **Game over:** result, final VP for both players, NEW GAME.
+- **The opponent's turn:** one `ai_move` every 0.6 s. A played card flies in from their hand, an
+  added energy flies to their gems as a card back, a duel shows the arrow for half a second, a
+  score pulses the unit. Damage ("-2"), defeats, VP gains and card moves come from each action
+  record's `result`.
+
+## Not designed yet
 - Phone sizes: board text is ~9 px at 86%, readable on tablets and desktop but small on phones.

@@ -314,6 +314,46 @@ def field():
     fade.save(OUT / "field_fade.png")
 
 
+def interaction():
+    """Drag feedback: zone outline, arrow dots and head, target ring, VP stripes, dashed gem."""
+    c = Canvas(0, 0, 40, 40, SCALE)
+    c.shape(rrect(1.5, 1.5, 37, 37, 14.5), stroke="white", width=3)
+    c.save("ring")
+    c = Canvas(0, 0, 16, 16, SCALE)
+    c.shape(circle(8, 8, 7.5), fill="white")
+    c.save("dot")
+    c = Canvas(0, 0, 64, 64, SCALE)
+    c.shape(circle(32, 32, 29), stroke="white", width=4)
+    c.save("target_ring")
+    c = Canvas(-2, -2, 36, 36, SCALE)  # points along +x, tip at (32, 16)
+    c.shape("M32 16L4 2L9 16L4 30Z", fill="white", stroke=NAVY, width=3)
+    c.save("arrow_head")
+    tile = Image.new("RGBA", (40, 40), "#FFC93C")
+    d = ImageDraw.Draw(tile)
+    for k in range(-2, 3):  # 135 degree stripes, 10 px period at 4 px per canvas px
+        o = k * 40
+        d.polygon([(o, 40), (o + 20, 40), (o + 60, 0), (o + 40, 0)], fill="#F5B52E")
+    tile.save(OUT / "stripes.png")
+    c = Canvas(0, 0, 24, 26, SCALE * 26 / 24)
+    pts = path_points(HEX)[0]
+    pts = pts + [pts[0]]
+    dash, on, t = 3.0, True, 0.0
+    for a, b in zip(pts, pts[1:]):
+        seg = math.dist(a, b)
+        pos = 0.0
+        while pos < seg:
+            run = min(dash - t, seg - pos)
+            if on:
+                p0 = (a[0] + (b[0] - a[0]) * pos / seg, a[1] + (b[1] - a[1]) * pos / seg)
+                p1 = (a[0] + (b[0] - a[0]) * (pos + run) / seg, a[1] + (b[1] - a[1]) * (pos + run) / seg)
+                c.shape(f"M{p0[0]} {p0[1]}L{p1[0]} {p1[1]}", stroke="white", width=2.2, closed_stroke=False)
+            pos += run
+            t += run
+            if t >= dash:
+                t, on = 0.0, not on
+    c.save("gem_dashed")
+
+
 if __name__ == "__main__":
     rounded_slice()
     glow()
@@ -323,4 +363,5 @@ if __name__ == "__main__":
     sword()
     field()
     art()
+    interaction()
     print(f"wrote {len(list(OUT.glob('*.png')))} sprites to {OUT}")
