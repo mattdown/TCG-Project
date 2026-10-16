@@ -227,7 +227,9 @@ so a few hundred nodes. That batches easily on a GPU.
   (the AlphaStar / OpenAI Five pattern) is the main alternative. Game states are small enough
   for full attention, and it avoids the limited reach of message passing over a few hops. The
   graph builder is the same for both, so this choice can wait until there's data to compare
-  them on.
+  them on. Both are implemented (`src/model/gnn.py`, `src/model/transformer.py`) on top of one
+  framework-neutral encoder (`src/graph/encode.py`, NumPy arrays). The transformer's input is
+  padded to a few fixed sizes, so it also suits TPUs and a JAX port.
 - **Policy head:** each legal option is encoded as `MLP([action-type embedding,
   emb(actor node), emb(target node), emb(global)])` and scored, with a softmax over the legal
   options only (a pointer-network style head).

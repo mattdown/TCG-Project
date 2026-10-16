@@ -13,8 +13,9 @@ state graph and model. All game terms (VP, energy, units, duels…) are placehol
 PythonServer/          Game engine, agents and training (Python, managed with uv)
   src/cards/           card schema and the vanilla card generator
   src/game/            rules engine, random deck builder, placeholder terms
-  src/graph/           state → graph (HeteroData) for the network
-  src/model/           policy-value GNN
+  src/graph/           state → NumPy arrays (encode.py), then PyG graphs (builder.py)
+                       or padded dense tensors (dense.py)
+  src/model/           policy-value networks: heterogeneous GNN and entity transformer
   src/agents/          random, heuristic and neural agents; match runner
   src/training/        PPO self-play
   src/server/          game session behind the Unity server
@@ -38,8 +39,8 @@ uv sync
 | Command | What it does |
 |---|---|
 | `uv run python -m scripts.generate_cards` | Writes the 200-card vanilla set to `cardsets/vanilla_200.json` (`--count`, `--seed`) |
-| `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--iterations 200 --games-per-iteration 32` |
-| `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and (if trained) neural agents |
+| `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--arch transformer --iterations 200 --device mps` |
+| `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and neural agents (`--models a.pt b.pt` to compare checkpoints) |
 | `uv run python -m scripts.server` | ZeroMQ server for the Unity client on `tcp://*:5555` |
 | `uv run pytest` | Runs the tests |
 
