@@ -95,6 +95,9 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   `UiText`), `Board/` (`BoardView` renders a state and animates action results,
   `BoardInteraction` handles drags, drop zones and taps, `Overlays.cs` has inspect, mulligan
   and game over, `GameController` runs the request flow and steps the AI with `ai_move`).
+  The human's decisions are commands (`Commands.cs`): each step picks its action from the
+  latest `legal_actions`, so a multi-step choice like the mulligan is picked locally and sent
+  in one go, and indexes never go stale.
 - **No rules in C#.** Drop zones come only from `legal_actions`; drag previews ("+2 VP",
   "Defeated") come from each legal action's `preview`, and animations from each action
   record's `result`; the engine records both as it applies the rules (`StepResult`), so the

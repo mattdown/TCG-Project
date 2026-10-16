@@ -22,7 +22,7 @@ namespace Tcg.Board
         static readonly Color PlayFace = Palette.Hex("#5BC84E"), PlayLip = Palette.Hex("#2F8A27");
         static readonly Color EnergyLip = Palette.Hex("#A32A9A");
 
-        public event Action<int> ActionChosen;
+        public event Action<GameAction> ActionChosen;
         public bool IsOpen => gameObject.activeSelf;
 
         CardView _card;
@@ -131,7 +131,7 @@ namespace Tcg.Board
         {
             if (action == null) return;
             Hide();
-            ActionChosen?.Invoke(action.index);
+            ActionChosen?.Invoke(action);
         }
 
         void Chip(string text, Color background)
@@ -164,23 +164,38 @@ namespace Tcg.Board
     }
 
     /// <summary>
-    /// The mulligan (not designed yet, kept simple): the hand large, tap a card to put it back via
-    /// its legal mulligan action, then KEEP. The server can't unmark a card, so a marked card stays marked.
+    /// The mulligan (not designed yet, kept simple): the hand large; tap cards to pick the ones to
+    /// put back (tap again to keep one), then KEEP. Picking is local: nothing goes to the server
+    /// until KEEP, which sends the whole choice as a MulliganCommand.
     /// </summary>
     public class MulliganView : MonoBehaviour, ICardInputHandler
     {
         const float Spacing = 162f;
         static readonly Color BadgeRed = Palette.Hex("#C42A3A");
 
-        public event Action<int> ActionChosen;
+        /// <summary>KEEP: put back these cards (in hand order), then keep the hand.</summary>
+        public event Action<IReadOnlyList<int>> KeepRequested;
+
+        /// <summary>The cards picked to put back, in hand order.</summary>
+        public IReadOnlyList<int> Selection
+        {
+            get
+            {
+                var picked = new List<int>();
+                if (_state?.Human.hand != null)
+                    foreach (var c in _state.Human.hand)
+                        if (_selected.Contains(c.uid)) picked.Add(c.uid);
+                return picked;
+            }
+        }
 
         RectTransform _cards;
         CardView _prefab;
         Button _keep;
         TMP_Text _keepText;
         readonly Dictionary<int, CardView> _views = new Dictionary<int, CardView>();
+        readonly HashSet<int> _selected = new HashSet<int>();
         GameState _state;
-        GameAction _keepAction;
 
         public static MulliganView Create(RectTransform parent, CardView prefab)
         {
@@ -196,10 +211,7 @@ namespace Tcg.Board
             var keep = Ui.Node("Keep", root);
             Ui.Anchor(keep, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -560), new Vector2(220, 60));
             view._keep = Ui.Button(keep, UiText.Keep, Palette.Gold, Palette.GoldLip, 22, out view._keepText);
-            view._keep.onClick.AddListener(() =>
-            {
-                if (view._keepAction != null) view.ActionChosen?.Invoke(view._keepAction.index);
-            });
+            view._keep.onClick.AddListener(() => view.KeepRequested?.Invoke(view.Selection));
             root.gameObject.SetActive(false);
             return view;
         }
@@ -210,11 +222,9 @@ namespace Tcg.Board
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
             var hand = s.Human.hand ?? new List<CardInstance>();
-            var marked = new HashSet<int>(s.Human.mulligan_marked ?? new List<int>());
             var seen = new HashSet<int>();
-            _keepAction = null;
-            foreach (var a in s.legal_actions)
-                if (a.type == ActionTypes.KeepHand) _keepAction = a;
+            // Cards the server already has marked (after a failed KEEP) count as picked.
+            foreach (int uid in s.Human.mulligan_marked ?? new List<int>()) _selected.Add(uid);
 
             for (int i = 0; i < hand.Count; i++)
             {
@@ -228,9 +238,6 @@ namespace Tcg.Board
                 }
                 if (defs.TryGetValue(c.card_id, out var def)) v.Bind(def, c);
                 v.Rect.anchoredPosition = new Vector2((i - (hand.Count - 1) / 2f) * Spacing, 0f);
-                bool isMarked = marked.Contains(c.uid);
-                v.SetDimmed(isMarked);
-                v.SetBadge(isMarked ? UiText.PutBack : null, BadgeRed);
             }
             var gone = new List<int>();
             foreach (var kv in _views) if (!seen.Contains(kv.Key)) gone.Add(kv.Key);
@@ -239,8 +246,11 @@ namespace Tcg.Board
                 Destroy(_views[uid].gameObject);
                 _views.Remove(uid);
             }
-            _keepText.text = _keepAction != null ? _keepAction.text.ToUpperInvariant() : UiText.Keep;
-            _keep.interactable = _keepAction != null;
+            _selected.IntersectWith(seen);
+            var keepAction = Commands.Find(s, a => a.type == ActionTypes.KeepHand);
+            _keepText.text = keepAction != null ? keepAction.text.ToUpperInvariant() : UiText.Keep;
+            _keep.interactable = keepAction != null;
+            Refresh();
         }
 
         public void Hide()
@@ -249,17 +259,29 @@ namespace Tcg.Board
             gameObject.SetActive(false);
             foreach (var v in _views.Values) Destroy(v.gameObject);
             _views.Clear();
+            _selected.Clear();
         }
 
+        /// <summary>Picks or unpicks a card. Only cards with a legal mulligan action can be picked.</summary>
         public void OnCardTap(CardView card)
         {
             if (_state == null) return;
-            foreach (var a in _state.legal_actions)
-                if (a.type == ActionTypes.Mulligan && a.card == card.Uid)
-                {
-                    ActionChosen?.Invoke(a.index);
-                    return;
-                }
+            if (!_selected.Remove(card.Uid))
+            {
+                if (Commands.Find(_state, a => a.type == ActionTypes.Mulligan && a.card == card.Uid) == null) return;
+                _selected.Add(card.Uid);
+            }
+            Refresh();
+        }
+
+        void Refresh()
+        {
+            foreach (var kv in _views)
+            {
+                bool picked = _selected.Contains(kv.Key);
+                kv.Value.SetDimmed(picked);
+                kv.Value.SetBadge(picked ? UiText.PutBack : null, BadgeRed);
+            }
         }
 
         public bool OnCardDragStart(CardView card, PointerEventData e) => false;

@@ -45,7 +45,7 @@ namespace Tcg.View
 
         // Mulligan and game over.
         public const string MulliganTitle = "Choose cards to put back";
-        public const string MulliganText = "Tap a card to put it back. You draw a new card for each one.";
+        public const string MulliganText = "Tap the cards to put back (tap again to keep one). You draw a new card for each.";
         public const string PutBack = "PUT BACK";
         public const string Keep = "KEEP";
         public const string FinalScore = "{0} {1} · {2} {3}";

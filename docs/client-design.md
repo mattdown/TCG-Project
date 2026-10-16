@@ -100,8 +100,9 @@ Drag previews come from each legal action's server-side `preview`
 
 ## Built without a design (simple placeholders, same style)
 
-- **Mulligan:** the hand large over a dimmed board; tap a card to put it back (it dims with a
-  PUT BACK badge), then KEEP HAND. The server can't unmark a card.
+- **Mulligan:** the hand large over a dimmed board; tap cards to put back (they dim with a
+  PUT BACK badge; tap again to keep one), then KEEP HAND. Picking is local: KEEP sends the
+  whole choice at once (a `mulligan` act per card, then `keep_hand`).
 - **Game over:** result, final VP for both players, NEW GAME.
 - **The opponent's turn:** one `ai_move` every 0.6 s. A played card flies in from their hand, an
   added energy flies to their gems as a card back, a duel shows the arrow for half a second, a

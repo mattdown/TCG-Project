@@ -36,7 +36,7 @@ namespace Tcg.Board
         {
             Network.ConnectionError += OnConnectionError;
             Board.EndTurnButton.onClick.AddListener(OnEndTurnPressed);
-            Interaction.ActionChosen += Act;
+            Interaction.CommandIssued += Execute;
             Interaction.NewGameRequested += () => NewGame(Opponent);
             SetBusy(true);
             Network.Send<CardSetResponse>(new Request("card_set"), OnCardSet);
@@ -70,19 +70,32 @@ namespace Tcg.Board
             });
         }
 
-        /// <summary>Sends the human's choice: legal_actions[index].</summary>
-        void Act(int index)
+        /// <summary>Sends the human's command, one act per step; only its last reply is shown.</summary>
+        void Execute(IGameCommand command)
         {
-            if (_busy || _state == null || !_state.HumanDecides)
+            var action = !_busy && _state != null && _state.HumanDecides ? command.NextAction(_state) : null;
+            if (action == null)
             {
                 Board.Relayout();
                 return;
             }
             SetBusy(true);
-            Network.Send<StateResponse>(new ActRequest(index), r =>
+            Send(command, action);
+        }
+
+        void Send(IGameCommand command, GameAction action)
+        {
+            Network.Send<StateResponse>(new ActRequest(action.index), r =>
             {
                 if (!Check(r)) return;
                 Debug.Log($"You: {r.action.text}");
+                var next = r.state.HumanDecides ? command.NextAction(r.state) : null;
+                if (next != null)
+                {
+                    _state = r.state;  // a middle step: not shown
+                    Send(command, next);
+                    return;
+                }
                 StartCoroutine(Advance(r));
             });
         }
@@ -95,10 +108,15 @@ namespace Tcg.Board
                 NewGame(Opponent);
                 return;
             }
+            if (_state.InMulligan)
+            {
+                Execute(new MulliganCommand(Interaction.MulliganSelection));
+                return;
+            }
             var action = PrimaryAction(_state);
             if (action == null) return;
             Board.SetEndTurnButton(action.text.ToUpperInvariant(), false);
-            Act(action.index);
+            Execute(new ActionCommand(action));
         }
 
         /// <summary>Shows a reply's action and state, then hands the decision to the AI if it's theirs.</summary>

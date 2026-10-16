@@ -19,13 +19,16 @@ namespace Tcg.Board
     {
         public BoardView Board;
 
-        /// <summary>The human picked a legal action (by its index).</summary>
-        public event Action<int> ActionChosen;
+        /// <summary>The human decided something: send it to the server.</summary>
+        public event Action<IGameCommand> CommandIssued;
         public event Action NewGameRequested;
 
         /// <summary>True while the human may act: their decision and no request in flight.</summary>
         public bool Interactive { get; set; }
         public ArrowView Arrow { get; private set; }
+
+        /// <summary>The cards picked to put back during the mulligan, in hand order.</summary>
+        public IReadOnlyList<int> MulliganSelection => _mulligan.Selection;
 
         InspectView _inspect;
         MulliganView _mulligan;
@@ -69,9 +72,9 @@ namespace Tcg.Board
             _finger.gameObject.SetActive(false);
 
             _inspect = InspectView.Create(root, Board.CardPrefab);
-            _inspect.ActionChosen += i => ActionChosen?.Invoke(i);
+            _inspect.ActionChosen += a => CommandIssued?.Invoke(new ActionCommand(a));
             _mulligan = MulliganView.Create(root, Board.CardPrefab);
-            _mulligan.ActionChosen += i => ActionChosen?.Invoke(i);
+            _mulligan.KeepRequested += putBack => CommandIssued?.Invoke(new MulliganCommand(putBack));
             _gameOver = GameOverView.Create(root);
             _gameOver.NewGameRequested += () => NewGameRequested?.Invoke();
         }
@@ -288,7 +291,7 @@ namespace Tcg.Board
             if (chosen != null)
             {
                 Interactive = false;
-                ActionChosen?.Invoke(chosen.index);  // the card stays put until the new state moves it
+                CommandIssued?.Invoke(new ActionCommand(chosen));  // the card stays put until the new state moves it
             }
             else
             {
