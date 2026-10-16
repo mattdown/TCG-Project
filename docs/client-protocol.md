@@ -1,0 +1,202 @@
+# Client protocol
+
+How the Unity client talks to the Python game server. The server is the single source of
+truth: the client renders the state it's given, shows the legal actions, and sends back the
+index of the one the player picks. It never applies rules itself.
+
+- Start the server from `PythonServer/`: `uv run python -m scripts.server` (port 5555;
+  `--port`, `--cards`, `--model` to override).
+- Transport: ZeroMQ **REQ/REP** on `tcp://localhost:5555`. Each request is one JSON string,
+  and each gets exactly one JSON string back. REQ sockets must strictly alternate send /
+  receive.
+- Implementation: [src/server/session.py](../PythonServer/src/server/session.py). Every
+  example below was captured from a real game with seed 7.
+- All game terms (VP, energy, unit, score, duel, aspect…) are placeholders. Show the `text`
+  fields to players rather than building strings from the raw values where possible.
+
+## Responses and errors
+
+Every response has `"status": "ok"` or `"status": "error"`. Errors carry a `msg` and change
+nothing on the server, so the client can show the message and carry on:
+
+```json
+{"status": "error", "msg": "it is not the AI's decision"}
+{"status": "error", "msg": "action_index 999 out of range (0..6)"}
+{"status": "error", "msg": "no game in progress: send new_game first"}
+{"status": "error", "msg": "no trained model found: train one or choose another opponent"}
+```
+
+## Requests
+
+### `card_set`: all card definitions
+
+Fetch once at startup. The state only refers to cards by `card_id`, so the client looks up
+stats and names here.
+
+```json
+→ {"type": "card_set"}
+← {"status": "ok", "name": "vanilla_200", "cards": [
+     {"id": "V1-001", "name": "Wandering Weaver", "type": "unit", "aspects": ["aspect_1"],
+      "energy_source": true, "cost": 7, "power": 4, "health": 9, "score": 2, "traits": []},
+     …200 cards…]}
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | card definition ID, referenced by `card_id` in the state |
+| `type` | only `"unit"` for now (actions, items and sites come later) |
+| `aspects` | one of `aspect_1` … `aspect_6` (card colour; placeholder names) |
+| `energy_source` | can be added to the energy zone |
+| `cost`, `power`, `health`, `score` | stats; `score` is the VP gained when the unit scores |
+| `traits` | empty for now |
+
+### `new_game`: start a game on random decks
+
+```json
+→ {"type": "new_game", "opponent": "neural", "human_seat": 0, "seed": 7}
+← {"status": "ok", "opponent": "tcgnet", "state": {…}}
+```
+
+- `opponent`: `"neural"` (needs a trained model in `models/tcgnet.pt`), `"heuristic"` or
+  `"random"`. Defaults to `"neural"`.
+- `human_seat`: 0 or 1 (default 0). Who goes first is random: see `active_player`.
+- `seed`: optional, makes decks and shuffles reproducible.
+- `opponent` in the response is the AI's name (the model file name for neural agents).
+
+### `state`: the current state
+
+```json
+→ {"type": "state"}
+← {"status": "ok", "state": {…}}
+```
+
+### `act`: the human chooses an action
+
+Only valid when `state.decision_player == state.human_seat`. `action_index` is the `index`
+of one of `state.legal_actions`.
+
+```json
+→ {"type": "act", "action_index": 0}
+← {"status": "ok",
+   "action": {"type": "mulligan", "card": 58, "target": null, "player": 0, "text": "Put back Brave Keeper"},
+   "state": {…}}
+```
+
+### `ai_move`: the AI makes one decision
+
+Only valid when it's the AI's decision. Call it repeatedly to animate the AI's turn one step
+at a time.
+
+```json
+→ {"type": "ai_move"}
+← {"status": "ok", "action": {"type": "play", "card": 79, "target": null, "player": 1, "text": "Play Bright Warden"}, "state": {…}}
+```
+
+### `ai_turn`: the AI decides until it's the human's decision or the game ends
+
+The quick option when no step-by-step animation is needed.
+
+```json
+→ {"type": "ai_turn"}
+← {"status": "ok", "actions": [
+     {"type": "add_energy", "card": 108, "target": null, "player": 1, "text": "Add Quiet Piper as energy"},
+     {"type": "duel", "card": 78, "target": 11, "player": 1, "text": "Duel: Humble Squire → Quiet Weaver"},
+     {"type": "score", "card": 99, "target": null, "player": 1, "text": "Score with Ashen Gardener"},
+     {"type": "play", "card": 79, "target": null, "player": 1, "text": "Play Bright Warden"},
+     {"type": "end_turn", "card": null, "target": null, "player": 1, "text": "End turn"}],
+   "state": {…}}
+```
+
+## The state
+
+Always from the human's point of view: the AI's hand and both decks' contents are never
+sent. A mid-game example (turn 7, the human's turn; most of the hand trimmed):
+
+```json
+{
+  "turn": 7,
+  "phase": "main",
+  "active_player": 0,
+  "decision_player": 0,
+  "human_seat": 0,
+  "game_over": false,
+  "winner": null,
+  "players": [
+    {"vp": 1, "energy_ready": 3, "energy_total": 3, "deck_count": 50, "hand_count": 4,
+     "hand": [{"uid": 12, "card_id": "V1-022", "exhausted": false, "fresh": false, "damage": 0}, …],
+     "play": [{"uid": 5, "card_id": "V1-100", "exhausted": false, "fresh": false, "damage": 0}],
+     "discard": [ …2 cards… ],
+     "mulligan_marked": []},
+    {"vp": 2, "energy_ready": 0, "energy_total": 3, "deck_count": 50, "hand_count": 4,
+     "hand": null,
+     "play": [{"uid": 99, "card_id": "V1-034", "exhausted": true, "fresh": false, "damage": 0},
+              {"uid": 79, "card_id": "V1-143", "exhausted": false, "fresh": true, "damage": 0}],
+     "discard": [ …1 card… ],
+     "mulligan_marked": null}
+  ],
+  "legal_actions": [
+    {"index": 0, "type": "add_energy", "card": 12, "target": null, "text": "Add Golden Scholar as energy"},
+    {"index": 1, "type": "add_energy", "card": 39, "target": null, "text": "Add Rusty Scholar as energy"},
+    {"index": 2, "type": "play", "card": 39, "target": null, "text": "Play Rusty Scholar"},
+    {"index": 3, "type": "add_energy", "card": 47, "target": null, "text": "Add Rusty Lantern as energy"},
+    {"index": 4, "type": "score", "card": 5, "target": null, "text": "Score with Velvet Rider"},
+    {"index": 5, "type": "duel", "card": 5, "target": 99, "text": "Duel: Velvet Rider → Ashen Gardener"},
+    {"index": 6, "type": "end_turn", "card": null, "target": null, "text": "End turn"}
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `turn` | counts every player's turn; 0 during the mulligan, 1 is the first player's first turn |
+| `phase` | `"mulligan"`, `"main"` or `"game_over"` |
+| `active_player` | whose turn it is (during the mulligan: the first player) |
+| `decision_player` | who must choose next. If it's `human_seat`, show `legal_actions`; otherwise ask the AI |
+| `winner` | seat number, or `null` for a draw (turn 100) when `game_over` is true |
+| `players[i]` | indexed by seat, not "you / them": use `human_seat` to tell which is the human |
+| `vp` | victory points; 20 wins |
+| `energy_ready` / `energy_total` | ready energy / cards in the energy zone |
+| `hand` | the human's hand, or `null` for the AI (use `hand_count`) |
+| `play` | units in play, in the order they were played |
+| `mulligan_marked` | uids the human has marked to put back during the mulligan |
+| `legal_actions` | empty unless it's the human's decision |
+
+**Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
+whole game, so use it to track a card's GameObject as it moves between zones. `card_id`
+points into the card set. `exhausted` (turned sideways), `fresh` (played this turn, can't
+act), `damage` (current damage; defeated at `damage >= health`).
+
+**Actions**: `card` is the uid of the acting or played card, `target` the uid of the duel
+target. Action types:
+
+| Type | Meaning | `card` | `target` |
+|---|---|---|---|
+| `mulligan` | mark a hand card to put back | hand card | — |
+| `keep_hand` | finish the mulligan (marked cards are replaced) | — | — |
+| `add_energy` | put an energy-source card from hand into the energy zone (once per turn) | hand card | — |
+| `play` | play a unit, exhausting energy equal to its cost | hand card | — |
+| `score` | exhaust a ready, non-fresh unit to gain its score in VP | unit | — |
+| `duel` | exhaust a ready, non-fresh unit to fight an exhausted opposing unit | unit | opposing unit |
+| `end_turn` | pass the turn | — | — |
+
+Action records (in `act`, `ai_move`, `ai_turn` responses) don't include results such as
+damage dealt or units defeated. To animate those, compare the states before and after.
+
+## Client flow
+
+```
+startup:   card_set → cache card definitions by id
+new game:  new_game → render state
+loop:
+  if state.game_over:                       show the winner, offer a new game
+  elif decision_player == human_seat:       show legal_actions; on a choice → act(index)
+  else:                                     ai_move (animate each step) or ai_turn
+  render the returned state
+```
+
+- **Mulligan:** both players mulligan before turn 1, the first player first. The human picks
+  `mulligan` actions (each marks one card, shown in `mulligan_marked`) and then `keep_hand`.
+  The AI's mulligan happens through `ai_move` / `ai_turn` like any other AI decision.
+- **One request at a time:** REQ/REP can't have two requests in flight. Run the socket on a
+  background thread with a queue, and hand responses back to Unity's main thread
+  (PyTenTen's client does exactly this).

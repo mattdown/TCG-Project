@@ -23,7 +23,7 @@ PythonServer/          Game engine, agents and training (Python, managed with uv
   cardsets/            generated card sets (JSON, one card per line)
   models/              trained checkpoints (gitignored)
   tests/               pytest suite
-docs/                  technical plan and draw.io diagrams
+docs/                  technical plan, client protocol, draw.io diagrams
 TCGClient/             Unity 6 client (6000.3.10f1)
 ```
 
@@ -62,6 +62,7 @@ The first player to 20 VP wins; drawing from an empty deck loses; turn 100 is a 
 ## Unity client protocol
 
 The server speaks JSON over a ZeroMQ REQ/REP socket. Request types: `card_set`,
-`new_game`, `state`, `act`, `ai_move`, `ai_turn`; see
-[session.py](PythonServer/src/server/session.py) for the fields. The state is always from
-the human player's point of view: the AI's hand and both decks are hidden.
+`new_game`, `state`, `act`, `ai_move`, `ai_turn`. See
+[docs/client-protocol.md](docs/client-protocol.md) for example responses, the state fields
+and the client flow. The state is always from the human player's point of view: the AI's
+hand and both decks are hidden.
