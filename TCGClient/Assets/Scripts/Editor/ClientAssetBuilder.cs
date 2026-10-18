@@ -127,6 +127,15 @@ public static class ClientAssetBuilder
         f.Nunito.fontWeightTable[4].italicTypeface = italic;
         EditorUtility.SetDirty(f.Nunito);
 
+        // Lilita One and Nunito lack ⟳ (activated abilities) and → (previews): fall back to DejaVu Sans.
+        var symbols = FontAsset("DejaVuSans-Bold.ttf", "DejaVuSans Bold SDF");
+        foreach (var font in new[] { f.Lilita, f.Nunito, f.NunitoBlack, italic })
+        {
+            font.fallbackFontAssetTable ??= new List<TMP_FontAsset>();
+            if (!font.fallbackFontAssetTable.Contains(symbols)) font.fallbackFontAssetTable.Add(symbols);
+            EditorUtility.SetDirty(font);
+        }
+
         // White numbers and names with a dark outline and a drop shadow below.
         string path = $"{FontDir}/LilitaOne Outline.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -269,11 +278,21 @@ public static class ClientAssetBuilder
         Img(Stretch("Shine", cost, 0, 0, 0, 0), Sprite("gem_shine"), Color.white.WithAlpha(0.6f));
         cv.CostText = Number(Stretch("Value", cost, 0, 0, 0, 1), f, 20);
 
-        Img(Box("Power", visual, -26, 166, 68, 68), Sprite("sword"), Color.white);
+        var sword = Img(Box("Power", visual, -26, 166, 68, 68), Sprite("sword"), Color.white);
         cv.PowerText = Number(Box("PowerValue", visual, -1, 187, 22, 22), f, 17);
 
-        Img(Box("Health", visual, 122, 184, 36, 33), Sprite("heart"), Color.white);
+        var heart = Img(Box("Health", visual, 122, 184, 36, 33), Sprite("heart"), Color.white);
         cv.HealthText = Number(Box("HealthValue", visual, 122, 184, 36, 29), f, 18);
+        cv.UnitOnly = new[] { sword.gameObject, cv.PowerText.gameObject, heart.gameObject, cv.HealthText.gameObject, crowns.gameObject };
+
+        // A unit with a usable ⟳ ability: a small gold disc on the top edge.
+        var marker = Box("AbilityMarker", visual, 63, -9, 24, 24);
+        Img(marker, Ui.Theme.Dot, Palette.Outline);
+        Img(Stretch("Face", marker, 2, 2, 2, 2), Ui.Theme.Dot, Palette.Gold);
+        var glyph = Text(Stretch("Glyph", marker, 0, 0, 0, 1), "⟳", f.NunitoBlack, 15, Palette.Outline, TextAlignmentOptions.Center);
+        glyph.fontStyle = FontStyles.Bold;
+        cv.AbilityMarker = marker.gameObject;
+        marker.gameObject.SetActive(false);
 
         System.IO.Directory.CreateDirectory("Assets/Prefabs");
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);

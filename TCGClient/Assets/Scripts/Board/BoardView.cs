@@ -109,13 +109,14 @@ namespace Tcg.Board
 
         /// <summary>
         /// Shows <paramref name="s"/>. With <paramref name="animate"/>, cards move to their new places
-        /// and <paramref name="result"/> (what the last action did) is played out first.
+        /// and the result of <paramref name="action"/> (the last action) is played out first.
         /// </summary>
         public void Render(GameState s, IReadOnlyDictionary<string, CardDef> defs, string opponentName, bool animate,
-            ActionResult result = null)
+            GameAction action = null)
         {
             var previous = State;
-            if (animate && previous != null && result != null) PlayResult(result, previous.human_seat);
+            Defs = defs;
+            if (animate && previous != null && action?.result != null) PlayResult(action, previous.human_seat);
             State = s;
             Defs = defs;
             OpponentName = opponentName;
@@ -292,6 +293,7 @@ namespace Tcg.Board
                 Place(view, pos, Vector3.one * FieldScale * fit, Quaternion.identity, animate);
                 view.Rect.SetSiblingIndex(i);
                 view.SetMark(CardMark.None);
+                view.SetAbilityReady(zone == "human_play" && HasAction(c.uid, ActionTypes.Activate));
                 _zoneOf[c.uid] = zone;
             }
             if (extraSlots > 0)
@@ -324,6 +326,7 @@ namespace Tcg.Board
                 Place(view, centre, Vector3.one, Quaternion.Euler(0f, 0f, angle), animate);
                 view.Rect.SetSiblingIndex(i);
                 view.SetMark(playable.Contains(c.uid) ? CardMark.Playable : CardMark.None);
+                view.SetAbilityReady(false);
                 _zoneOf[c.uid] = "hand";
             }
         }
@@ -351,31 +354,68 @@ namespace Tcg.Board
         /// Plays out an action's result before the new layout: damage and defeats on the cards
         /// involved, VP gains, and cards moving to energy, discard or from a deck or hidden hand.
         /// </summary>
-        void PlayResult(ActionResult r, int humanSeat)
+        bool HasAction(int uid, string type)
         {
+            foreach (var a in State.legal_actions)
+                if (a.card == uid && a.type == type) return true;
+            return false;
+        }
+
+        void PlayResult(GameAction action, int humanSeat)
+        {
+            var r = action.result;
             _spawnAt.Clear();
+            // Which card did what: pulse each ability's source in order.
+            for (int i = 0; i < r.abilities.Count; i++)
+            {
+                var source = CardByUid(r.abilities[i]);
+                if (source != null) DOVirtual.DelayedCall(i * 0.3f, () => { if (source) source.Pulse(); });
+            }
             foreach (var d in r.damage)
             {
                 var view = CardByUid(d.uid);
                 if (view == null || d.amount <= 0) continue;
-                FloatText(view.Rect.position, $"-{d.amount}", Palette.Health);
+                FloatText(view.Rect.position, $"−{d.amount}", Palette.Health);
                 view.Visual.DOShakeAnchorPos(0.35f, 8f, 20);
             }
+            foreach (var h in r.healed)
+            {
+                var view = CardByUid(h.uid);
+                if (view != null) FloatText(view.HealthText.transform.position, $"+{h.amount}", Palette.StatUp);
+            }
+            foreach (var e in r.effects)
+            {
+                var view = CardByUid(e.uid);
+                if (view != null) FloatEffect(view, e);
+            }
             foreach (var p in r.vp)
-                if (p.amount > 0)
-                    FloatText((p.player == humanSeat ? HumanVpText : OpponentVpText).transform.position, $"+{p.amount}", Palette.Gold);
+                if (p.amount != 0)
+                    FloatText((p.player == humanSeat ? HumanVpText : OpponentVpText).transform.position,
+                        p.amount > 0 ? $"+{p.amount}" : $"−{-p.amount}", p.amount > 0 ? Palette.Gold : Palette.StatDown);
             foreach (var m in r.moves)
             {
                 bool human = m.player == humanSeat;
                 var view = m.uid.HasValue ? CardByUid(m.uid.Value) : null;
+                bool played = action.type == ActionTypes.Play && m.uid == action.card;
                 if (m.to == Zones.Energy)
                 {
                     if (view != null) Leave(view, v => FlyInto(v, human ? HumanGems : OpponentGems));
-                    else FlyCardBack(OpponentBacks, human ? HumanGems : OpponentGems);
+                    else FlyCardBack(m.from == Zones.Deck && human ? HumanInfoText.rectTransform : OpponentBacks,
+                        human ? HumanGems : OpponentGems);
                 }
-                else if (m.to == Zones.Discard && view != null)
+                else if (m.to == Zones.Discard)
                 {
-                    Leave(view, Defeat);
+                    // An action card resolving, a unit defeated, or a card discarded from a hand.
+                    if (view == null && m.card_id != null && Defs.TryGetValue(m.card_id, out var def))
+                        view = ShowOutside(def, OpponentBacks.position);
+                    if (view == null) continue;
+                    if (played) Leave(view, ShowPlayed);
+                    else if (m.from == Zones.Play) Leave(view, Defeat);
+                    else Leave(view, Discarded);
+                }
+                else if (m.from == Zones.Play && m.to == Zones.Hand && !human && view != null)
+                {
+                    Leave(view, v => FlyInto(v, OpponentBacks));  // returned to a hidden hand
                 }
                 else if (m.from == Zones.Hand && m.to == Zones.Play && !human && m.uid.HasValue)
                 {
@@ -385,6 +425,59 @@ namespace Tcg.Board
                 {
                     _spawnAt[m.uid.Value] = HumanInfoText.transform.position;  // your deck count
                 }
+            }
+        }
+
+        /// <summary>A card the board doesn't hold (the opponent's action or discard), shown from <paramref name="from"/>.</summary>
+        CardView ShowOutside(CardDef def, Vector3 from)
+        {
+            var view = Instantiate(CardPrefab, TopLayer);
+            view.Bind(def, null);
+            view.Rect.position = from;
+            view.Rect.localScale = Vector3.one * 0.4f;
+            view.Input.Handler = null;
+            return view;
+        }
+
+        /// <summary>An action card: shown large in the middle while it resolves, then off to the discard pile.</summary>
+        Sequence ShowPlayed(CardView view)
+        {
+            var seq = DOTween.Sequence();
+            seq.Append(view.Rect.DOAnchorPos(new Vector2(0f, 40f), 0.3f).SetEase(Ease.OutCubic));
+            seq.Join(view.Rect.DOScale(1.25f, 0.3f));
+            seq.Join(view.Rect.DOLocalRotateQuaternion(Quaternion.identity, 0.3f));
+            seq.AppendInterval(0.7f);
+            seq.Append(view.Group.DOFade(0f, 0.3f));
+            seq.Join(view.Rect.DOScale(0.6f, 0.3f));
+            return seq;
+        }
+
+        static Sequence Discarded(CardView view)
+        {
+            var seq = DOTween.Sequence();
+            seq.Append(view.Rect.DOAnchorPos(view.Rect.anchoredPosition + new Vector2(0f, -60f), 0.4f));
+            seq.Join(view.Group.DOFade(0f, 0.4f));
+            return seq;
+        }
+
+        void FloatEffect(CardView view, EffectRecord e)
+        {
+            string sign = e.value >= 0 ? "+" : "−";
+            switch (e.kind)
+            {
+                case "stat":
+                    var at = e.stat == "power" ? view.PowerText.transform : e.stat == "health" ? view.HealthText.transform : view.Rect;
+                    FloatText(at.position, $"{sign}{Mathf.Abs(e.value)}", e.value >= 0 ? Palette.StatUp : Palette.StatDown);
+                    break;
+                case "keyword":
+                    FloatText(view.Rect.position, CardText.KeywordLabel(e.keyword, e.value), Palette.StatUp);
+                    break;
+                case "cant_ready":
+                    FloatText(view.Rect.position, UiText.CantReady, Palette.StatDown);
+                    break;
+                case "barred":
+                    FloatText(view.Rect.position, UiText.Barred, Palette.StatDown);
+                    break;
             }
         }
 

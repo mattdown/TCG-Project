@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using Tcg.Protocol;
 using Tcg.View;
 using UnityEngine;
@@ -31,6 +32,8 @@ namespace Tcg.Board
         GameState _state;
         string _opponentName = "";
         bool _busy;
+        JObject _scenario;  // the dev panel's last scenario: NEW GAME replays it
+        int? _scenarioSeed;
 
         void Start()
         {
@@ -38,6 +41,12 @@ namespace Tcg.Board
             Board.EndTurnButton.onClick.AddListener(OnEndTurnPressed);
             Interaction.CommandIssued += Execute;
             Interaction.NewGameRequested += () => NewGame(Opponent);
+            Interaction.ScenarioRequested += (scenario, seed) =>
+            {
+                _scenario = scenario;
+                _scenarioSeed = seed;
+                NewGame(Opponent);
+            };
             SetBusy(true);
             Network.Send<CardSetResponse>(new Request("card_set"), OnCardSet);
         }
@@ -47,6 +56,7 @@ namespace Tcg.Board
             if (!Check(r)) return;
             _cards.Clear();
             foreach (var c in r.cards) _cards[c.id] = c;
+            CardText.Keywords = r.keywords ?? new Dictionary<string, KeywordInfo>();
             Debug.Log($"Card set {r.name}: {_cards.Count} cards");
             NewGame(Opponent);
         }
@@ -54,7 +64,8 @@ namespace Tcg.Board
         void NewGame(string opponent)
         {
             SetBusy(true);
-            Network.Send<StateResponse>(new NewGameRequest(opponent, HumanSeat, Seed >= 0 ? Seed : (int?)null), r =>
+            int? seed = _scenarioSeed ?? (Seed >= 0 ? Seed : (int?)null);
+            Network.Send<StateResponse>(new NewGameRequest(opponent, HumanSeat, seed, _scenario), r =>
             {
                 if (!r.Ok && opponent != FallbackOpponent && !string.IsNullOrEmpty(FallbackOpponent))
                 {
@@ -70,8 +81,11 @@ namespace Tcg.Board
             });
         }
 
+        /// <summary>True while a request is in flight or a reply is being shown.</summary>
+        public bool Busy => _busy;
+
         /// <summary>Sends the human's command, one act per step; only its last reply is shown.</summary>
-        void Execute(IGameCommand command)
+        public void Execute(IGameCommand command)
         {
             var action = !_busy && _state != null && _state.HumanDecides ? command.NextAction(_state) : null;
             if (action == null)
@@ -132,13 +146,14 @@ namespace Tcg.Board
             }
             bool animate = _state != null;
             _state = r.state;
-            Board.Render(_state, _cards, _opponentName, animate, r.action?.result);
+            Board.Render(_state, _cards, _opponentName, animate, r.action);
             Interaction.OnStateChanged(_state, _cards, _opponentName);
 
             if (!_state.game_over && !_state.HumanDecides)
             {
                 Board.SetEndTurnButton(UiText.Waiting, false);
-                yield return new WaitForSeconds(AiStepDelay);
+                // Leave the AI's ability prompt up a little longer, so it can be read.
+                yield return new WaitForSeconds(_state.pending != null ? AiStepDelay * 2f : AiStepDelay);
                 Network.Send<StateResponse>(new Request("ai_move"), ai =>
                 {
                     if (Check(ai)) StartCoroutine(Advance(ai));

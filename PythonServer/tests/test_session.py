@@ -1,7 +1,8 @@
 import pytest
 
 from src.cards.coverage import generate_coverage_set
-from src.cards.schema import Card, CardSet
+from src.cards.schema import Card, CardSet, load_card_set
+from src.paths import ROOT
 from src.cards.vanilla import generate_vanilla_set
 from src.server.session import GameSession
 from tests.helpers import give_energy, put_in_hand, put_in_play, started_game, unit
@@ -123,7 +124,7 @@ def test_every_action_record_has_a_result(session):
             records = session.handle({"type": "ai_turn"})["actions"]
         for record in records:
             assert set(record["result"]) == {"damage", "defeated", "vp", "energy_spent", "exhausted", "readied", "moves",
-                                             "abilities"}
+                                             "abilities", "healed", "effects"}
 
 
 def test_ai_draws_and_put_backs_stay_hidden():
@@ -205,3 +206,70 @@ def test_scenario_rejects_unknown_cards():
     session = GameSession(generate_vanilla_set())
     response = session.handle({"type": "new_game", "opponent": "random", "scenario": {"hand": ["NOPE"]}})
     assert response["status"] == "error" and "NOPE" in response["msg"]
+
+
+def coverage_scenario(scenario, seed=1):
+    session = GameSession(load_card_set(ROOT / "cardsets" / "coverage_37.json"))
+    state = session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": seed,
+                            "scenario": scenario})["state"]
+    return session, state
+
+
+def test_card_set_has_keyword_rules():
+    response = GameSession(generate_vanilla_set()).handle({"type": "card_set"})
+    assert response["keywords"]["duelist"] == {"name": "Duelist", "numbered": True, "rule": "+N power when it starts a duel."}
+    assert set(response["keywords"]) == {"guard", "elusive", "charge", "duelist", "armor"}
+
+
+def test_card_instances_show_current_stats_and_keywords():
+    # C1-003: "⟳, 3 energy: Choose one: • Your opponent loses 1 VP. • All opposing units get −1 power this turn."
+    session, state = coverage_scenario({"play": ["C1-003"], "opponent_play": ["C1-017"], "energy": 3})
+    them = state["players"][1]["play"][0]
+    assert them["power"] == 6 and them["health"] == 2 and them["keywords"] == {}
+    activate = legal(state, "activate")[0]
+    state = session.handle({"type": "act", "action_index": activate["index"]})["state"]
+    weaken = next(a for a in legal(state, "choose_option") if "power" in a["text"])
+    state = session.handle({"type": "act", "action_index": weaken["index"]})["state"]
+    assert state["players"][1]["play"][0]["power"] == 5
+    mine = state["players"][0]["play"][0]
+    assert mine["exhausted"] and not mine["cant_ready"] and not mine["barred"]
+    assert set(mine) >= {"power", "health", "score", "keywords", "cost"}
+
+
+def test_granted_keywords_and_cant_ready_are_shown():
+    # C1-020: "Whenever this unit scores, this unit gains Elusive this turn."
+    # C1-014: "Whenever this unit scores, all opposing units can't ready at the start of their next turn."
+    session, state = coverage_scenario({"play": ["C1-020", "C1-014"], "opponent_play": [{"id": "C1-018", "exhausted": True}]})
+    by_card = {c["card_id"]: c for c in state["players"][0]["play"]}
+    for card_id in ("C1-020", "C1-014"):
+        score = next(a for a in legal(state, "score") if a["card"] == by_card[card_id]["uid"])
+        state = session.handle({"type": "act", "action_index": score["index"]})["state"]
+    scorer = next(c for c in state["players"][0]["play"] if c["card_id"] == "C1-020")
+    assert scorer["keywords"] == {"elusive": True}
+    assert state["players"][1]["play"][0]["cant_ready"]
+
+
+def test_action_cards_have_no_stats_in_the_state():
+    _, state = coverage_scenario({"hand": ["C1-004"], "energy": 1})
+    card = next(c for c in state["players"][0]["hand"] if c["card_id"] == "C1-004")
+    assert card["cost"] == 1 and "power" not in card
+
+
+def test_results_include_healing_and_lasting_effects():
+    # C1-004 (action): "You may lose 1 VP. If you do, remove all damage from your units with cost 2 or less."
+    session, state = coverage_scenario({"hand": ["C1-004"], "energy": 1, "vp": 3,
+                                        "play": [{"id": "C1-018", "damage": 1}]})
+    hurt = state["players"][0]["play"][0]["uid"]
+    action_card = next(c["uid"] for c in state["players"][0]["hand"] if c["card_id"] == "C1-004")
+    play = next(a for a in legal(state, "play") if a["card"] == action_card)
+    state = session.handle({"type": "act", "action_index": play["index"]})["state"]
+    result = session.handle({"type": "act", "action_index": legal(state, "accept")[0]["index"]})["action"]["result"]
+    assert result["healed"] == [{"uid": hurt, "amount": 1}] and result["vp"] == [{"player": 0, "amount": -1}]
+    # C1-003: "… • All opposing units get −1 power this turn."
+    session, state = coverage_scenario({"play": ["C1-003"], "opponent_play": ["C1-017"], "energy": 3})
+    state = session.handle({"type": "act", "action_index": legal(state, "activate")[0]["index"]})["state"]
+    weaken = next(a for a in legal(state, "choose_option") if "power" in a["text"])
+    result = session.handle({"type": "act", "action_index": weaken["index"]})["action"]["result"]
+    them = state["players"][1]["play"][0]["uid"]
+    assert result["effects"] == [{"uid": them, "kind": "stat", "stat": "power", "keyword": None, "value": -1,
+                                  "this_turn": True}]

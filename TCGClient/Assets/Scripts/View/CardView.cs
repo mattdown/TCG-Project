@@ -1,3 +1,4 @@
+using DG.Tweening;
 using Tcg.Protocol;
 using TMPro;
 using UnityEngine;
@@ -30,6 +31,10 @@ namespace Tcg.View
         public Image CostRim;
         public Image TargetOutline;
         public CanvasGroup Group;
+        [Tooltip("Power, health and score: hidden on action cards, which have no stats.")]
+        public GameObject[] UnitOnly;
+        [Tooltip("Shown while the unit has a usable ⟳ ability.")]
+        public GameObject AbilityMarker;
 
         [Header("Art")]
         [Tooltip("Placeholder art: 4 silhouettes per aspect, aspect-major (aspect_1 first).")]
@@ -50,16 +55,31 @@ namespace Tcg.View
         /// <summary>Shows <paramref name="def"/> with the state of <paramref name="instance"/> (null: a bare definition).</summary>
         public void Bind(CardDef def, CardInstance instance)
         {
-            bool newCard = def != Def;
+            if (def != Def) BindDefinition(def);
             Def = def;
             Uid = instance?.uid ?? -1;
-            if (newCard) BindDefinition(def);
-
-            int damage = instance?.damage ?? 0;
-            HealthText.text = (def.health - damage).ToString();
-            HealthText.color = damage > 0 ? Palette.StatDown : Color.white;
             ExhaustedOverlay.SetActive(instance != null && instance.exhausted);
+
+            // Current values from the server, coloured against the printed ones.
+            int cost = instance?.cost ?? def.cost;
+            CostText.text = cost.ToString();
+            CostText.color = Compare(-cost, -def.cost);
+            if (def.IsAction) return;
+            int power = instance?.power ?? def.power;
+            PowerText.text = power.ToString();
+            PowerText.color = Compare(power, def.power);
+            int health = instance?.health ?? def.health;
+            int damage = instance?.damage ?? 0;
+            HealthText.text = (health - damage).ToString();
+            HealthText.color = damage > 0 ? Palette.StatDown : Compare(health, def.health);
+            int score = instance?.score ?? def.score;
+            for (int i = 0; i < Crowns.Length; i++)
+                Crowns[i].gameObject.SetActive(i < score);
+            SetBodyText(CardText.Build(def, instance));
         }
+
+        static Color Compare(int now, int printed) =>
+            now > printed ? Palette.StatUp : now < printed ? Palette.StatDown : Color.white;
 
         void BindDefinition(CardDef def)
         {
@@ -70,18 +90,31 @@ namespace Tcg.View
             Art.sprite = PickArt(def, aspect);
 
             NameText.text = def.name;
-            CostText.text = def.cost.ToString();
             CostRim.color = def.energy_source ? Palette.Gold : Palette.Outline;
-            PowerText.text = def.power.ToString();
-            PowerText.color = Color.white;
-            for (int i = 0; i < Crowns.Length; i++)
-                Crowns[i].gameObject.SetActive(i < def.score);
+            foreach (var go in UnitOnly) go.SetActive(!def.IsAction);
+            if (def.IsAction)
+                foreach (var crown in Crowns) crown.gameObject.SetActive(false);
 
+            // The unit's job, or the card type for action cards.
             TraitText.text = def.traits != null && def.traits.Count > 0
                 ? string.Join(" · ", def.traits)
                 : TitleCase(def.type);
-            // The protocol has no ability or flavour text yet, so vanilla cards leave the box empty.
-            SetBodyText("");
+            SetBodyText(CardText.Build(def, null));
+        }
+
+        /// <summary>A subtle marker for a unit with a usable ⟳ ability.</summary>
+        public void SetAbilityReady(bool ready)
+        {
+            if (AbilityMarker != null) AbilityMarker.SetActive(ready);
+        }
+
+        /// <summary>A quick gold pulse: this card's ability is happening.</summary>
+        public Tween Pulse()
+        {
+            GlowHalo.gameObject.SetActive(true);
+            GlowHalo.color = Palette.GlowSelected.WithAlpha(0.8f);
+            Visual.DOKill(true);
+            return Visual.DOPunchScale(Vector3.one * 0.12f, 0.45f, 6).OnComplete(() => SetMark(Mark));
         }
 
         /// <summary>
@@ -91,6 +124,7 @@ namespace Tcg.View
         public void SetBodyText(string richText)
         {
             BodyText.text = richText;
+            BodyText.overflowMode = TextOverflowModes.Ellipsis;  // the full text is in the inspect panel
             var box = BodyText.rectTransform.rect.size;
             foreach (float size in TextSizes)
             {
@@ -131,6 +165,15 @@ namespace Tcg.View
             {
                 SetMark(Mark);
             }
+        }
+
+        /// <summary>A gold ring: this card can be chosen for the ability waiting on a choice.</summary>
+        public void SetChoiceRing(bool on)
+        {
+            TargetOutline.gameObject.SetActive(on);
+            if (!on) return;
+            TargetOutline.color = Palette.GlowSelected;
+            TargetOutline.pixelsPerUnitMultiplier = Ui.SliceRadius / 21f;
         }
 
         /// <summary>A pill above the card, e.g. a duel preview ("Defeated"); null hides it.</summary>

@@ -27,6 +27,7 @@ from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game, Move, StepResult, describe_action
 from src.game.state import Phase, Zone
+from src.game.terms import KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS
 
 # Zones whose cards both players see. Energy counts: adding a card as energy names it.
 PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD, Zone.ENERGY)
@@ -62,7 +63,8 @@ class GameSession:
 
     def _card_set(self, _):
         cards = [{**c.to_dict(), "ability_text": [render(a, c.type) for a in c.abilities]} for c in self.card_set.cards]
-        return {"status": "ok", "name": self.card_set.name, "cards": cards}
+        keywords = {k: {"name": KEYWORD_NAMES[k], "numbered": KEYWORDS[k], "rule": KEYWORD_RULES[k]} for k in KEYWORDS}
+        return {"status": "ok", "name": self.card_set.name, "cards": cards, "keywords": keywords}
 
     def _new_game(self, request):
         seed = request.get("seed")
@@ -156,7 +158,16 @@ class GameSession:
 
         def card_view(uid):
             c = g.card(uid)
-            return {"uid": uid, "card_id": c.card.id, "exhausted": c.exhausted, "fresh": c.fresh, "damage": c.damage}
+            view = {"uid": uid, "card_id": c.card.id, "exhausted": c.exhausted, "fresh": c.fresh, "damage": c.damage,
+                    "cost": g.play_cost(uid) if c.zone == Zone.HAND else c.card.cost}
+            if c.card.type == "unit":
+                # Current values, with abilities' changes: the client shows them against the card's own.
+                view.update({"power": g.stat(uid, "power"), "health": g.stat(uid, "health"),
+                             "score": g.stat(uid, "score"),
+                             "keywords": {k: (g.keyword(uid, k) if KEYWORDS[k] else True)
+                                          for k in KEYWORDS if g.keyword(uid, k)},
+                             "cant_ready": g.cant_ready(uid), "barred": g.barred(uid)})
+            return view
 
         players = []
         for p, ps in enumerate(s.players):
@@ -223,6 +234,9 @@ class GameSession:
             "readied": r.readied,
             "moves": [self._move_view(m) for m in r.moves],
             "abilities": r.abilities,
+            "healed": [{"uid": uid, "amount": n} for uid, n in r.healed.items()],
+            "effects": [{"uid": e.uid, "kind": e.kind, "stat": e.stat, "keyword": e.keyword, "value": e.value,
+                         "this_turn": e.expires_turn is not None} for e in r.effects],
         }
 
     def _move_view(self, m: Move) -> dict:

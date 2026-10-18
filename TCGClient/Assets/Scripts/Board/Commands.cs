@@ -27,7 +27,8 @@ namespace Tcg.Board
         {
             if (_sent) return null;
             _sent = true;
-            return Commands.Find(state, a => a.type == _action.type && a.card == _action.card && a.target == _action.target);
+            return Commands.Find(state, a => a.type == _action.type && a.card == _action.card &&
+                                             a.target == _action.target && a.option == _action.option);
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 // JSON shapes of the game server's requests and responses: docs/client-protocol.md.
 // Field names match the JSON exactly (snake_case) so the mapping stays obvious.
@@ -17,11 +18,13 @@ namespace Tcg.Protocol
         public string opponent;
         public int human_seat;
         public int? seed;
-        public NewGameRequest(string opponent, int humanSeat, int? seed) : base("new_game")
+        public JObject scenario;  // optional: chosen cards in hand and in play, energy, VP
+        public NewGameRequest(string opponent, int humanSeat, int? seed, JObject scenario = null) : base("new_game")
         {
             this.opponent = opponent;
             human_seat = humanSeat;
             this.seed = seed;
+            this.scenario = scenario;
         }
     }
 
@@ -44,6 +47,15 @@ namespace Tcg.Protocol
     {
         public string name;
         public List<CardDef> cards;
+        public Dictionary<string, KeywordInfo> keywords;  // by keyword key, e.g. "duelist"
+    }
+
+    /// <summary>A keyword's player-facing name and reminder text (N stands for its number).</summary>
+    public class KeywordInfo
+    {
+        public string name;
+        public bool numbered;
+        public string rule;
     }
 
     /// <summary>Reply to new_game, state, act, ai_move and ai_turn; the fields not sent stay null.</summary>
@@ -69,6 +81,20 @@ namespace Tcg.Protocol
         public int health;
         public int score;
         public List<string> traits;
+        public Dictionary<string, JToken> keywords;  // true, or a number for Duelist / Armor
+        public List<string> ability_text;
+
+        public bool IsAction => type == "action";
+    }
+
+    public static class KeywordValues
+    {
+        /// <summary>A keyword's number: 1 for flags (true), 0 if absent.</summary>
+        public static int Of(Dictionary<string, JToken> keywords, string key)
+        {
+            if (keywords == null || !keywords.TryGetValue(key, out var v) || v == null) return 0;
+            return v.Type == JTokenType.Boolean ? (v.Value<bool>() ? 1 : 0) : v.Value<int>();
+        }
     }
 
     /// <summary>One physical card. uid is stable for the whole game, across zones.</summary>
@@ -79,6 +105,14 @@ namespace Tcg.Protocol
         public bool exhausted;
         public bool fresh;
         public int damage;
+        // Current values, with abilities' changes. Units only (null for action cards).
+        public int cost;
+        public int? power;
+        public int? health;
+        public int? score;
+        public Dictionary<string, JToken> keywords;
+        public bool cant_ready;  // won't ready at the start of its owner's next turn
+        public bool barred;      // can't score or use ⟳ abilities this turn
     }
 
     public class PlayerState
@@ -100,6 +134,7 @@ namespace Tcg.Protocol
         public string type;
         public int? card;
         public int? target;
+        public int? option;    // activate: which ability; choose_option: which option
         public int? player;    // action records only
         public string text;
         public ActionResult preview;   // legal actions: what play, score or duel would do
@@ -119,6 +154,9 @@ namespace Tcg.Protocol
         public List<int> exhausted = new List<int>();
         public List<int> readied = new List<int>();
         public List<CardMove> moves = new List<CardMove>();
+        public List<int> abilities = new List<int>();     // sources of abilities that started resolving, in order
+        public List<UidAmount> healed = new List<UidAmount>();
+        public List<EffectRecord> effects = new List<EffectRecord>();
 
         public int DamageTo(int uid)
         {
@@ -135,6 +173,27 @@ namespace Tcg.Protocol
             foreach (var e in list) if (e.player == player) return e.amount;
             return 0;
         }
+    }
+
+    /// <summary>A lasting change an ability made: a stat change, a keyword, can't ready, barred.</summary>
+    public class EffectRecord
+    {
+        public int uid;
+        public string kind;     // "stat" | "keyword" | "cant_ready" | "barred"
+        public string stat;     // power, health, score
+        public string keyword;
+        public int value;
+        public bool this_turn;
+    }
+
+    /// <summary>An ability waiting for a choice; the legal actions are its answers.</summary>
+    public class PendingChoice
+    {
+        public int source;
+        public string card_id;
+        public string kind;      // "choose" | "may" | "choose_one"
+        public int chooser;
+        public string ability_text;
     }
 
     public class UidAmount
@@ -180,6 +239,7 @@ namespace Tcg.Protocol
         public int? winner;
         public List<PlayerState> players;
         public int vp_to_win;
+        public PendingChoice pending;
         public List<GameAction> legal_actions;
 
         public PlayerState Human => players[human_seat];
@@ -198,5 +258,10 @@ namespace Tcg.Protocol
         public const string Score = "score";
         public const string Duel = "duel";
         public const string EndTurn = "end_turn";
+        public const string Activate = "activate";
+        public const string ChooseTarget = "choose_target";
+        public const string Accept = "accept";
+        public const string Decline = "decline";
+        public const string ChooseOption = "choose_option";
     }
 }

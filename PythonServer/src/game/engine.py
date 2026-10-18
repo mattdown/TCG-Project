@@ -54,6 +54,8 @@ class StepResult:
     readied: list[int] = field(default_factory=list)  # cards readied at the start of a turn or by an ability
     moves: list[Move] = field(default_factory=list)
     abilities: list[int] = field(default_factory=list)  # sources of abilities that started resolving
+    healed: dict[int, int] = field(default_factory=dict)  # uid → damage removed
+    effects: list[ActiveEffect] = field(default_factory=list)  # lasting changes abilities made
 
 
 class Game:
@@ -106,6 +108,14 @@ class Game:
             value += sum(e.value for e in self._effects_on(uid) if e.kind == "keyword" and e.keyword == name)
             value += sum(m.get("value", 1) for _, _, m in self._statics_on(uid) if m.get("keyword") == name)
         return value if KEYWORDS[name] else min(value, 1)
+
+    def cant_ready(self, uid: int) -> bool:
+        """An ability stops this card readying at the start of its owner's next turn."""
+        return any(e.uid == uid and e.kind == "cant_ready" for e in self.state.effects)
+
+    def barred(self, uid: int) -> bool:
+        """An ability stops this unit scoring or using ⟳ abilities this turn."""
+        return self._barred(uid)
 
     def play_cost(self, uid: int) -> int:
         c = self.card(uid)
@@ -582,24 +592,29 @@ class Game:
                 case "deal_damage":
                     self._damage(t, amount)
                 case "remove_damage":
-                    self.card(t).damage = 0 if amount == "all" else max(0, self.card(t).damage - amount)
+                    before = self.card(t).damage
+                    self.card(t).damage = 0 if amount == "all" else max(0, before - amount)
+                    if self._result and before > self.card(t).damage:
+                        self._result.healed[t] = self._result.healed.get(t, 0) + before - self.card(t).damage
                 case "defeat":
                     self._defeat(t)
                 case "return_to_hand":
                     self._move(t, Zone.HAND)
                 case "exhaust":
                     self.card(t).exhausted = True
+                    if self._result:
+                        self._result.exhausted.append(t)
                 case "ready":
                     self.card(t).exhausted = False
                     if self._result:
                         self._result.readied.append(t)
-                    s.effects.append(ActiveEffect("barred", t, expires_turn=s.turn))
+                    self._add_effect(ActiveEffect("barred", t, expires_turn=s.turn))
                 case "cant_ready":
-                    s.effects.append(ActiveEffect("cant_ready", t))
+                    self._add_effect(ActiveEffect("cant_ready", t))
                 case "modify_stat":
-                    s.effects.append(lasting(t, kind="stat", stat=step["stat"], value=step["delta"]))
+                    self._add_effect(lasting(t, kind="stat", stat=step["stat"], value=step["delta"]))
                 case "grant_keyword":
-                    s.effects.append(lasting(t, kind="keyword", keyword=step["keyword"], value=step.get("value", 1)))
+                    self._add_effect(lasting(t, kind="keyword", keyword=step["keyword"], value=step.get("value", 1)))
                 case "draw":
                     for _ in range(amount):
                         self._draw(t)
@@ -625,6 +640,11 @@ class Game:
                     raise ValueError(f"unknown effect {op}")
 
     # ------------------------------------------------------------------ statics and lasting effects
+
+    def _add_effect(self, effect: ActiveEffect):
+        self.state.effects.append(effect)
+        if self._result:
+            self._result.effects.append(effect)
 
     def _effects_on(self, uid: int) -> list[ActiveEffect]:
         return [e for e in self.state.effects

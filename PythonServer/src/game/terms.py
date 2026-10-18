@@ -22,6 +22,14 @@ ASPECT_NAMES = {"aspect_1": "Ember", "aspect_2": "Bog", "aspect_3": "Moss", "asp
 # Keyword → whether it carries a number ("Duelist +2") or is just present ("Guard").
 KEYWORDS = {"guard": False, "elusive": False, "charge": False, "duelist": True, "armor": True}
 KEYWORD_NAMES = {"guard": "Guard", "elusive": "Elusive", "charge": "Charge", "duelist": "Duelist", "armor": "Armor"}
+# Reminder text for each keyword, shown when a card is inspected. N is the keyword's number.
+KEYWORD_RULES = {
+    "guard": "Can be dueled even while ready, and opponents must duel a Guard unit if they can.",
+    "elusive": "Only Elusive units can duel it.",
+    "charge": "Can duel the turn it's played (it still can't score that turn).",
+    "duelist": "+N power when it starts a duel.",
+    "armor": "Takes N less damage in a duel, never below 0.",
+}
 
 
 def keyword_text(name: str, value: int) -> str:

@@ -96,15 +96,47 @@ namespace Tcg.Board
                 if (instance.exhausted) Chip(UiText.Exhausted, ChipNeutral);
                 if (instance.fresh) Chip(UiText.Fresh, ChipNeutral);
                 if (instance.damage > 0) Chip(string.Format(UiText.DamageChip, instance.damage), ChipNeutral);
+                if (instance.cant_ready) Chip(UiText.CantReadyChip, ChipOpponent);
+                if (instance.barred) Chip(UiText.BarredChip, ChipOpponent);
             }
 
-            // Vanilla cards: only the cost gem's rim needs explaining, plus any damage taken.
+            // A box per keyword (with the server's reminder text), the full card text, the cost
+            // gem's rim, and any damage taken.
             int index = 0;
+            var keywords = instance?.keywords ?? def.keywords;
+            if (keywords != null)
+                foreach (var kv in keywords)
+                {
+                    int value = KeywordValues.Of(keywords, kv.Key);
+                    if (value > 0) Tip(CardText.KeywordLabel(kv.Key, value), CardText.KeywordRule(kv.Key, value), index++);
+                }
+            if (def.ability_text != null && def.ability_text.Count > 0)
+            {
+                var lines = new List<string>();
+                foreach (var line in def.ability_text) lines.Add(CardText.Ability(line));
+                Tip(UiText.CardTextTitle, string.Join("\n", lines), index++);
+            }
             if (def.energy_source) Tip(UiText.EnergySourceTitle, UiText.EnergySourceText, index++);
             else Tip(UiText.NotEnergySourceTitle, UiText.NotEnergySourceText, index++);
+            int health = instance?.health ?? def.health;
             if (instance != null && instance.damage > 0)
-                Tip(string.Format(UiText.HealthTitle, def.health - instance.damage, def.health),
+                Tip(string.Format(UiText.HealthTitle, health - instance.damage, health),
                     string.Format(UiText.HealthText, instance.damage), index++);
+
+            // ⟳ abilities this unit can use now, labelled with the action's text minus the card name.
+            foreach (var a in s.legal_actions)
+            {
+                if (a.type != ActionTypes.Activate || a.card != instance?.uid) continue;
+                string label = a.text.StartsWith(def.name + ": ") ? a.text.Substring(def.name.Length + 2) : a.text;
+                var rt = Ui.Node("Activate", _column);
+                rt.SetSiblingIndex(index++);
+                var size = rt.gameObject.AddComponent<LayoutElement>();
+                size.minHeight = size.preferredHeight = 60;
+                var action = a;
+                Ui.Button(rt, label, Palette.Gold, Palette.GoldLip, 16, out var text).onClick.AddListener(() => Choose(action));
+                text.textWrappingMode = TextWrappingModes.Normal;
+                _built.Add(rt.gameObject);
+            }
 
             _buttons.gameObject.SetActive(inHand);
             _note.SetActive(inHand);

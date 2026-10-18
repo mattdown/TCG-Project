@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DG.Tweening;
+using Newtonsoft.Json.Linq;
 using Tcg.Protocol;
 using Tcg.View;
 using TMPro;
@@ -22,6 +23,8 @@ namespace Tcg.Board
         /// <summary>The human decided something: send it to the server.</summary>
         public event Action<IGameCommand> CommandIssued;
         public event Action NewGameRequested;
+        /// <summary>The dev panel's START: a scenario and an optional seed.</summary>
+        public event Action<JObject, int?> ScenarioRequested;
 
         /// <summary>True while the human may act: their decision and no request in flight.</summary>
         public bool Interactive { get; set; }
@@ -33,6 +36,8 @@ namespace Tcg.Board
         InspectView _inspect;
         MulliganView _mulligan;
         GameOverView _gameOver;
+        ChoiceBanner _choice;
+        DevPanel _dev;
         DropZone _field, _energy, _score;
         RectTransform _finger;
 
@@ -77,6 +82,10 @@ namespace Tcg.Board
             _mulligan.KeepRequested += putBack => CommandIssued?.Invoke(new MulliganCommand(putBack));
             _gameOver = GameOverView.Create(root);
             _gameOver.NewGameRequested += () => NewGameRequested?.Invoke();
+            _choice = ChoiceBanner.Create(root);
+            _choice.AnswerChosen += a => CommandIssued?.Invoke(new ActionCommand(a));
+            _dev = DevPanel.Create(root);
+            _dev.ScenarioRequested += (scenario, seed) => ScenarioRequested?.Invoke(scenario, seed);
         }
 
         /// <summary>Shows the screens that depend on the phase: mulligan and game over.</summary>
@@ -87,6 +96,14 @@ namespace Tcg.Board
             if (s.game_over) _gameOver.Show(s, opponentName);
             else _gameOver.Hide();
             if (_inspect.IsOpen) _inspect.Hide();
+
+            // An ability waiting on a choice: the prompt, and a gold ring on each card it can pick.
+            if (s.pending != null && !s.game_over) _choice.Show(s, defs, opponentName);
+            else _choice.Hide();
+            foreach (var a in s.legal_actions)
+                if (a.type == ActionTypes.ChooseTarget && a.target.HasValue)
+                    Board.CardByUid(a.target.Value)?.SetChoiceRing(true);
+            _dev.transform.SetAsLastSibling();
         }
 
         // --- taps
@@ -95,6 +112,17 @@ namespace Tcg.Board
         {
             if (_dragged != null || Board.State == null || card.Def == null) return;
             var s = Board.State;
+            if (Interactive && s.pending != null)
+            {
+                // Answering "choose a card": the tapped card, if it's one of the candidates.
+                foreach (var a in s.legal_actions)
+                    if (a.type == ActionTypes.ChooseTarget && a.target == card.Uid)
+                    {
+                        Interactive = false;
+                        CommandIssued?.Invoke(new ActionCommand(a));
+                        return;
+                    }
+            }
             CardInstance instance = Find(s.Human.hand, card.Uid) ?? Find(s.Human.play, card.Uid) ?? Find(s.Opponent.play, card.Uid);
             string owner = Board.IsInHumanHand(card.Uid) ? UiText.InYourHand
                 : Board.IsHumanUnit(card.Uid) ? UiText.YourUnit : UiText.OpponentsUnit;
@@ -226,7 +254,7 @@ namespace Tcg.Board
             {
                 case ActionTypes.Play:
                     _field.Show(true, string.Format(UiText.DropToPlay, preview.EnergyFor(me)));
-                    Board.ShowGhostSlot(true);
+                    if (!_dragged.Def.IsAction) Board.ShowGhostSlot(true);  // action cards don't stay in play
                     Board.PreviewEnergySpend(preview.EnergyFor(me));
                     break;
                 case ActionTypes.AddEnergy:

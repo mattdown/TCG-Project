@@ -229,3 +229,15 @@ def test_recorded_step_matches_unrecorded_step():
     game.step(Action(ActionType.DUEL, attacker, defender), record=True)
     plain.step(Action(ActionType.DUEL, attacker, defender))
     assert game.state == plain.state
+
+
+def test_results_record_lasting_effects():
+    from src.cards.schema import load_card_set
+    from src.paths import ROOT
+    cards = {c.id: c for c in load_card_set(ROOT / "cardsets" / "coverage_37.json").cards}
+    game = started_game()
+    chef = put_in_play(game, 0, cards["C1-023"])  # "At the start of your turn, this unit gets +1 power this turn."
+    game.step(END)
+    result = game.step(END, record=True)
+    assert [(e.uid, e.kind, e.stat, e.value) for e in result.effects] == [(chef, "stat", "power", 1)]
+    assert game.stat(chef, "power") == cards["C1-023"].power + 1

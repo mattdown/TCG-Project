@@ -141,6 +141,10 @@ stats and names here.
 | `abilities` | ability trees (the grammar in [technical-plan.md](technical-plan.md) section 3); the client doesn't need to read them |
 | `ability_text` | one line of card text per ability, e.g. `"When you play this unit, draw a card."`: show these in the text box |
 
+The response also has `keywords`: each keyword's player-facing name, whether it carries a
+number, and its reminder text, for inspect panels (`N` is the number):
+`"keywords": {"duelist": {"name": "Duelist", "numbered": true, "rule": "+N power when it starts a duel."}, …}`.
+
 **Keyword rules** (the server already applies them; the client only shows them):
 
 | Keyword | Rule |
@@ -300,6 +304,22 @@ whole game, so use it to track a card's GameObject as it moves between zones. `c
 points into the card set. `exhausted` (turned sideways), `fresh` (played this turn, can't
 act), `damage` (current damage; defeated at `damage >= health`).
 
+They also carry current values, with every ability's changes applied, so the client can show
+raised stats in green and lowered ones in red without working anything out:
+
+```json
+{"uid": 121, "card_id": "C1-017", "exhausted": false, "fresh": false, "damage": 0, "cost": 5,
+ "power": 5, "health": 2, "score": 1, "keywords": {}, "cant_ready": false, "barred": false}
+```
+
+| Field | Meaning |
+|---|---|
+| `cost` | current cost to play (hand cards include cost reductions) |
+| `power`, `health`, `score` | current stats; health before damage (units only) |
+| `keywords` | current keywords, including granted ones (`{"elusive": true}`; units only) |
+| `cant_ready` | won't ready at the start of its owner's next turn |
+| `barred` | can't score or use ⟳ abilities this turn |
+
 **Actions**: `card` is the uid of the acting or played card, `target` the uid of the duel
 target or chosen card, `option` the ability or option index. Action types:
 
@@ -349,6 +369,8 @@ The engine records them while it applies the rules (`StepResult` in `src/game/en
 | `readied` | cards readied at the start of a turn (units and energy) or by an ability |
 | `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `energy`, `discard` |
 | `abilities` | uids of the cards whose abilities started resolving, in order (to highlight the card as its ability happens) |
+| `healed` | damage removed from each unit (uid, amount) |
+| `effects` | lasting changes abilities made: `{"uid", "kind", "stat", "keyword", "value", "this_turn"}`; `kind` is `stat` (e.g. `power` −1), `keyword` (granted), `cant_ready` or `barred` |
 
 **Hidden moves.** The AI's draws and mulligan put-backs keep only who and where:
 `{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}`. Every other move
