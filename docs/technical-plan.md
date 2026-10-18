@@ -132,7 +132,7 @@ produce.
 
 ```
 Ability    := triggered(Trigger, [Condition], Steps)
-            | activated(Cost, [Condition], Steps)            // "⟳ …" abilities
+            | activated(Cost, [Condition], Steps)            // "⟳ …" abilities, never "you may"
             | on_resolve(Steps)                              // action cards
             | static([Condition], Modifier+)                 // declarative, not compiled to a flow
 Steps      := Step+                                          // 1–4 steps, run in order
@@ -145,7 +145,7 @@ Step       := choose(count, chooser, Filter, optional?) as Name    // decision p
 Effect     := op(Amount?, Target, [Duration])
 Target     := Name | this | all(Filter) | you | opponent | owner_of(Name)
 Trigger    := event + source (this | Filter)
-Cost       := exhaust_this | pay(n) | exhaust_another | discard          (up to two)
+Cost       := exhaust_this [+ pay(n) | exhaust_another | discard]      // ⟳ is always part of it
 Condition  := defeated(Name) | in_play(Name) | count(Filter) ≥ n | vp_compare | your_turn
             | this_is(attacking | defending | exhausted | damaged)
 Modifier   := Subject gets stat ±Amount [while Condition]
@@ -178,6 +178,11 @@ card is accepted:
 - **Polarity.** Every effect either helps or hurts its target. Helpful effects target your
   side, harmful ones the opponent's. The reverse is allowed only inside `may … if_you_do`,
   as a cost ("You may deal 2 damage to one of your units. If you do, draw 2 cards.").
+- **No runaway abilities.** An ability is either static, triggered, or activated with ⟳
+  (exhaust this card) in its cost, so each activated ability is used at most once per turn.
+  Costs go before the colon, never in "you may … if you do". A `ready` effect always adds
+  "it can't score or use ⟳ abilities this turn", so two cards can't ready each other in an
+  endless loop. Duel loops end by themselves, because units take damage.
 - **Size.** At most 2 abilities per card, 4 steps per sequence, nesting depth 2, and 2
   choices per ability.
 - **Ranges.** Every number comes from its range (e.g. `deal_damage` 1–5). A scaling amount
