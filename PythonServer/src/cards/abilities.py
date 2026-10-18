@@ -67,8 +67,9 @@ def polarity(step: dict) -> str:
 
 
 class AbilitySampler:
-    def __init__(self, rng: random.Random):
+    def __init__(self, rng: random.Random, traits: tuple[str, ...] = TRAITS):
         self.rng = rng
+        self.traits = traits  # the jobs abilities may refer to
 
     def _w(self, options: dict):
         return self.rng.choices(list(options), list(options.values()))[0]
@@ -100,7 +101,7 @@ class AbilitySampler:
         event = self._w(TRIGGERS)
         trigger = {"event": event}
         if event == "another_played":
-            trigger["filter"] = {"owner": "you", "trait": self.rng.choice(TRAITS), "not_this": True}
+            trigger["filter"] = {"owner": "you", "trait": self.rng.choice(self.traits), "not_this": True}
         return trigger
 
     def _cost(self) -> list:
@@ -117,7 +118,7 @@ class AbilitySampler:
     def _condition(self) -> dict:
         kind = self._w({"count": 3, "behind": 1})
         if kind == "count":
-            return {"count": {"owner": "you", "trait": self.rng.choice(TRAITS), "not_this": True},
+            return {"count": {"owner": "you", "trait": self.rng.choice(self.traits), "not_this": True},
                     "at_least": self.rng.choice((2, 3))}
         return {"behind_on_vp": True}
 
@@ -130,7 +131,7 @@ class AbilitySampler:
             if extra == "cost_max":
                 f["cost_max"] = self.rng.choice((2, 3, 4))
             elif extra == "trait":
-                f["trait"] = self.rng.choice(TRAITS)
+                f["trait"] = self.rng.choice(self.traits)
             else:
                 f[extra] = True
         return f
@@ -201,7 +202,7 @@ class AbilitySampler:
             if op == "remove_damage" and self.rng.random() < 0.3:
                 step["amount"] = "all"
             elif op in ("deal_damage", "draw", "gain_vp") and self.rng.random() < 0.15:
-                step["amount"] = {"per": {"owner": self.rng.choice(("you", "any")), "trait": self.rng.choice(TRAITS)},
+                step["amount"] = {"per": {"owner": self.rng.choice(("you", "any")), "trait": self.rng.choice(self.traits)},
                                   "k": 1, "cap": self.rng.choice((3, 4, 5))}
 
         side = "you" if pol == HELPS else "opponent"
@@ -238,7 +239,7 @@ class AbilitySampler:
 
     def _static(self) -> dict:
         kind = self._w({"self_situational": 4, "lord": 3, "self_keyword": 2, "discount": 1, "debuff": 1})
-        trait = self.rng.choice(TRAITS)
+        trait = self.rng.choice(self.traits)
         if kind == "self_situational":
             amount = (self._small(1, 2) if self.rng.random() < 0.5 else
                       {"per": {"owner": self.rng.choice(("you", "any")), "trait": trait}, "k": 1,

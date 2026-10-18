@@ -251,6 +251,13 @@ class Game:
             case ActionType.CHOOSE_TARGET | ActionType.ACCEPT | ActionType.DECLINE | ActionType.CHOOSE_OPTION:
                 self._decide(action)
 
+    def add_card(self, owner: int, card: Card, zone: Zone, exhausted: bool = False) -> int:
+        """Puts a new copy of a card straight into a zone, outside the rules: for scenarios and tests."""
+        uid = len(self.state.cards)
+        self.state.cards.append(CardInstance(uid, card, owner, zone, exhausted=exhausted))
+        self._zone_lists(owner)[zone].append(uid)
+        return uid
+
     def clone(self) -> "Game":
         # Card definitions are immutable, so share them instead of copying.
         memo = {id(c.card): c.card for c in self.state.cards}

@@ -1,5 +1,6 @@
 import pytest
 
+from src.cards.coverage import generate_coverage_set
 from src.cards.schema import Card, CardSet
 from src.cards.vanilla import generate_vanilla_set
 from src.server.session import GameSession
@@ -180,3 +181,26 @@ def test_pending_decision_and_previews_dont_reveal_draws():
     state = session.handle({"type": "act", "action_index": play["index"]})["state"]
     assert state["pending"]["kind"] == "choose" and state["pending"]["chooser"] == 0
     assert {a["type"] for a in state["legal_actions"]} == {"choose_target"}
+
+
+def test_scenario_sets_up_chosen_cards():
+    card_set = generate_coverage_set(per_feature=1, candidates=500)
+    action_card = next(c for c in card_set.cards if c.type == "action")
+    unit_card = next(c for c in card_set.cards if c.type == "unit")
+    session = GameSession(card_set)
+    state = session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 2, "scenario": {
+        "hand": [action_card.id], "play": [{"id": unit_card.id, "damage": 1}], "opponent_play": [unit_card.id],
+        "energy": action_card.cost}})["state"]
+    me, them = state["players"]
+    assert state["phase"] == "main" and state["decision_player"] == 0 and state["turn"] == 1
+    assert action_card.id in [c["card_id"] for c in me["hand"]]
+    assert [c["card_id"] for c in me["play"]] == [unit_card.id] and me["play"][0]["damage"] == 1
+    assert [c["card_id"] for c in them["play"]] == [unit_card.id]
+    assert me["energy_ready"] == action_card.cost
+    assert any(a["type"] == "play" and a["card"] == me["hand"][-1]["uid"] for a in state["legal_actions"])
+
+
+def test_scenario_rejects_unknown_cards():
+    session = GameSession(generate_vanilla_set())
+    response = session.handle({"type": "new_game", "opponent": "random", "scenario": {"hand": ["NOPE"]}})
+    assert response["status"] == "error" and "NOPE" in response["msg"]

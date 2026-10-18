@@ -38,11 +38,11 @@ uv sync
 
 | Command | What it does |
 |---|---|
-| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`) |
+| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`). `--kind coverage` writes a small set that uses every ability building block at least twice, plus a Markdown checklist |
 | `uv run python -m scripts.sample_abilities` | Prints abilities sampled from the grammar as card text (not playable yet) |
 | `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--arch transformer --iterations 200 --device mps` |
 | `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and neural agents (`--models a.pt b.pt` to compare checkpoints) |
-| `uv run python -m scripts.server` | ZeroMQ server for the Unity client on `tcp://*:5555` |
+| `uv run python -m scripts.server` | ZeroMQ server for the Unity client on `tcp://*:5555`. `--cards cardsets/coverage_37.json` to check abilities in Unity (`new_game` takes a `scenario`) |
 | `uv run pytest` | Runs the tests |
 
 ## Current rules
@@ -73,8 +73,8 @@ section 3: triggered (when played, scores, attacks, is defeated, start or end of
 activated (⟳, once per turn), on-resolve (action cards) and static. The engine compiles each
 ability to a decision graph and resolves it on a stack; choices inside abilities (choose a
 target, "you may", "choose one") are ordinary decisions. The default card set has no abilities
-yet; the tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`) use
-generated ones.
+yet; the coverage set, the tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`)
+use generated ones.
 
 ## Unity client protocol
 

@@ -6,7 +6,8 @@ Every request is a JSON object with a "type"; every response has "status" ("ok" 
   {"type": "card_set"}                         → all card definitions
   {"type": "new_game", "human_seat": 0,        → starts a game on random decks
    "opponent": "neural"|"heuristic"|"random",
-   "seed": 123}
+   "seed": 123,
+   "scenario": {...}}                          → optional: skip the mulligan and set up chosen cards (see _set_up)
   {"type": "state"}                            → current state
   {"type": "act", "action_index": 3}           → applies the human's choice from state.legal_actions
   {"type": "ai_move"}                          → the AI makes one decision (call in a loop to animate)
@@ -68,8 +69,39 @@ class GameSession:
         rng = random.Random(seed)
         self.human_seat = int(request.get("human_seat", 0))
         self.ai = self._make_agent(request.get("opponent", "neural"))
-        self.game = Game(random_deck(self.card_set, rng), random_deck(self.card_set, rng), seed=rng.randrange(2**31))
+        scenario = request.get("scenario")
+        self.game = Game(random_deck(self.card_set, rng), random_deck(self.card_set, rng), seed=rng.randrange(2**31),
+                         first_player=self.human_seat if scenario else None)
+        if scenario:
+            self._set_up(scenario)
         return {"status": "ok", "opponent": self.ai.name, "state": self.view()}
+
+    def _set_up(self, scenario: dict):
+        """Starts the human's first turn with chosen cards, for checking single cards by hand.
+
+            {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
+             "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0}
+
+        Both mulligans are skipped. Units placed in play can act straight away. Energy is ready.
+        """
+        g = self.game
+        while g.state.phase == Phase.MULLIGAN:
+            g.step(Action(ActionType.KEEP_HAND))
+        energy_card = next((c for c in self.card_set.cards if c.energy_source), self.card_set.cards[0])
+        for key, zone, player in (("hand", Zone.HAND, self.human_seat), ("play", Zone.PLAY, self.human_seat),
+                                  ("opponent_hand", Zone.HAND, 1 - self.human_seat),
+                                  ("opponent_play", Zone.PLAY, 1 - self.human_seat)):
+            for entry in scenario.get(key, []):
+                entry = {"id": entry} if isinstance(entry, str) else entry
+                try:
+                    card = self.card_set[entry["id"]]
+                except KeyError:
+                    raise ValueError(f"unknown card id {entry['id']!r} in scenario")
+                uid = g.add_card(player, card, zone, exhausted=entry.get("exhausted", False))
+                g.card(uid).damage = entry.get("damage", 0)
+        for key, player in (("energy", self.human_seat), ("opponent_energy", 1 - self.human_seat)):
+            for _ in range(scenario.get(key, 0)):
+                g.add_card(player, energy_card, Zone.ENERGY)
 
     def _state(self, _):
         return {"status": "ok", "state": self.view()}

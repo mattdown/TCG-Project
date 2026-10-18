@@ -11,11 +11,14 @@ MAX_COPIES = 4
 
 def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZE,
                 max_copies: int = MAX_COPIES) -> list[Card]:
-    """One or two aspects, then cards drawn with a mild preference for cheap ones."""
+    """One or two aspects (every aspect if the set is too small), then cards drawn with a mild
+    preference for cheap ones."""
     aspects = set(rng.sample(ASPECTS, 2 if rng.random() < 0.8 else 1))
     pool = [c for c in card_set.cards if set(c.aspects) <= aspects]
+    if len(pool) * max_copies < deck_size:  # a small set (e.g. a coverage set): use every aspect
+        pool = list(card_set.cards)
     if len(pool) * max_copies < deck_size:
-        raise ValueError(f"not enough cards in aspects {sorted(aspects)} for a {deck_size}-card deck")
+        raise ValueError(f"not enough cards for a {deck_size}-card deck")
     weights = [1 / (c.cost ** 0.5 + 1) for c in pool]
     copies = Counter()
     deck = []

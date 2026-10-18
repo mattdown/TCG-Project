@@ -78,6 +78,21 @@ Legal duel actions and their previews already account for all of these.
 - `human_seat`: 0 or 1 (default 0). Who goes first is random: see `active_player`.
 - `seed`: optional, makes decks and shuffles reproducible.
 - `opponent` in the response is the AI's name (the model file name for neural agents).
+- `scenario`: optional, for checking single cards by hand. The game skips both mulligans and
+  starts on the human's first turn with chosen cards (IDs from `card_set`):
+
+  ```json
+  "scenario": {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
+               "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0}
+  ```
+
+  Units placed in play can act straight away, and energy is ready. Every key is optional. An
+  unknown card ID is an error.
+
+**Checking cards with the coverage set.** `uv run python -m scripts.generate_cards --kind coverage`
+writes a small set that uses every building block of the ability grammar at least twice
+(`cardsets/coverage_37.json`), plus a checklist next to it (`coverage_37.md`). Start the server
+with `--cards cardsets/coverage_37.json`, then use scenarios to try each card.
 
 ### `state`: the current state
 
