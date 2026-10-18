@@ -27,8 +27,9 @@ a darker lip along the bottom edge, white numbers with a dark outline.
 | Glows | playable `#5BEA5B`, selected `#FFE14D`, target `#FF4D5E` |
 | Field | checkerboard `#5E9C57` / `#5A9753`, 44 px squares, darkening to navy at the top and bottom edges |
 
-Aspect colours, one per `aspect_N`: Ember `#F0533A`, Tide `#2F86E8`, Grove `#43B04F`,
-Sun `#F5B52E`, Dusk `#9152E0`, Frost `#22BCC9`. Card art uses the aspect colour as a radial glow.
+Aspect colours, one per `aspect_N`: Ember `#F0533A`, Bog `#2F86E8`, Moss `#43B04F`,
+Meadow `#F5B52E`, Glow `#9152E0`, Frost `#22BCC9`. Card art uses the aspect colour as a radial glow.
+The aspect names and the rest of the theme are in [theme.md](theme.md).
 
 Fonts: Lilita One for numbers, names and buttons; Nunito (700–900) for body text.
 

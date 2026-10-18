@@ -22,6 +22,8 @@ Decisions already made (don't re-open without a reason):
 - **Model:** PyTorch, with the heterogeneous GNN (`--arch gnn`) as the default model. The
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
+- **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;
+  aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost); traits are jobs, not yet tied to abilities.
 - **Client:** the Unity client is a thin view. The Python server owns all rules and state.
 - **Abilities:** authored as trees (the grammar in docs/technical-plan.md section 3), compiled to
   decision graphs that the engine walks and the GNN reads. Static abilities and keywords stay
@@ -43,7 +45,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
 TCGClient/      Unity 6000.3.10f1, URP 2D template
-docs/           technical plan, client protocol and design, draw.io diagrams (+ PNG exports)
+docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
 ```
 
 ## Commands (from `PythonServer/`)

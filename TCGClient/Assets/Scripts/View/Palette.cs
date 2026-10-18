@@ -34,7 +34,7 @@ namespace Tcg.View
         public static readonly Color CardBack = Hex("#7A3FC4");
         public static readonly Color CardBackRing = Hex("#9152E0");
 
-        /// <summary>Aspect colours by aspect_N (placeholder names Ember, Tide, Grove, Sun, Dusk, Frost).</summary>
+        /// <summary>Aspect colours by aspect_N (Ember, Bog, Moss, Meadow, Glow, Frost: see docs/theme.md).</summary>
         static readonly Color[] Aspects =
         {
             Hex("#F0533A"), Hex("#2F86E8"), Hex("#43B04F"), Hex("#F5B52E"), Hex("#9152E0"), Hex("#22BCC9"),
