@@ -20,6 +20,7 @@ from src.agents.base import Agent
 from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
+from src.cards.abilities import render
 from src.cards.schema import CardSet
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
@@ -59,7 +60,8 @@ class GameSession:
     # --- handlers
 
     def _card_set(self, _):
-        return {"status": "ok", "name": self.card_set.name, "cards": [c.to_dict() for c in self.card_set.cards]}
+        cards = [{**c.to_dict(), "ability_text": [render(a, c.type) for a in c.abilities]} for c in self.card_set.cards]
+        return {"status": "ok", "name": self.card_set.name, "cards": cards}
 
     def _new_game(self, request):
         seed = request.get("seed")
@@ -146,19 +148,34 @@ class GameSession:
             "winner": s.winner,
             "players": players,
             "vp_to_win": g.config.vp_to_win,
+            "pending": self._pending_view(),
             "legal_actions": [{"index": i, **a.to_dict(), "text": describe_action(g, a), "preview": self._preview(a)}
                               for i, a in enumerate(legal)],
         }
 
+    def _pending_view(self) -> dict | None:
+        """The ability waiting for a decision, if any: whose it is, what kind of choice, its text."""
+        decision = self.game.pending_decision()
+        if decision is None:
+            return None
+        frame, node = decision
+        card = self.game.card(frame.source).card
+        return {"source": frame.source, "card_id": card.id, "kind": node.kind,
+                "chooser": self.game.state.decision_player, "ability_text": render(card.abilities[frame.ability], card.type)}
+
     def _preview(self, action: Action) -> dict | None:
-        """What a play, score or duel would do: the action tried on a copy of the game.
+        """What a play, score or duel would do: the action tried on a copy of the game, up to the
+        first choice an ability asks for.
 
         The client shows these while dragging ("+2 VP", "Defeated") without knowing any rules.
-        Only actions that draw nothing are previewed, so no hidden card is revealed.
+        Only moves of cards that were in play are kept, so a preview never reveals a card an
+        ability would draw or discard at random.
         """
         if action.type not in (ActionType.PLAY, ActionType.SCORE, ActionType.DUEL):
             return None
-        return self._result_view(self.game.clone().step(action, validate=False, record=True))
+        result = self.game.clone().step(action, validate=False, record=True)
+        result.moves = [m for m in result.moves if m.source == Zone.PLAY or m.uid == action.card]
+        return self._result_view(result)
 
     def _result_view(self, r: StepResult) -> dict:
         """A step result as the human may see it: hidden moves keep only who and where."""
@@ -170,6 +187,7 @@ class GameSession:
             "exhausted": r.exhausted,
             "readied": r.readied,
             "moves": [self._move_view(m) for m in r.moves],
+            "abilities": r.abilities,
         }
 
     def _move_view(self, m: Move) -> dict:

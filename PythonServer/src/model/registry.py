@@ -21,6 +21,12 @@ def load_model(path, device: str = "cpu") -> torch.nn.Module:
     checkpoint = torch.load(path, map_location=device)
     # Checkpoints from before the transformer existed have no "arch" and are GNNs.
     net = create_model(checkpoint.get("arch", "gnn"), **checkpoint["hparams"]).to(device)
-    net.load_state_dict(checkpoint["state_dict"])
+    state = checkpoint["state_dict"]
+    # New action types only add rows to the action-type embedding: keep the trained rows.
+    rows = net.action_type_emb.weight
+    old = state.get("action_type_emb.weight")
+    if old is not None and old.shape[0] < rows.shape[0]:
+        state["action_type_emb.weight"] = torch.cat([old, rows.detach()[old.shape[0]:].to(old.device)])
+    net.load_state_dict(state)
     net.eval()
     return net

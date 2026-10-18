@@ -1,16 +1,18 @@
 """Card definitions and card-set files.
 
 A card is pure data. The engine plays it and the graph builder describes it to the network,
-so a new card never needs new code. Units with stats and keywords exist so far; abilities
-will be added to this schema as the DSL is built.
+so a new card never needs new code. Abilities are trees in the authoring form of
+docs/technical-plan.md section 3 and are checked against the grammar when a card is created.
 """
 import json
+import copy
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
+from src.cards.abilities import validate
 from src.game.terms import ASPECTS, KEYWORDS
 
-CARD_TYPES = ("unit",)
+CARD_TYPES = ("unit", "action")
 
 
 @dataclass(frozen=True)
@@ -26,14 +28,22 @@ class Card:
     score: int
     traits: tuple[str, ...] = ()
     keywords: tuple[tuple[str, int], ...] = ()  # sorted (name, value); value is 1 for keywords without a number
+    # Ability trees (dicts). Compared but not hashed, so cards stay usable as dict keys.
+    abilities: tuple[dict, ...] = field(default=(), hash=False)
 
     def __post_init__(self):
         if self.type not in CARD_TYPES:
             raise ValueError(f"{self.id}: unknown card type {self.type!r}")
         if not self.aspects or any(a not in ASPECTS for a in self.aspects):
             raise ValueError(f"{self.id}: invalid aspects {self.aspects}")
-        if self.cost < 0 or self.power < 0 or self.health < 1 or self.score < 0:
+        if self.cost < 0 or self.power < 0 or self.score < 0 or (self.type == "unit" and self.health < 1):
             raise ValueError(f"{self.id}: invalid stats")
+        if self.type == "action" and (self.power or self.health or self.score or self.keywords):
+            raise ValueError(f"{self.id}: action cards have no stats or keywords")
+        for ability in self.abilities:
+            problems = validate(ability, self.type)
+            if problems:
+                raise ValueError(f"{self.id}: invalid ability: {'; '.join(problems)}")
         for name, value in self.keywords:
             if name not in KEYWORDS or value < 1 or (not KEYWORDS[name] and value != 1):
                 raise ValueError(f"{self.id}: invalid keyword {name} {value}")
@@ -46,6 +56,7 @@ class Card:
         data = asdict(self)
         # In JSON: {"guard": true, "duelist": 2}
         data["keywords"] = {name: (value if KEYWORDS[name] else True) for name, value in self.keywords}
+        data["abilities"] = [copy.deepcopy(a) for a in self.abilities]
         return data
 
     @classmethod
@@ -55,6 +66,8 @@ class Card:
         if unknown:
             raise ValueError(f"{data.get('id')}: unknown card fields {sorted(unknown)}")
         values = {k: tuple(v) if isinstance(v, list) else v for k, v in data.items()}
+        if "abilities" in values:
+            values["abilities"] = tuple(copy.deepcopy(a) for a in data["abilities"])
         if "keywords" in values:
             values["keywords"] = tuple(sorted((name, int(value)) for name, value in values["keywords"].items()))
         return cls(**values)

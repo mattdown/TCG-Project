@@ -4,11 +4,20 @@ from src.game.engine import Game, GameConfig
 from src.game.state import CardInstance, Zone
 
 
-def unit(cost=1, power=1, health=1, score=1, energy_source=True, name=None, **keywords) -> Card:
+def unit(cost=1, power=1, health=1, score=1, energy_source=True, name=None, traits=(), abilities=(),
+         **keywords) -> Card:
     """A unit card; keywords as flags or values, e.g. unit(guard=1, duelist=2)."""
     name = name or f"Unit {cost}/{power}/{health}/{score}"
     return Card(id=name, name=name, type="unit", aspects=("aspect_1",), energy_source=energy_source,
-                cost=cost, power=power, health=health, score=score, keywords=tuple(sorted(keywords.items())))
+                cost=cost, power=power, health=health, score=score, traits=tuple(traits),
+                keywords=tuple(sorted(keywords.items())), abilities=tuple(abilities))
+
+
+def action(*steps, cost=1, name=None) -> Card:
+    """An action card whose on-resolve ability is these steps."""
+    name = name or f"Action {len(steps)}"
+    return Card(id=name, name=name, type="action", aspects=("aspect_1",), energy_source=True, cost=cost,
+                power=0, health=0, score=0, abilities=({"kind": "on_resolve", "steps": list(steps)},))
 
 
 def filler_deck(size=60) -> list[Card]:

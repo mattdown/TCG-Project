@@ -67,6 +67,9 @@ def observe(game: Game, player: int) -> Observation:
     me, opp = s.players[player], s.players[1 - player]
 
     card_uids = me.hand + me.play + opp.play
+    decision = game.pending_decision()
+    if decision and decision[0].source not in card_uids:  # e.g. an action card resolving from the discard pile
+        card_uids.append(decision[0].source)
     node_of = {uid: i for i, uid in enumerate(card_uids)}
     instances = [game.card(uid) for uid in card_uids]
     marked = set(me.mulligan_marked)

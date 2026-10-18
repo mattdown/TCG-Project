@@ -1,5 +1,6 @@
 import pytest
 
+from src.cards.schema import Card, CardSet
 from src.cards.vanilla import generate_vanilla_set
 from src.server.session import GameSession
 from tests.helpers import give_energy, put_in_hand, put_in_play, started_game, unit
@@ -120,7 +121,8 @@ def test_every_action_record_has_a_result(session):
         else:
             records = session.handle({"type": "ai_turn"})["actions"]
         for record in records:
-            assert set(record["result"]) == {"damage", "defeated", "vp", "energy_spent", "exhausted", "readied", "moves"}
+            assert set(record["result"]) == {"damage", "defeated", "vp", "energy_spent", "exhausted", "readied", "moves",
+                                             "abilities"}
 
 
 def test_ai_draws_and_put_backs_stay_hidden():
@@ -140,3 +142,41 @@ def test_ai_draws_and_put_backs_stay_hidden():
                 if m["player"] == 1 and {m["from"], m["to"]} <= {"deck", "hand"}:
                     hidden.append(m)
     assert hidden and all(m["uid"] is None and m["card_id"] is None for m in hidden)
+
+
+def ability_session():
+    """A session whose cards all have the same on-play ability: draw a card, then deal 1 damage to a chosen opposing unit."""
+    ability = {"kind": "triggered", "trigger": {"event": "on_play"}, "condition": None, "steps": [
+        {"effect": "draw", "target": "you", "amount": 1},
+        {"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"},
+        {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 1}]}
+    cards = [Card(f"C{i}", f"Card {i}", "unit", (f"aspect_{1 + i % 6}",), True, 1, 1, 3, 1, abilities=(ability,))
+             for i in range(60)]
+    session = GameSession(CardSet("abilities", cards))
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 4})
+    return session
+
+
+def test_card_set_includes_ability_text():
+    cards = ability_session().handle({"type": "card_set"})["cards"]
+    assert cards[0]["ability_text"] == ["When you play this unit, draw a card. Deal 1 damage to chosen opposing unit."]
+    assert cards[0]["abilities"][0]["kind"] == "triggered"
+
+
+def test_pending_decision_and_previews_dont_reveal_draws():
+    session = ability_session()
+    game = session.game
+    while game.state.phase.name == "MULLIGAN":
+        session.handle({"type": "act" if game.state.decision_player == 0 else "ai_move", "action_index": 0})
+    put_in_play(game, 1, unit(health=5, name="A"))
+    put_in_play(game, 1, unit(health=5, name="B"))
+    give_energy(game, game.state.active_player, 1)
+    if game.state.active_player != 0:
+        session.handle({"type": "ai_turn"})
+        give_energy(game, 0, 1)
+    state = session.handle({"type": "state"})["state"]
+    play = next(a for a in state["legal_actions"] if a["type"] == "play")
+    assert not any(m["from"] == "deck" for m in play["preview"]["moves"])  # the draw isn't previewed
+    state = session.handle({"type": "act", "action_index": play["index"]})["state"]
+    assert state["pending"]["kind"] == "choose" and state["pending"]["chooser"] == 0
+    assert {a["type"] for a in state["legal_actions"]} == {"choose_target"}

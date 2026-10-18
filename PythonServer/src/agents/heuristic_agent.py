@@ -13,6 +13,10 @@ class HeuristicAgent(Agent):
         for a in actions:
             by_type.setdefault(a.type, []).append(a)
 
+        decision = game.pending_decision()
+        if decision:
+            return self._decide(game, decision[1], actions)
+
         if ActionType.KEEP_HAND in by_type:
             # Put back cards costing 6+ when the hand has fewer than three cheap cards.
             hand = [game.card(a.card).card for a in by_type.get(ActionType.MULLIGAN, [])]
@@ -33,10 +37,25 @@ class HeuristicAgent(Agent):
         if good_duels:
             return max(good_duels, key=lambda a: game.card(a.target).card.score)
 
+        if ActionType.ACTIVATE in by_type:
+            return by_type[ActionType.ACTIVATE][0]
+
         if ActionType.SCORE in by_type:
             return max(by_type[ActionType.SCORE], key=lambda a: game.card(a.card).card.score)
 
         return by_type[ActionType.END_TURN][0]
+
+    @staticmethod
+    def _decide(game: Game, node, actions: list[Action]) -> Action:
+        """Choices inside abilities: always say yes, take the first option, and pick the most
+        expensive opposing card or the cheapest of your own (usually a cost being paid)."""
+        if node.kind == "may":
+            return next(a for a in actions if a.type == ActionType.ACCEPT)
+        if node.kind == "choose_one":
+            return actions[0]
+        mine = node.data["filter"].get("owner") == "you"
+        by_cost = sorted(actions, key=lambda a: game.card(a.target).card.cost)
+        return by_cost[0] if mine else by_cost[-1]
 
     @staticmethod
     def _wins_duel(game: Game, action: Action) -> bool:

@@ -3,9 +3,11 @@ import random
 import pytest
 import torch
 
+from src.cards.schema import CardSet
 from src.cards.vanilla import generate_vanilla_set
 from src.model.registry import create_model
 from src.training.ppo import PPOConfig, Step, _gae, collect_games, ppo_update
+from tests.test_fuzz import ability_pool
 
 
 def test_gae_with_terminal_reward():
@@ -35,3 +37,15 @@ def test_update_handles_a_step_count_one_above_the_minibatch_size():
     metrics = ppo_update(net, torch.optim.Adam(net.parameters(), lr=1e-3), steps[:17], cfg)
     assert all(v == v for v in metrics.values())
     assert all(torch.isfinite(p).all() for p in net.parameters())
+
+
+@pytest.mark.parametrize("arch", ["gnn", "transformer"])
+def test_training_runs_on_cards_with_abilities(arch):
+    """Smoke test: self-play and a PPO update work when abilities create new kinds of decisions."""
+    torch.manual_seed(0)
+    pool = ability_pool(random.Random(1))
+    cfg = PPOConfig(games_per_iteration=2, epochs=1, minibatch_size=64, hidden=32, num_layers=2)
+    net = create_model(arch, hidden=32, num_layers=2)
+    steps, _ = collect_games(net, CardSet("pool", pool), 2, random.Random(0), "cpu")
+    metrics = ppo_update(net, torch.optim.Adam(net.parameters(), lr=1e-3), steps, cfg)
+    assert all(v == v for v in metrics.values())

@@ -45,12 +45,14 @@ stats and names here.
 | Field | Meaning |
 |---|---|
 | `id` | card definition ID, referenced by `card_id` in the state |
-| `type` | only `"unit"` for now (actions, items and sites come later) |
+| `type` | `"unit"` or `"action"` (played from hand, its ability resolves, then it goes to the discard pile; no stats) |
 | `aspects` | one of `aspect_1` … `aspect_6`: Ember, Bog, Moss, Meadow, Glow, Frost ([theme.md](theme.md)) |
 | `energy_source` | can be added to the energy zone |
 | `cost`, `power`, `health`, `score` | stats; `score` is the VP gained when the unit scores |
 | `traits` | the unit's job, e.g. `["Scholar"]` |
 | `keywords` | `{"guard": true, "duelist": 2}`: flags are `true`, Duelist and Armor carry a number. Show them as `Guard.`, `Duelist +2.` (see the keyword rules below) |
+| `abilities` | ability trees (the grammar in [technical-plan.md](technical-plan.md) section 3); the client doesn't need to read them |
+| `ability_text` | one line of card text per ability, e.g. `"When you play this unit, draw a card."`: show these in the text box |
 
 **Keyword rules** (the server already applies them; the client only shows them):
 
@@ -188,6 +190,7 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand trimmed):
 | `mulligan_marked` | uids the human has marked to put back during the mulligan |
 | `vp_to_win` | VP needed to win (20) |
 | `legal_actions` | empty unless it's the human's decision |
+| `pending` | `null`, or the ability waiting for a choice: `source` (uid), `card_id`, `kind` (`choose`, `may`, `choose_one`), `chooser` (seat), `ability_text`. Show it as a prompt ("Oyster Fisher: choose a unit") with the legal actions as the answers |
 
 **Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
 whole game, so use it to track a card's GameObject as it moves between zones. `card_id`
@@ -195,7 +198,7 @@ points into the card set. `exhausted` (turned sideways), `fresh` (played this tu
 act), `damage` (current damage; defeated at `damage >= health`).
 
 **Actions**: `card` is the uid of the acting or played card, `target` the uid of the duel
-target. Action types:
+target or chosen card, `option` the ability or option index. Action types:
 
 | Type | Meaning | `card` | `target` |
 |---|---|---|---|
@@ -206,6 +209,13 @@ target. Action types:
 | `score` | exhaust a ready, non-fresh unit to gain its score in VP | unit | — |
 | `duel` | exhaust a ready, non-fresh unit to fight an exhausted opposing unit | unit | opposing unit |
 | `end_turn` | pass the turn | — | — |
+| `activate` | use a ⟳ ability: exhausts the unit and pays its other costs; `option` = which of the card's abilities | unit | — |
+| `choose_target` | while an ability resolves: pick a card for it | the ability's source | the chosen card |
+| `accept` / `decline` | answer a "you may …" | the ability's source | — |
+| `choose_option` | pick one option of a "choose one"; `option` = which, `text` describes it | the ability's source | — |
+
+While `pending` is set, the legal actions are only the answers to that choice. Abilities
+can also ask the AI's seat to choose: the client then calls `ai_move` as usual.
 
 ## Results and previews
 
@@ -214,8 +224,10 @@ The engine records them while it applies the rules (`StepResult` in `src/game/en
 
 - **`result`** on every action record (`act`, `ai_move`, `ai_turn`): what the action did.
 - **`preview`** on legal `play`, `score` and `duel` actions: the same shape, from trying the
-  action on a copy of the game. Use it while dragging ("Drop to score · +2 VP", "Defeated").
-  It's `null` for other actions, which could reveal a draw.
+  action on a copy of the game, up to the first choice an ability asks for. Use it while
+  dragging ("Drop to score · +2 VP", "Defeated"). Only moves of cards that were in play (and the
+  played card itself) are kept, so a preview never reveals what an ability would draw. It's
+  `null` for other actions.
 
 ```json
 "preview": {"damage": [{"uid": 4, "amount": 1}, {"uid": 104, "amount": 1}], "defeated": [4, 104],
@@ -231,8 +243,9 @@ The engine records them while it applies the rules (`StepResult` in `src/game/en
 | `vp` | VP gained per player |
 | `energy_spent` | ready energy exhausted per player to pay a cost |
 | `exhausted` | units exhausted by acting (scoring, dueling) |
-| `readied` | cards readied at the start of a turn (units and energy) |
+| `readied` | cards readied at the start of a turn (units and energy) or by an ability |
 | `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `energy`, `discard` |
+| `abilities` | uids of the cards whose abilities started resolving, in order (to highlight the card as its ability happens) |
 
 **Hidden moves.** The AI's draws and mulligan put-backs keep only who and where:
 `{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}`. Every other move

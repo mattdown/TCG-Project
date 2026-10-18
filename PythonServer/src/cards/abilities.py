@@ -23,6 +23,7 @@ and stats later.
 import random
 
 from src.cards.theme import JOBS
+from src.game.terms import keyword_text
 
 TRAITS = JOBS  # traits are jobs (docs/theme.md)
 HELPS, HURTS = "helps", "hurts"
@@ -48,7 +49,7 @@ EFFECTS = {
 EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "exhaust": 4, "ready": 3,
                   "cant_ready": 3, "modify_stat": 8, "grant_keyword": 4, "draw": 8, "discard": 3, "gain_vp": 6,
                   "lose_vp": 3, "add_energy": 2}
-GRANTABLE_KEYWORDS = ("Guard", "Elusive", "Charge", "Duelist +1", "Duelist +2", "Armor +1")
+GRANTABLE_KEYWORDS = (("guard", 1), ("elusive", 1), ("charge", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
 TRIGGERS = {"on_play": 10, "on_score": 4, "on_attack": 3, "on_defeated": 3, "start_of_turn": 3, "end_of_turn": 2,
             "another_played": 2, "opposing_defeated": 2}
 SITUATIONS = ("attacking", "defending", "exhausted", "damaged")
@@ -185,7 +186,8 @@ class AbilitySampler:
             step.update(stat=stat, delta=sign * self._small(1, 3 if strong else 2), duration="this_turn")
             pol = HELPS if sign > 0 else HURTS
         elif op == "grant_keyword":
-            step.update(keyword=self.rng.choice(GRANTABLE_KEYWORDS), duration="this_turn")
+            keyword, value = self.rng.choice(GRANTABLE_KEYWORDS)
+            step.update(keyword=keyword, value=value, duration="this_turn")
         elif op == "cant_ready":
             step["duration"] = "until_their_next_turn"
         elif op == "ready":
@@ -252,7 +254,7 @@ class AbilitySampler:
             condition = self.rng.choice(({"this_is": "damaged"},
                                          {"count": {"owner": "you", "trait": trait, "not_this": True}, "at_least": 2}))
             return {"condition": condition,
-                    "modifiers": [{"subject": "this", "keyword": self.rng.choice(GRANTABLE_KEYWORDS)}]}
+                    "modifiers": [{"subject": "this", **dict(zip(("keyword", "value"), self.rng.choice(GRANTABLE_KEYWORDS)))}]}
         if kind == "discount":
             return {"condition": None, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": trait}}]}
         return {"condition": None, "modifiers": [{"subject": {"all": {"owner": "opponent", "damaged": True}},
@@ -481,7 +483,7 @@ class Renderer:
             sign = "+" if s["delta"] > 0 else "−"
             return f"{_cap(t)} get{s_} {sign}{abs(s['delta'])} {s['stat']} this turn."
         if op == "grant_keyword":
-            return f"{_cap(t)} gain{s_} {s['keyword']} this turn."
+            return f"{_cap(t)} gain{s_} {keyword_text(s['keyword'], s.get('value', 1))} this turn."
         raise ValueError(op)
 
     def steps(self, steps: list) -> str:
@@ -541,7 +543,7 @@ def render(ability: dict, card_type: str = "unit") -> str:
             else:
                 who, s_ = _all_phrase(subject["all"]), ""
             if "keyword" in m:
-                text = f"{who} {'has' if s_ else 'have'} {m['keyword']}."
+                text = f"{who} {'has' if s_ else 'have'} {keyword_text(m['keyword'], m.get('value', 1))}."
             else:
                 amount = m["amount"]
                 n = amount if isinstance(amount, int) else amount["k"]

@@ -45,7 +45,7 @@ uv sync
 | `uv run python -m scripts.server` | ZeroMQ server for the Unity client on `tcp://*:5555` |
 | `uv run pytest` | Runs the tests |
 
-## Current rules (units with keywords; no abilities yet)
+## Current rules
 
 Two players, 60-card decks of one or two aspects, 7-card opening hand with one mulligan.
 Each turn: ready your cards, draw (the first player skips their first draw), then any
@@ -67,6 +67,14 @@ Keywords:
 - **Charge:** can duel the turn it's played (but can't score that turn).
 - **Duelist +N:** +N power when it starts a duel.
 - **Armor +N:** takes N less damage in a duel.
+
+**Abilities** follow the grammar in [docs/technical-plan.md](docs/technical-plan.md)
+section 3: triggered (when played, scores, attacks, is defeated, start or end of turn, …),
+activated (⟳, once per turn), on-resolve (action cards) and static. The engine compiles each
+ability to a decision graph and resolves it on a stack; choices inside abilities (choose a
+target, "you may", "choose one") are ordinary decisions. The default card set has no abilities
+yet; the tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`) use
+generated ones.
 
 ## Unity client protocol
 
