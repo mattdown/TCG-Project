@@ -14,6 +14,93 @@ index of the one the player picks. It never applies rules itself.
 - All game terms (VP, energy, unit, score, duel, aspect…) are placeholders. Show the `text`
   fields to players rather than building strings from the raw values where possible.
 
+## Next client milestone: abilities (milestone 3)
+
+**Start here.** Milestones 1 and 2 built the board for units without abilities. Since then the
+server has gained keywords, job traits, action cards and abilities, including choices players
+make while an ability resolves. The client doesn't read any of it yet. Until it does, a game
+gets stuck the first time an ability asks the human to choose, because those legal actions
+have no UI.
+
+### What's new on the server since milestone 2
+
+| What | Where in this doc |
+|---|---|
+| Card fields `keywords`, `ability_text` (and `abilities`, which the client can ignore); `traits` now holds the unit's job | [`card_set`](#card_set-all-card-definitions) |
+| Card type `"action"`: no stats; played like a unit, its ability resolves, then the card moves to the discard pile (the result's `moves` show it) | [`card_set`](#card_set-all-card-definitions) |
+| `pending`: the ability waiting for a choice | [The state](#the-state) |
+| Action types `activate`, `choose_target`, `accept`, `decline`, `choose_option`, and the action field `option` | [The state](#the-state), actions table |
+| `result.abilities`: cards whose abilities started resolving | [Results and previews](#results-and-previews) |
+| Previews stop at the first choice and only include moves of cards already in play | [Results and previews](#results-and-previews) |
+| `new_game` takes a `scenario` (chosen cards in hand and in play, energy, VP) | [`new_game`](#new_game-start-a-game-on-random-decks) |
+
+### Tasks, in order
+
+1. **Protocol classes.** Read the new fields in `Protocol.cs`:
+   - `CardDef.keywords`: a JSON object; the values are `true` or a number.
+   - `CardDef.ability_text`: a list of strings.
+   - `GameState.pending`
+   - `GameAction.option`
+   - `ActionResult.abilities`
+   - `NewGameRequest.scenario`
+2. **Card text.**
+   - Fill the text box: keywords first, in bold, each ending with a full stop (`Guard.`, `Duelist +2.`), then one paragraph per `ability_text` line.
+   - Bold the lead-in, as client-design.md asks for triggers: in an activated ability, everything before the colon (`⟳, 2 energy:`). In a triggered ability, everything up to the first comma (`When you play this unit,`).
+   - Choose-one options arrive inline as `• option` and can be split onto their own lines.
+   - Show the job from `traits` in the trait tag.
+3. **Action cards.** A frame without the power, health and score badges. Playing one is an ordinary drag-to-play `play` action. Animate it to the discard pile from the result's `moves`.
+4. **The choice prompt.** When `state.pending` is set and `decision_player == human_seat`, show a banner with the source card's name and `pending.ability_text`. The legal actions are only the answers:
+   - **`choose_target`:** highlight each candidate card (`target`) and pick one by tapping. Candidates can be units in play (either side) or **cards in your hand** (e.g. "discard a card"). A `count` of 2 arrives as two choices in a row.
+   - **`accept` / `decline`:** Yes / No buttons.
+   - **`choose_option`:** one button per action, labelled with its `text`.
+   
+   When the AI's seat has a pending choice, call `ai_move` as usual; showing the banner briefly helps.
+5. **Activated abilities.** When a unit has an `activate` legal action, add a button to its inspect panel labelled with the action's `text`. Optionally, give the unit a subtle "has a usable ability" marker on the board. Activating usually leads straight into a choice prompt.
+6. **Ability feedback.** As each action's result plays, briefly pulse the cards in `result.abilities` (in order), so it's clear which card did what. Damage, VP, draws and moves from abilities already arrive in the same result fields as before.
+7. **A test menu.** A dev panel to start a `scenario` with chosen card IDs. Even a text field taking `hand: C1-004; opponent_play: C1-018` is enough. This is how every card gets checked.
+
+### How to test
+
+- Generate the coverage set (once): from `PythonServer/`, run `uv run python -m scripts.generate_cards --kind coverage`.
+- Run the server on it: `uv run python -m scripts.server --cards cardsets/coverage_37.json`.
+- The checklist is [`PythonServer/cardsets/coverage_37.md`](../PythonServer/cardsets/coverage_37.md). It lists all 37 cards, each with its text, and every building block with the cards that use it.
+- Real requests to start with:
+
+```json
+{"type": "new_game", "opponent": "heuristic", "seed": 1,
+ "scenario": {"play": ["C1-024"], "opponent_play": ["C1-018", "C1-036"], "energy": 2}}
+```
+
+C1-024 is "⟳, 2 energy: Defeat chosen opposing unit with cost 3 or less". Its `activate` action leads to a `choose` prompt between the two opposing units:
+
+```json
+{"pending": {"source": 120, "card_id": "C1-024", "kind": "choose", "chooser": 0,
+             "ability_text": "⟳, 2 energy: Defeat chosen opposing unit with cost 3 or less."},
+ "legal_actions": [{"index": 0, "type": "choose_target", "card": 120, "target": 121, "option": null, "text": "Choose Inkcap Postman", "preview": null},
+                   {"index": 1, "type": "choose_target", "card": 120, "target": 122, "option": null, "text": "Choose Portobello Postman", "preview": null}]}
+```
+
+Choosing records a normal result:
+`{"defeated": [121], "moves": [{"uid": 121, "card_id": "C1-018", "player": 1, "from": "play", "to": "discard"}], …}`.
+
+- `"hand": ["C1-004"], "energy": 1, "vp": 3` gives a **may** prompt ("You may lose 1 VP. If you do, …") with
+  `accept` / `decline`. Without VP to lose, the prompt is skipped, which is correct.
+- `"play": ["C1-003"], "energy": 3` gives a **choose one**:
+
+```json
+{"pending": {"source": 120, "card_id": "C1-003", "kind": "choose_one", "chooser": 0, "ability_text": "⟳, 3 energy: Choose one: • Your opponent loses 1 VP. • All opposing units get −1 power this turn."},
+ "legal_actions": [{"index": 0, "type": "choose_option", "card": 120, "option": 0, "text": "Your opponent loses 1 VP.", …},
+                   {"index": 1, "type": "choose_option", "card": 120, "option": 1, "text": "All opposing units get −1 power this turn.", …}]}
+```
+
+**Done when:**
+- every card in the checklist can be played or used, with its choices answered in the UI
+- what happens matches the card text
+- the AI's ability choices animate
+- a full game on the coverage set never gets stuck
+
+Anything that doesn't match its text is a server bug: note the card and the scenario.
+
 ## Responses and errors
 
 Every response has `"status": "ok"` or `"status": "error"`. Errors carry a `msg` and change
@@ -83,7 +170,8 @@ Legal duel actions and their previews already account for all of these.
 
   ```json
   "scenario": {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
-               "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0}
+               "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0,
+               "vp": 3, "opponent_vp": 0}
   ```
 
   Units placed in play can act straight away, and energy is ready. Every key is optional. An
@@ -282,6 +370,8 @@ startup:   card_set → cache card definitions by id
 new game:  new_game → render state
 loop:
   if state.game_over:                       show the winner, offer a new game
+  elif decision_player == human_seat and state.pending:
+                                            show the choice prompt; on an answer → act(index)
   elif decision_player == human_seat:       show legal_actions; on a choice → act(index)
   else:                                     ai_move (animate each step) or ai_turn
   animate the action's result, then render the returned state

@@ -80,7 +80,8 @@ class GameSession:
         """Starts the human's first turn with chosen cards, for checking single cards by hand.
 
             {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
-             "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0}
+             "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0,
+             "vp": 3, "opponent_vp": 0}
 
         Both mulligans are skipped. Units placed in play can act straight away. Energy is ready.
         """
@@ -102,6 +103,8 @@ class GameSession:
         for key, player in (("energy", self.human_seat), ("opponent_energy", 1 - self.human_seat)):
             for _ in range(scenario.get(key, 0)):
                 g.add_card(player, energy_card, Zone.ENERGY)
+        for key, player in (("vp", self.human_seat), ("opponent_vp", 1 - self.human_seat)):
+            g.state.players[player].vp = scenario.get(key, 0)
 
     def _state(self, _):
         return {"status": "ok", "state": self.view()}

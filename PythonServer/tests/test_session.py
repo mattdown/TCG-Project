@@ -190,13 +190,14 @@ def test_scenario_sets_up_chosen_cards():
     session = GameSession(card_set)
     state = session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 2, "scenario": {
         "hand": [action_card.id], "play": [{"id": unit_card.id, "damage": 1}], "opponent_play": [unit_card.id],
-        "energy": action_card.cost}})["state"]
+        "energy": action_card.cost, "vp": 4, "opponent_vp": 2}})["state"]
     me, them = state["players"]
     assert state["phase"] == "main" and state["decision_player"] == 0 and state["turn"] == 1
     assert action_card.id in [c["card_id"] for c in me["hand"]]
     assert [c["card_id"] for c in me["play"]] == [unit_card.id] and me["play"][0]["damage"] == 1
     assert [c["card_id"] for c in them["play"]] == [unit_card.id]
     assert me["energy_ready"] == action_card.cost
+    assert me["vp"] == 4 and them["vp"] == 2
     assert any(a["type"] == "play" and a["card"] == me["hand"][-1]["uid"] for a in state["legal_actions"])
 
 
