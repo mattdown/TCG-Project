@@ -78,9 +78,27 @@ class Game:
     def ready_energy(self, player: int) -> int:
         return sum(not self.state.cards[u].exhausted for u in self.state.players[player].energy)
 
-    def can_act(self, uid: int) -> bool:
-        c = self.state.cards[uid]
-        return c.zone == Zone.PLAY and not c.exhausted and not c.fresh
+    def duel_targets(self, attacker_uid: int) -> list[int]:
+        """Opposing units this unit may duel.
+
+        Normally only exhausted units. Guard units can be dueled even while ready, and must be
+        dueled first if any can be. Only Elusive units can duel Elusive units.
+        """
+        s = self.state
+        attacker = s.cards[attacker_uid].card
+        candidates = [uid for uid in s.players[1 - s.cards[attacker_uid].owner].play
+                      if (s.cards[uid].exhausted or s.cards[uid].card.keyword("guard"))
+                      and (not s.cards[uid].card.keyword("elusive") or attacker.keyword("elusive"))]
+        guards = [uid for uid in candidates if s.cards[uid].card.keyword("guard")]
+        return guards or candidates
+
+    def duel_damage(self, attacker_uid: int, defender_uid: int) -> tuple[int, int]:
+        """(damage to the attacker, damage to the defender). Duelist adds to the attacker's power;
+        Armor reduces the damage each unit takes."""
+        attacker, defender = self.card(attacker_uid).card, self.card(defender_uid).card
+        to_defender = max(0, attacker.power + attacker.keyword("duelist") - defender.keyword("armor"))
+        to_attacker = max(0, defender.power - attacker.keyword("armor"))
+        return to_attacker, to_defender
 
     def legal_actions(self) -> list[Action]:
         s = self.state
@@ -100,11 +118,14 @@ class Game:
                 actions.append(Action(ActionType.ADD_ENERGY, uid))
             if card.cost <= ready_energy:
                 actions.append(Action(ActionType.PLAY, uid))
-        targets = [uid for uid in s.players[1 - p].play if s.cards[uid].exhausted]
         for uid in ps.play:
-            if self.can_act(uid):
+            unit = s.cards[uid]
+            if unit.exhausted:
+                continue
+            if not unit.fresh:
                 actions.append(Action(ActionType.SCORE, uid))
-                actions.extend(Action(ActionType.DUEL, uid, t) for t in targets)
+            if not unit.fresh or unit.card.keyword("charge"):
+                actions.extend(Action(ActionType.DUEL, uid, t) for t in self.duel_targets(uid))
         actions.append(Action(ActionType.END_TURN))
         return actions
 
@@ -215,13 +236,14 @@ class Game:
 
     def _duel(self, attacker_uid: int, defender_uid: int):
         attacker, defender = self.card(attacker_uid), self.card(defender_uid)
+        to_attacker, to_defender = self.duel_damage(attacker_uid, defender_uid)
         attacker.exhausted = True
-        attacker.damage += defender.card.power
-        defender.damage += attacker.card.power
+        attacker.damage += to_attacker
+        defender.damage += to_defender
         if self._result:
             self._result.exhausted.append(attacker_uid)
-            self._result.damage[attacker_uid] = defender.card.power
-            self._result.damage[defender_uid] = attacker.card.power
+            self._result.damage[attacker_uid] = to_attacker
+            self._result.damage[defender_uid] = to_defender
         for unit in (attacker, defender):
             if unit.damage >= unit.card.health:
                 if self._result:

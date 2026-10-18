@@ -11,7 +11,7 @@ state graph and model. All game terms (VP, energy, units, duels…) are placehol
 
 ```
 PythonServer/          Game engine, agents and training (Python, managed with uv)
-  src/cards/           card schema and the vanilla card generator
+  src/cards/           card schema, card generators, ability sampler / validator / text
   src/game/            rules engine, random deck builder, placeholder terms
   src/graph/           state → NumPy arrays (encode.py), then PyG graphs (builder.py)
                        or padded dense tensors (dense.py)
@@ -38,13 +38,14 @@ uv sync
 
 | Command | What it does |
 |---|---|
-| `uv run python -m scripts.generate_cards` | Writes the 200-card vanilla set to `cardsets/vanilla_200.json` (`--count`, `--seed`) |
+| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`) |
+| `uv run python -m scripts.sample_abilities` | Prints abilities sampled from the grammar as card text (not playable yet) |
 | `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--arch transformer --iterations 200 --device mps` |
 | `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and neural agents (`--models a.pt b.pt` to compare checkpoints) |
 | `uv run python -m scripts.server` | ZeroMQ server for the Unity client on `tcp://*:5555` |
 | `uv run pytest` | Runs the tests |
 
-## Current rules (vanilla units only)
+## Current rules (units with keywords; no abilities yet)
 
 Two players, 60-card decks of one or two aspects, 7-card opening hand with one mulligan.
 Each turn: ready your cards, draw (the first player skips their first draw), then any
@@ -58,6 +59,14 @@ number of actions:
   Damage stays between turns.
 
 The first player to 20 VP wins; drawing from an empty deck loses; turn 100 is a draw.
+
+Keywords:
+
+- **Guard:** can be dueled even while ready, and opponents must duel a Guard unit if they can.
+- **Elusive:** only Elusive units can duel it.
+- **Charge:** can duel the turn it's played (but can't score that turn).
+- **Duelist +N:** +N power when it starts a duel.
+- **Armor +N:** takes N less damage in a duel.
 
 ## Unity client protocol
 

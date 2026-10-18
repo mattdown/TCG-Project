@@ -20,7 +20,8 @@ from src.game.engine import Game
 from src.game.state import Phase, Zone
 from src.game.terms import ASPECTS
 
-CARD_STATIC_DIM = 5 + len(ASPECTS)
+KEYWORD_SCALE = {"guard": 1, "elusive": 1, "charge": 1, "duelist": 3, "armor": 2}
+CARD_STATIC_DIM = 5 + len(KEYWORD_SCALE) + len(ASPECTS)
 CARD_DYNAMIC_DIM = 8
 PLAYER_DIM = 12
 GLOBAL_DIM = 4
@@ -57,6 +58,7 @@ class Observation:
 def card_static_features(card: Card) -> np.ndarray:
     """What the card is. The card encoder turns these into the card embedding."""
     return np.array([card.cost / 10, card.power / 10, card.health / 10, card.score / 5, float(card.energy_source),
+                     *(card.keyword(k) / scale for k, scale in KEYWORD_SCALE.items()),
                      *(float(a in card.aspects) for a in ASPECTS)], dtype=np.float32)
 
 

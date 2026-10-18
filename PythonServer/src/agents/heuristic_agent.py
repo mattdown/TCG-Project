@@ -41,6 +41,7 @@ class HeuristicAgent(Agent):
     @staticmethod
     def _wins_duel(game: Game, action: Action) -> bool:
         attacker, defender = game.card(action.card), game.card(action.target)
-        defeats = attacker.card.power >= defender.card.health - defender.damage
-        survives = defender.card.power < attacker.card.health - attacker.damage
+        to_attacker, to_defender = game.duel_damage(action.card, action.target)
+        defeats = to_defender >= defender.card.health - defender.damage
+        survives = to_attacker < attacker.card.health - attacker.damage
         return defeats and survives

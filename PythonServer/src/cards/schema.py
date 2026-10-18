@@ -1,14 +1,14 @@
 """Card definitions and card-set files.
 
 A card is pure data. The engine plays it and the graph builder describes it to the network,
-so a new card never needs new code. Only vanilla units exist so far: keywords and abilities
+so a new card never needs new code. Units with stats and keywords exist so far; abilities
 will be added to this schema as the DSL is built.
 """
 import json
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
-from src.game.terms import ASPECTS
+from src.game.terms import ASPECTS, KEYWORDS
 
 CARD_TYPES = ("unit",)
 
@@ -25,6 +25,7 @@ class Card:
     health: int
     score: int
     traits: tuple[str, ...] = ()
+    keywords: tuple[tuple[str, int], ...] = ()  # sorted (name, value); value is 1 for keywords without a number
 
     def __post_init__(self):
         if self.type not in CARD_TYPES:
@@ -33,9 +34,19 @@ class Card:
             raise ValueError(f"{self.id}: invalid aspects {self.aspects}")
         if self.cost < 0 or self.power < 0 or self.health < 1 or self.score < 0:
             raise ValueError(f"{self.id}: invalid stats")
+        for name, value in self.keywords:
+            if name not in KEYWORDS or value < 1 or (not KEYWORDS[name] and value != 1):
+                raise ValueError(f"{self.id}: invalid keyword {name} {value}")
+
+    def keyword(self, name: str) -> int:
+        """The keyword's value, 1 for a keyword without a number, 0 if the card doesn't have it."""
+        return dict(self.keywords).get(name, 0)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        # In JSON: {"guard": true, "duelist": 2}
+        data["keywords"] = {name: (value if KEYWORDS[name] else True) for name, value in self.keywords}
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "Card":
@@ -44,6 +55,8 @@ class Card:
         if unknown:
             raise ValueError(f"{data.get('id')}: unknown card fields {sorted(unknown)}")
         values = {k: tuple(v) if isinstance(v, list) else v for k, v in data.items()}
+        if "keywords" in values:
+            values["keywords"] = tuple(sorted((name, int(value)) for name, value in values["keywords"].items()))
         return cls(**values)
 
 

@@ -35,9 +35,10 @@ stats and names here.
 
 ```json
 → {"type": "card_set"}
-← {"status": "ok", "name": "vanilla_200", "cards": [
-     {"id": "V1-001", "name": "Wandering Weaver", "type": "unit", "aspects": ["aspect_1"],
-      "energy_source": true, "cost": 7, "power": 4, "health": 9, "score": 2, "traits": []},
+← {"status": "ok", "name": "keywords_200", "cards": [
+     {"id": "K1-004", "name": "Puffball Scholar", "type": "unit", "aspects": ["aspect_4"],
+      "energy_source": true, "cost": 5, "power": 3, "health": 3, "score": 2, "traits": ["Scholar"],
+      "keywords": {"elusive": true}},
      …200 cards…]}
 ```
 
@@ -45,10 +46,23 @@ stats and names here.
 |---|---|
 | `id` | card definition ID, referenced by `card_id` in the state |
 | `type` | only `"unit"` for now (actions, items and sites come later) |
-| `aspects` | one of `aspect_1` … `aspect_6` (card colour; placeholder names) |
+| `aspects` | one of `aspect_1` … `aspect_6`: Ember, Bog, Moss, Meadow, Glow, Frost ([theme.md](theme.md)) |
 | `energy_source` | can be added to the energy zone |
 | `cost`, `power`, `health`, `score` | stats; `score` is the VP gained when the unit scores |
-| `traits` | empty for now |
+| `traits` | the unit's job, e.g. `["Scholar"]` |
+| `keywords` | `{"guard": true, "duelist": 2}`: flags are `true`, Duelist and Armor carry a number. Show them as `Guard.`, `Duelist +2.` (see the keyword rules below) |
+
+**Keyword rules** (the server already applies them; the client only shows them):
+
+| Keyword | Rule |
+|---|---|
+| Guard | can be dueled even while ready, and opponents must duel a Guard unit if they can |
+| Elusive | only Elusive units can duel it |
+| Charge | can duel the turn it's played (it still can't score that turn) |
+| Duelist +N | +N power when it starts a duel |
+| Armor +N | takes N less damage in a duel, never below 0 |
+
+Legal duel actions and their previews already account for all of these.
 
 ### `new_game`: start a game on random decks
 

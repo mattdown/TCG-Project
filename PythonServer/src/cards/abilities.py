@@ -22,7 +22,9 @@ and stats later.
 """
 import random
 
-TRAITS = ("Elf", "Beast", "Construct", "Spirit", "Knight", "Mage")  # placeholders, generated with the set later
+from src.cards.theme import JOBS
+
+TRAITS = JOBS  # traits are jobs (docs/theme.md)
 HELPS, HURTS = "helps", "hurts"
 MAX_STEPS, MAX_DEPTH, MAX_CHOICES = 4, 2, 2
 
@@ -361,7 +363,7 @@ def _cap(text: str) -> str:
 
 
 def _low(text: str) -> str:
-    return text if text.startswith(("I ", "Elf", "Beast", "Construct", "Spirit", "Knight", "Mage")) else text[0].lower() + text[1:]
+    return text if text.split(" ", 1)[0] in TRAITS else text[0].lower() + text[1:]
 
 
 def _adjectives(f: dict) -> str:

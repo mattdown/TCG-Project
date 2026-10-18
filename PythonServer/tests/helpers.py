@@ -4,10 +4,11 @@ from src.game.engine import Game, GameConfig
 from src.game.state import CardInstance, Zone
 
 
-def unit(cost=1, power=1, health=1, score=1, energy_source=True, name=None) -> Card:
+def unit(cost=1, power=1, health=1, score=1, energy_source=True, name=None, **keywords) -> Card:
+    """A unit card; keywords as flags or values, e.g. unit(guard=1, duelist=2)."""
     name = name or f"Unit {cost}/{power}/{health}/{score}"
     return Card(id=name, name=name, type="unit", aspects=("aspect_1",), energy_source=energy_source,
-                cost=cost, power=power, health=health, score=score)
+                cost=cost, power=power, health=health, score=score, keywords=tuple(sorted(keywords.items())))
 
 
 def filler_deck(size=60) -> list[Card]:

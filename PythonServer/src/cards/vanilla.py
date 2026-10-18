@@ -1,8 +1,10 @@
-"""Heuristic generator for vanilla units: stats only, no keywords or abilities.
+"""Heuristic generators for units without abilities.
 
-Each card gets a stat budget from its cost and spends it on power, health and score:
+generate_vanilla_set makes stats-only units; generate_keyword_set adds keywords and themed
+names (mushroom species + job, see docs/theme.md). Each card gets a stat budget from its cost
+and spends it on keywords first, then on power, health and score:
 
-    value  = power + health + SCORE_VALUE * score
+    value  = power + health + SCORE_VALUE * score + keyword values
     budget = 2 * cost + 2, +1 if the card is not an energy source
 
 A share of cards are deliberately costed one point above or below budget. The deltas are
@@ -12,7 +14,8 @@ model can be checked on whether it finds them.
 import random
 
 from src.cards.schema import Card, CardSet
-from src.game.terms import ASPECTS
+from src.cards.theme import JOBS, SPECIES
+from src.game.terms import ASPECTS, KEYWORDS
 
 COST_WEIGHTS = {1: 10, 2: 16, 3: 18, 4: 16, 5: 13, 6: 10, 7: 8, 8: 5, 9: 4}
 SCORE_VALUE = 2
@@ -100,3 +103,79 @@ def generate_vanilla_set(n: int = 200, seed: int = 0, mis_cost_rate: float = 0.3
         "archetype": archetypes,
     }
     return CardSet(f"vanilla_{n}", cards, notes)
+
+
+# Budget points per keyword (per point of value for Duelist and Armor), and value ranges.
+KEYWORD_VALUE = {"guard": 1, "elusive": 2, "charge": 1, "duelist": 1, "armor": 2}
+KEYWORD_RANGE = {"duelist": (1, 3), "armor": (1, 2)}
+# Which keywords suit each archetype.
+ARCHETYPE_KEYWORDS = {
+    "balanced": {"guard": 1, "elusive": 1, "charge": 1, "duelist": 1, "armor": 1},
+    "attacker": {"guard": 0, "elusive": 1, "charge": 3, "duelist": 3, "armor": 0},
+    "defender": {"guard": 3, "elusive": 0, "charge": 0, "duelist": 0, "armor": 3},
+    "scorer": {"guard": 0, "elusive": 3, "charge": 1, "duelist": 0, "armor": 1},
+}
+
+
+def keyword_value(keywords: dict[str, int]) -> int:
+    return sum(KEYWORD_VALUE[k] * v for k, v in keywords.items())
+
+
+def _themed_names(rng: random.Random, n: int) -> list[tuple[str, str]]:
+    """Unique (name, job) pairs, e.g. ("Oyster Fisher", "Fisher")."""
+    pairs = [(f"{species} {job}", job) for species in SPECIES for job in JOBS]
+    if n > len(pairs):
+        raise ValueError(f"only {len(pairs)} unique names available")
+    return rng.sample(pairs, n)
+
+
+def generate_keyword_set(n: int = 200, seed: int = 0, keyword_rate: float = 0.45, mis_cost_rate: float = 0.3,
+                         prefix: str = "K1") -> CardSet:
+    """Units with stats, sometimes a keyword (rarely two), and themed names and jobs."""
+    rng = random.Random(seed)
+    names = _themed_names(rng, n)
+    cards, deltas, archetypes = [], {}, {}
+    for i in range(n):
+        cost = rng.choices(list(COST_WEIGHTS), list(COST_WEIGHTS.values()))[0]
+        energy_source = rng.random() < ENERGY_SOURCE_RATE
+        delta = rng.choice((-1, 1)) if rng.random() < mis_cost_rate else 0
+        archetype = rng.choice(list(ARCHETYPES))
+        budget = stat_budget(cost, energy_source) + delta
+
+        keywords = {}
+        wanted = (1 + (rng.random() < 0.15)) if rng.random() < keyword_rate else 0
+        for _ in range(wanted):
+            options = {k: w for k, w in ARCHETYPE_KEYWORDS[archetype].items() if w and k not in keywords}
+            name = rng.choices(list(options), list(options.values()))[0]
+            lo, hi = KEYWORD_RANGE.get(name, (1, 1))
+            value = rng.randint(lo, hi)
+            # Leave at least 1 power and 1 health.
+            if keyword_value(keywords | {name: value}) <= budget - 2:
+                keywords[name] = value
+
+        stats = _allocate(rng, budget - keyword_value(keywords), ARCHETYPES[archetype])
+        name, job = names[i]
+        card = Card(
+            id=f"{prefix}-{i + 1:03d}",
+            name=name,
+            type="unit",
+            aspects=(ASPECTS[i % len(ASPECTS)],),
+            energy_source=energy_source,
+            cost=cost,
+            traits=(job,),
+            keywords=tuple(sorted(keywords.items())),
+            **stats,
+        )
+        cards.append(card)
+        deltas[card.id] = stat_value(**stats) + keyword_value(keywords) - stat_budget(cost, energy_source)
+        archetypes[card.id] = archetype
+    notes = {
+        "generator": "keywords",
+        "seed": seed,
+        "budget": "value = power + health + 2 * score + keyword values; budget = 2 * cost + 2, +1 if not an "
+                  "energy source",
+        "keyword_value": {k: KEYWORD_VALUE[k] for k in KEYWORDS},
+        "budget_delta": deltas,
+        "archetype": archetypes,
+    }
+    return CardSet(f"keywords_{n}", cards, notes)
