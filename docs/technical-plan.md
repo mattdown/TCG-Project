@@ -15,7 +15,8 @@ the rules are defined. This also keeps the project free of card licensing issues
 ![System overview](architecture_overview.png)
 
 The diagram source is [architecture.drawio](architecture.drawio). Page 1 is the system
-overview above; page 2 shows the state graph in detail (see section 5).
+overview above; page 2 shows the state graph in detail (section 5); page 3 is the ability
+grammar: every ability the generator can produce (section 3).
 
 ## Placeholder glossary
 
@@ -110,53 +111,135 @@ followed by a bootstrapping round (section 8):
 }
 ```
 
-**Ability grammar.** It is small, typed and closed, so every tree can be executed,
-rendered as text and generated:
+**Abilities are written as trees and run as decision graphs.** Each ability exists in two
+forms:
+
+1. **Authoring form: a nested tree, stored in the card JSON.** This is what gets written by
+   hand, generated, validated and rendered as card text. Trees are easy for all four.
+2. **Decision graph, compiled once per card from the tree.** The engine executes it and the
+   GNN reads it. Each step becomes a node. Control edges say what happens next. Data edges
+   connect a choice to every later step that refers to it ("it", "that unit", "if you do").
+
+Static abilities and keywords aren't sequences of steps. They are rules applied whenever
+stats or legality are calculated, so they stay declarative and are never compiled into a
+flow.
+
+![Ability grammar](architecture_ability_grammar.png)
+
+**Grammar (authoring form).** It is small, typed and closed. Page 3 of the diagram lists
+every alternative and value range: it is the full space of abilities the generator can
+produce.
 
 ```
-Ability   := triggered(Trigger, [Condition], [Cost], Effect+)
-           | activated(Cost+, [Condition], Effect+)
-           | static(Condition?, Modifier+)
-Trigger   := on_play | on_score | on_duel | on_defeated | on_start_of_turn | on_end_of_turn | …  (+ source Filter)
-Effect    := deal_damage(n, Selector) | remove_damage(n|all, Selector) | defeat(Selector)
-           | return_to_hand(Selector) | draw(n, Player) | gain_vp(n, Player) | lose_vp(n, Player)
-           | exhaust(Selector) | ready(Selector) | cant_ready(Selector, Duration)
-           | modify_stat(stat, Δ, Selector, Duration) | grant_keyword(kw, Selector, Duration)
-           | put_into_energy(Selector) | look_and_choose(n, …) | …
-Selector  := choose(count, chooser, Filter, optional?) | all(Filter) | this | random(count, Filter)
-Filter    := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, exhausted?, name?, …}
-Duration  := this_turn | until_their_next_turn | while(Condition) | permanent
+Ability    := triggered(Trigger, [Condition], Steps)
+            | activated(Cost, [Condition], Steps)            // "⟳ …" abilities
+            | on_resolve(Steps)                              // action cards
+            | static([Condition], Modifier+)                 // declarative, not compiled to a flow
+Steps      := Step+                                          // 1–4 steps, run in order
+Step       := choose(count, chooser, Filter, optional?) as Name    // decision point
+            | Effect
+            | if(Condition) then Steps [else Steps]
+            | may(Steps) [if_you_do Steps]                   // yes / no decision point
+            | choose_one(Steps, Steps)                       // decision point
+            | for_each(Target) Steps
+Effect     := op(Amount?, Target, [Duration])
+Target     := Name | this | all(Filter) | you | opponent | owner_of(Name)
+Trigger    := event + source (this | Filter)
+Cost       := exhaust_this | pay(n) | exhaust_another | discard          (up to two)
+Condition  := defeated(Name) | in_play(Name) | count(Filter) ≥ n | vp_compare | your_turn
+            | this_is(attacking | defending | exhausted | damaged)
+Modifier   := Subject gets stat ±Amount [while Condition]
+            | Subject gains Keyword [while Condition]
+            | cost(−1) for Filter
+Subject    := this | all(Filter)
+Amount     := n | k per count(Filter), up to cap | stat_of(Name)
+Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, exhausted?, keyword?, not_this?}
+Duration   := this_turn | until_their_next_turn | while_this_in_play | permanent
 ```
 
-**Requirements so the DSL can be generated:**
+A `Name` can only refer to a choice made earlier in the same ability. That keeps every tree
+valid and every reference renderable as text.
 
-- **Types and ranges.** Every parameter has a type and a valid range (e.g. `deal_damage.n ∈
-  1..5`). Every effect has a *polarity* (does it help or hurt the target?) so that, say,
-  "remove damage" can't target opposing units unless a rule explicitly allows it.
-- **Text renderer.** A DSL → card text renderer is needed for the Unity client and for
-  human review. It is also the easy direction: nothing has to parse free text.
-- **"Does something" check.** The engine checks that an ability actually changes game state
-  across simulated games, and that it never loops.
-- **Granularity.** The building blocks set the design space, so generated abilities are new
-  combinations, not new mechanics. Fine-grained, independent building blocks (events, zones,
-  counters, conditions) widen that space but make generation harder; template-sized blocks
-  do the opposite. Start template-sized and break blocks apart as the generator improves.
+**Scaling amounts.** Wherever an effect or modifier takes a number, it can take an `Amount`
+instead. That covers "deal 1 damage for each Elf in play" and "deal damage equal to its
+power". A static ability can scale too: "While this unit is attacking, it gets +1 power for
+each Elf in play (up to +4)" is `static(this_is(attacking), this gets power +(1 per
+count(Elf in play), up to 4))`. Statics are recalculated live, so the count is taken when the
+bonus is needed. A triggered version ("when this unit attacks, it gets +1 power this turn for
+each Elf") takes a snapshot instead. In the state graph, a scaling amount is its own small
+node with `matches` edges to the cards it is counting.
 
-**The two example abilities as trees:**
+**Generation constraints.** These are applied while sampling, then checked again before a
+card is accepted:
+
+- **Scope.** References only point to earlier choices in the same ability.
+- **Types.** An effect's target has the right type: unit effects target units, player
+  effects target players.
+- **Polarity.** Every effect either helps or hurts its target. Helpful effects target your
+  side, harmful ones the opponent's. The reverse is allowed only inside `may … if_you_do`,
+  as a cost ("You may deal 2 damage to one of your units. If you do, draw 2 cards.").
+- **Size.** At most 2 abilities per card, 4 steps per sequence, nesting depth 2, and 2
+  choices per ability.
+- **Ranges.** Every number comes from its range (e.g. `deal_damage` 1–5). A scaling amount
+  must have a cap, so the card's strength is bounded and the cost model can price it.
+- **Validation pipeline:**
+  1. Render the card text.
+  2. Compile the decision graph.
+  3. Simulate in self-play. The ability must change the game state and never loop.
+  4. The cost model sets the card's cost and stats (auto-costing).
+
+**Granularity.** The building blocks set the design space, so generated abilities are new
+combinations, not new mechanics. Fine-grained, independent building blocks (events, zones,
+counters, conditions) widen that space but make generation harder; template-sized blocks do
+the opposite. Start template-sized and break blocks apart as the generator improves.
+
+**Two examples in authoring form:**
 
 ```jsonc
-// "When you play this unit, choose an opposing unit. It can't ready at the start of its next turn."
+// "When you play this unit, choose an opposing unit and deal 2 damage to it. If it's defeated, draw a card."
 {"kind": "triggered", "trigger": {"event": "on_play", "source": "this"},
- "effects": [{"op": "cant_ready", "duration": "until_their_next_turn",
-              "target": {"select": "choose", "count": 1, "chooser": "you",
-                         "filter": {"type": "unit", "owner": "opponent"}}}]}
+ "steps": [
+   {"choose": {"count": 1, "chooser": "you", "filter": {"type": "unit", "owner": "opponent"}}, "as": "it"},
+   {"effect": "deal_damage", "amount": 2, "target": "it"},
+   {"if": {"defeated": "it"}, "then": [{"effect": "draw", "amount": 1, "target": "you"}]}]}
 
 // "Remove all damage from your trait A units."
 {"kind": "on_resolve",
- "effects": [{"op": "remove_damage", "amount": "all",
-              "target": {"select": "all",
-                         "filter": {"type": "unit", "owner": "you", "trait": "trait_a"}}}]}
+ "steps": [{"effect": "remove_damage", "amount": "all",
+            "target": {"all": {"type": "unit", "owner": "you", "trait": "trait_a"}}}]}
 ```
+
+**The decision graph.** The first example compiles to:
+
+```
+ENTRY(on_play) → CHOOSE(1 opposing unit, as "it") → EFFECT(deal 2 damage) → IF(defeated?) ─yes→ EFFECT(draw 1)
+                        ║                                   ▲                    ▲          └─no──→ END
+                        ╚══════════ uses "it" ══════════════╩════════════════════╝
+```
+
+- **Node types:**
+  - `entry`
+  - `choose`, `may`, `choose_one`: the decision points
+  - `if`, `for_each`, `effect`
+  - `end`
+- **Edges:**
+  - control: `next`, `then`, `else`, `option`, `if_you_do`
+  - data: `uses`, from a `choose` or `for_each` to every step that refers to its name
+- **Filters** are features of the node that uses them: a `choose`, an `effect` targeting
+  `all(…)`, or an `if` testing `count(…)`.
+
+Why this form works for both consumers:
+
+- **References are edges.** "It" is a data edge, so no variable scoping is needed at run time.
+- **Resolution state is plain data.** A pending ability is (source card, ability, current
+  node, chosen values). The engine keeps a stack of them. The game can be cloned, saved or
+  sent to the Unity client in the middle of resolving an ability, and porting to C# is
+  straightforward. A recursive interpreter built on Python generators couldn't be
+  deep-copied, and search needs `clone()`.
+- **Decision nodes are the engine's decision points.** At a `choose`, `may` or `choose_one`
+  node the engine pauses and offers the legal options. The policy head gets that node as its
+  *context*, so the network knows exactly which step of which ability it is deciding.
+- **The GNN reads the graph directly** as the card's ability subgraph.
 
 **Card sources:**
 
@@ -177,6 +260,10 @@ Duration  := this_turn | until_their_next_turn | while(Condition) | permanent
   Every decision is "choose one of these N options", and each option refers to graph nodes.
 - **Events and triggers:** an event bus feeds a trigger queue, resolved in rules order.
   Durations are stored as active effects and expired by the turn structure.
+- **Ability resolution:** a stack of pending abilities, each (source card, ability, current
+  node, chosen values). The engine walks each decision graph and pauses at `choose`, `may`
+  and `choose_one` nodes, which become ordinary decision points. Static abilities are
+  applied whenever stats or legality are calculated.
 - **Determinism:** all randomness comes from a seeded RNG. `clone()` and
   `determinize(player)` (re-deal the hidden cards consistently with what the player has
   seen) support search in part b.
@@ -193,19 +280,22 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 | Node type | Features |
 |---|---|
 | `card` (each card instance that is visible) | card embedding from the card encoder + zone, exhausted, damage, fresh, site, owner (relative: you / opponent) |
-| `ability`, `trigger`, `cost`, `condition`, `effect`, `selector`, `filter` | node type + its parameters (amount, count, stat, keyword, duration, chooser), numbers normalised |
+| ability graph nodes: `entry`, `choose`, `may`, `choose_one`, `if`, `for_each`, `effect`, `end`, plus `static` | node type + parameters (op, amount, count, stat, keyword, duration, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved |
 | `player` (you, opponent) | VP, energy ready / total, hand size, deck size, added energy this turn |
 | `global` | turn number, phase, whose turn |
 | `active_effect` | effect type + parameters + turns until it expires |
 
 | Edge type | Kind | Meaning |
 |---|---|---|
-| `has_ability`, `ability → trigger/cost/condition/effect`, `effect → selector → filter` | static | ability tree structure |
+| `has_ability` | static | card → each of its abilities' `entry` (or `static`) node |
+| `next`, `then`, `else`, `option`, `if_you_do` | static | control flow inside a decision graph |
+| `uses` | static | data flow: a `choose` / `for_each` → every later step that refers to its name ("it") |
 | `same_name` | static | links cards that share a name (Evolve, "named X" checks) without a name embedding |
 | `owns`, `in_zone` | dynamic | player → card, card → zone |
 | `at_site`, `evolved_from` | dynamic | board structure |
 | `faces` | dynamic | between every unit in play and every opposing unit, so units can weigh up direct threats |
-| `matches` | dynamic | filter → every card it currently matches, computed by the engine (respects Veiled, Elusive, etc.) |
+| `matches` | dynamic | a node with a Filter (`choose`, `effect` on `all(…)`, `if` on `count(…)`, `static`, a scaling `amount`) → every card the Filter currently matches, computed by the engine (respects Veiled, Elusive, etc.) |
+| `bound_to` | dynamic | while an ability resolves: a `choose` node → the card(s) already chosen for it |
 | `affects`, `source_of` | dynamic | active effect → affected card; card → effect it created |
 
 Every edge type also gets its reverse, so information flows both ways.
@@ -231,8 +321,10 @@ so a few hundred nodes. That batches easily on a GPU.
   framework-neutral encoder (`src/graph/encode.py`, NumPy arrays). The transformer's input is
   padded to a few fixed sizes, so it also suits TPUs and a JAX port.
 - **Policy head:** each legal option is encoded as `MLP([action-type embedding,
-  emb(actor node), emb(target node), emb(global)])` and scored, with a softmax over the legal
-  options only (a pointer-network style head).
+  emb(actor node), emb(target node), emb(context node), emb(global)])` and scored, with a
+  softmax over the legal options only (a pointer-network style head). While an ability
+  resolves, the context is the decision node being resolved. For a `choose`, the target is
+  the card. For a `choose_one`, the target is the first node of the option's branch.
 - **Value head:** win probability from the pooled player and global nodes. Auxiliary targets
   (final VP difference, turns remaining) help early training.
 - **Cost model:** predicts a card's fair cost from its embedding, trained on the agent's games
@@ -248,6 +340,7 @@ so a few hundred nodes. That batches easily on a GPU.
 | `clone` / `determinize` | AlphaZero-style search over hidden information later | Cheaper, stronger agents for tournaments |
 | No card IDs, cards described by content | Trains on randomized pools and generalises | Evaluates generated cards with no retraining |
 | Typed, closed DSL with a text renderer | — | The generator samples valid trees; the engine runs them unchanged; every card is readable |
+| Abilities compiled to decision graphs | Choices inside abilities are ordinary decision points, scored with the decision node as context | Generated trees run in the engine with no new code |
 | Card embedding + cost model | — | Auto-costing and fast screening of candidates |
 
 ## 8. Bootstrapping from nothing
@@ -285,8 +378,9 @@ it can settle on a "balance" that only its own agent believes in. Mitigations:
 5. Model forward pass on batched graphs, plus a smoke-test training loop (value regression on
    random-play outcomes). **This is the first end-to-end slice, and it covers round 0 of
    section 8.**
-6. DSL interpreter: triggers, selectors, filters, durations, active effects. Add
-   abilities to the starter set and the sampler.
+6. Ability DSL: authoring trees with validation, a text renderer, the compiler to decision
+   graphs, and a graph walker with a pending-ability stack; triggers, filters, durations,
+   active effects. Add abilities to the starter set and the sampler.
 7. Then: actions and items, sites, chants and Evolve.
 
 ## 10. Open questions

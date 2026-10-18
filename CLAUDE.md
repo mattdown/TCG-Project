@@ -23,6 +23,9 @@ Decisions already made (don't re-open without a reason):
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
 - **Client:** the Unity client is a thin view. The Python server owns all rules and state.
+- **Abilities:** authored as trees (the grammar in docs/technical-plan.md section 3), compiled to
+  decision graphs that the engine walks and the GNN reads. Static abilities and keywords stay
+  declarative.
 
 ## Layout
 
@@ -70,7 +73,7 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   say why, and few inline comments.
 - **Diagrams.** Edit `docs/architecture.drawio` in draw.io, then re-export the PNGs:
   `drawio -x -f png -s 1.25 -p 1 -o docs/architecture_overview.png docs/architecture.drawio`
-  (`-p 2` → `architecture_state_graph.png`).
+  (`-p 2` → `architecture_state_graph.png`, `-p 3` → `architecture_ability_grammar.png`).
 - **Git.** Commit only when asked.
 
 ## Unity client
