@@ -1,10 +1,13 @@
 import random
 
-from scripts.card_lab import run
+from scripts.card_lab import one, run
 from src.cards.abilities import AbilitySampler, card_problems, render
 from src.cards.generate import CardGenerator
 from src.cards.quality import (MAX_COMPLEXITY, complexity, disconnected_steps, dominated_options, quality_problems,
                                skeleton)
+from src.cards.names import full_name, main_effect, static_kind
+from src.cards.theme import ACTION_WORDS, JOBS
+from src.cards.trace import Tracer, path_probability
 
 OPPOSING = {"owner": "opponent"}
 
@@ -105,3 +108,63 @@ def test_card_lab_data():
     assert all(data["attempts"][i]["card"]["traits"][0] in data["job_list"]
                for i in data["kept"] if data["attempts"][i]["card"]["type"] == "unit")
     assert render(data["attempts"][data["kept"][0]]["tree"], data["attempts"][data["kept"][0]]["card_type"])
+
+
+def _decisions(node):
+    for c in node["children"]:
+        if "section" in c:
+            yield from _decisions(c)
+        else:
+            yield c
+
+
+def test_trace_records_every_decision_with_its_options():
+    generator = CardGenerator(random.Random(4))
+    for _ in range(30):
+        a = generator.card()
+        steps = list(_decisions(a.trace))
+        assert steps[0]["decision"] == "Action card?"
+        assert any(d["decision"] == "Ability kind" for d in steps)
+        for d in steps:
+            chosen = next(o for o in d["options"] if o["name"] == d["chosen"])
+            assert chosen["p"] > 0
+            assert abs(sum(o["p"] for o in d["options"]) - 1) < 5e-3  # each p is rounded
+        assert 0 < path_probability(a.trace) <= 1
+
+
+def test_tracing_matches_plain_sampling():
+    """The tracer draws from the random generator exactly as plain calls would."""
+    rng = random.Random(9)
+    plain = random.Random(9)
+    tracer = Tracer(rng)
+    assert tracer.weighted("x", {"a": 1, "b": 0, "c": 3}) == plain.choices(["a", "c"], [1, 3])[0]
+    assert tracer.chance("y", 0.3) == (plain.random() < 0.3)
+    assert tracer.small("z", 1, 5) == plain.choices([1, 2, 3, 4, 5], [1, 1 / 2, 1 / 3, 1 / 4, 1 / 5])[0]
+    assert rng.random() == plain.random()
+
+
+def test_explorer_data():
+    data = one(seed=12, jobs=6, action_share=0.25, variety=1)
+    kept = data["kept"]
+    assert kept["stopped_at"] is None and kept["card"] is not None
+    assert 0 < kept["ability_p"] <= 1 and kept["ability_decisions"] >= 1
+    assert all(a["stopped_at"] and "trace" in a for a in data["others"])
+
+
+def test_names_are_unique_and_actions_get_event_names():
+    generator = CardGenerator(random.Random(6), jobs=JOBS[:2])
+    cards = [generator.card().card for _ in range(300)]
+    assert len({full_name(c) for c in cards}) == len(cards)
+    for c in cards:
+        if c.type == "unit":
+            assert c.subtitle and c.name.split()[-1] in JOBS[:2]
+        else:
+            assert not c.subtitle and not any(job in c.name for job in JOBS)
+            assert c.name.split()[0] in {w for words in ACTION_WORDS.values() for w in words}
+
+
+def test_main_effect_and_static_kind():
+    may = on_play({"may": [{"effect": "lose_vp", "target": "you", "amount": 1}], "if_you_do": [gain(2)]})
+    assert main_effect(may) == "gain_vp"
+    discount = {"kind": "static", "condition": None, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you"}}]}
+    assert static_kind(discount) == "discount"

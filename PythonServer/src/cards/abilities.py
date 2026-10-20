@@ -24,6 +24,7 @@ and stats later.
 import random
 
 from src.cards.quality import quality_problems
+from src.cards.trace import Tracer
 from src.cards.theme import JOBS
 from src.game.terms import KEYWORDS, keyword_text
 
@@ -75,17 +76,13 @@ def polarity(step: dict) -> str:
 
 
 class AbilitySampler:
+    """Every random decision goes through a Tracer, so the path taken through the grammar can be
+    shown afterwards (self.trace.root after raw())."""
+
     def __init__(self, rng: random.Random, traits: tuple[str, ...] = TRAITS):
         self.rng = rng
+        self.trace = Tracer(rng)
         self.traits = traits  # the jobs abilities may refer to
-
-    def _w(self, options: dict):
-        return self.rng.choices(list(options), list(options.values()))[0]
-
-    def _small(self, lo: int, hi: int) -> int:
-        """A number in [lo, hi], weighted towards the low end."""
-        values = list(range(lo, hi + 1))
-        return self.rng.choices(values, [1 / (i + 1) for i in range(len(values))])[0]
 
     def ability(self, card_type: str = "unit") -> dict:
         """A random ability that passes validate() and the quality tests (src/cards/quality.py).
@@ -95,23 +92,31 @@ class AbilitySampler:
             if not validate(ability, card_type) and not quality_problems(ability):
                 return ability
 
-    def raw(self, card_type: str) -> dict:
-        """One draw from the grammar, before any checks."""
+    def raw(self, card_type: str, reset: bool = True) -> dict:
+        """One draw from the grammar, before any checks. `reset=False` adds to the current trace."""
+        t = self.trace
+        if reset:
+            t.reset()
         if card_type == "action":
+            t.fixed("Ability kind", "on_resolve", "action cards only have on-resolve abilities")
             kind = "on_resolve"
         else:
-            kind = self._w({"triggered": 5, "activated": 2, "static": 3})
+            kind = t.weighted("Ability kind", {"triggered": 5, "activated": 2, "static": 3})
         self.card_type = card_type
         self.names = []  # (name, side) of choices made so far
         if kind == "static":
-            return {"kind": "static", **self._static()}
+            with t.section("static"):
+                return {"kind": "static", **self._static()}
         ability = {"kind": kind}
         if kind == "triggered":
             ability["trigger"] = self._trigger()
-            ability["condition"] = self._condition() if self.rng.random() < 0.2 else None
+            has_condition = t.chance("Add a condition?", 0.2)
+            with t.section("condition"):
+                ability["condition"] = self._condition() if has_condition else None
         elif kind == "activated":
             ability["cost"] = self._cost()
-        ability["steps"] = self._steps(ability)
+        with t.section("steps"):
+            ability["steps"] = self._steps(ability)
         if kind == "triggered" and ability["trigger"]["event"] == "end_of_turn":
             # A "this turn" bonus at the end of your turn would end at once: make it last through
             # the opponent's turn instead.
@@ -121,68 +126,94 @@ class AbilitySampler:
         return ability
 
     def _trigger(self) -> dict:
-        event = self._w(TRIGGERS)
-        trigger = {"event": event}
-        if event == "another_played":
-            trigger["filter"] = {"owner": "you", "trait": self.rng.choice(self.traits), "not_this": True}
+        t = self.trace
+        with t.section("trigger"):
+            event = t.weighted("Trigger", TRIGGERS)
+            trigger = {"event": event}
+            if event == "another_played":
+                trigger["filter"] = {"owner": "you", "trait": t.choice("Which job", self.traits), "not_this": True}
         return trigger
 
     def _cost(self) -> list:
         # ⟳ is always part of the cost, so an activated ability can't run away: it's used at most once
         # per turn unless something readies the unit (and readied units can't use ⟳ that turn).
-        cost = [{"exhaust_this": True}]
-        extra = self._w({"none": 4, "pay": 4, "exhaust_another": 1, "discard": 1})
-        if extra == "pay":
-            cost.append({"pay": self._small(1, 3)})
-        elif extra != "none":
-            cost.append({extra: 1})
+        t = self.trace
+        with t.section("cost"):
+            t.fixed("Cost", "⟳", "every activated ability exhausts its card, so it can't run away")
+            cost = [{"exhaust_this": True}]
+            extra = t.weighted("Extra cost", {"none": 4, "pay": 4, "exhaust_another": 1, "discard": 1})
+            if extra == "pay":
+                cost.append({"pay": t.small("Energy", 1, 3)})
+            elif extra != "none":
+                cost.append({extra: 1})
         return cost
 
     def _condition(self) -> dict:
-        kind = self._w({"count": 3, "behind": 1})
+        t = self.trace
+        kind = t.weighted("Condition", {"count": 3, "behind": 1})
         if kind == "count":
-            return {"count": {"owner": "you", "trait": self.rng.choice(self.traits), "not_this": True},
-                    "at_least": self.rng.choice((2, 3))}
+            return {"count": {"owner": "you", "trait": t.choice("Count which job", self.traits), "not_this": True},
+                    "at_least": t.choice("At least", (2, 3))}
         return {"behind_on_vp": True}
 
     def _filter(self, owner: str, extra_chance: float = 0.35) -> dict:
+        t = self.trace
         f = {"owner": owner}
         if owner == "you" and self.card_type == "unit":
             f["not_this"] = True
-        if self.rng.random() < extra_chance:
-            extra = self._w({"damaged": 2, "exhausted": 2, "cost_max": 2, "trait": 2})
+        if 0 < extra_chance < 1:
+            restrict = t.chance("Restrict the target?", extra_chance)
+        else:
+            restrict = self.rng.random() < extra_chance  # forced either way; drawn so the random stream is unchanged
+            if restrict:
+                t.fixed("Restrict the target?", "yes", "defeat always needs a restricted target")
+        if restrict:
+            extra = t.weighted("Restriction", {"damaged": 2, "exhausted": 2, "cost_max": 2, "trait": 2})
             if extra == "cost_max":
-                f["cost_max"] = self.rng.choice((2, 3, 4))
+                f["cost_max"] = t.choice("Cost at most", (2, 3, 4))
             elif extra == "trait":
-                f["trait"] = self.rng.choice(self.traits)
+                f["trait"] = t.choice("Job", self.traits)
             else:
                 f[extra] = True
         return f
 
     def _steps(self, ability: dict) -> list:
+        t = self.trace
         # Activated abilities put every cost before the colon, so they never use "you may … if you do".
         may = 0 if ability["kind"] == "activated" else 3
-        pattern = self._w({"single": 7, "double": 3, "follow_up": 3, "may": may, "choose_one": 2})
+        pattern = t.weighted("Step pattern", {"single": 7, "double": 3, "follow_up": 3, "may": may, "choose_one": 2},
+                             "activated abilities can't use 'you may'" if not may else "")
         if pattern == "single":
-            return self._effect(ability)
+            with t.section("effect"):
+                return self._effect(ability)
         if pattern == "double":
-            first = self._effect(ability)
-            return first + self._effect(ability, player_only=True, exclude=first[-1]["effect"])
+            with t.section("first effect"):
+                first = self._effect(ability)
+            with t.section("second effect"):
+                return first + self._effect(ability, player_only=True, exclude=first[-1]["effect"])
         if pattern == "follow_up":
-            steps = self._effect(ability, op="deal_damage", choose=True)
+            with t.section("effect"):
+                steps = self._effect(ability, op="deal_damage", choose=True)
             name = self.names[-1][0]
-            return steps + [{"if": {"defeated": name}, "then": self._effect(ability, player_only=True, helps_only=True)}]
+            with t.section("if it was defeated"):
+                return steps + [{"if": {"defeated": name},
+                                 "then": self._effect(ability, player_only=True, helps_only=True)}]
         if pattern == "may":
-            cost = self._self_cost()
+            with t.section("you may (cost)"):
+                cost = self._self_cost()
             self.names = [n for n in self.names if n[0] != "that"]  # the reward doesn't target what was paid
             same_resource = "gain_vp" if cost[-1]["effect"] == "lose_vp" else None  # "lose 1, gain 2" is just "gain 1"
-            reward = self._effect(ability, helps_only=True, strong=True, exclude=same_resource)
+            with t.section("if you do (reward)"):
+                reward = self._effect(ability, helps_only=True, strong=True, exclude=same_resource)
             return [{"may": cost, "if_you_do": reward}]
-        first = self._effect(ability, player_only=True)
-        return [{"choose_one": [first, self._effect(ability)]}]
+        with t.section("option 1"):
+            first = self._effect(ability, player_only=True)
+        with t.section("option 2"):
+            return [{"choose_one": [first, self._effect(ability)]}]
 
     def _self_cost(self) -> list:
-        kind = self._w({"discard": 3, "exhaust_own": 2, "damage_own": 1, "lose_vp": 1})
+        t = self.trace
+        kind = t.weighted("Cost to pay", {"discard": 3, "exhaust_own": 2, "damage_own": 1, "lose_vp": 1})
         if kind == "discard":
             return [{"effect": "discard", "target": "you", "amount": 1, "chosen": True}]
         if kind == "lose_vp":
@@ -192,25 +223,32 @@ class AbilitySampler:
         if kind == "exhaust_own":
             choose["choose"]["filter"]["exhausted"] = False
             return [choose, {"effect": "exhaust", "target": {"ref": "that"}}]
-        return [choose, {"effect": "deal_damage", "target": {"ref": "that"}, "amount": self.rng.choice((1, 2))}]
+        return [choose, {"effect": "deal_damage", "target": {"ref": "that"}, "amount": t.choice("Damage", (1, 2))}]
 
     def _effect(self, ability: dict, op: str | None = None, player_only=False, helps_only=False, choose=False,
                 strong=False, exclude: str | None = None) -> list:
-        options = {o: w for o, w in EFFECT_WEIGHTS.items()
-                   if (not player_only or EFFECTS[o][0] == "player") and (not helps_only or EFFECTS[o][1] != HURTS)
-                   and o != exclude}
-        op = op or self._w(options)
+        t = self.trace
+        options = {o: (w if (not player_only or EFFECTS[o][0] == "player") and (not helps_only or EFFECTS[o][1] != HURTS)
+                       and o != exclude else 0)
+                   for o, w in EFFECT_WEIGHTS.items()}
+        why = [w for w, on in (("player effects only", player_only), ("helpful effects only", helps_only),
+                               (f"not {exclude} again", exclude)) if on]
+        if op:
+            t.fixed("Effect", op, "this step pattern always deals damage first")
+        else:
+            op = t.weighted("Effect", options, "; ".join(why))
         kind, pol, rng_ = EFFECTS[op]
         step = {"effect": op}
         if op == "modify_stat":
-            stat = self._w({"power": 6, "health": 3, "score": 1})
-            sign = 1 if helps_only or self.rng.random() < 0.7 else -1
+            stat = t.weighted("Stat", {"power": 6, "health": 3, "score": 1})
+            sign = 1 if helps_only or t.chance("Raise it? (else lower)", 0.7) else -1
             if sign < 0:
                 stat = "power"
-            step.update(stat=stat, delta=sign * self._small(1, 3 if strong else 2), duration="this_turn")
+                t.fixed("Stat", "power", "only power is ever lowered")
+            step.update(stat=stat, delta=sign * t.small("By", 1, 3 if strong else 2), duration="this_turn")
             pol = HELPS if sign > 0 else HURTS
         elif op == "grant_keyword":
-            keyword, value = self.rng.choice(GRANTABLE_KEYWORDS)
+            keyword, value = t.choice("Keyword", GRANTABLE_KEYWORDS)
             step.update(keyword=keyword, value=value, duration=GRANT_DURATION[keyword])
         elif op == "cant_ready":
             step["duration"] = "until_their_next_turn"
@@ -221,64 +259,78 @@ class AbilitySampler:
 
         if rng_ and op != "modify_stat":
             lo, hi = rng_
-            step["amount"] = self._small(lo + (1 if strong else 0), hi)
-            if op == "remove_damage" and self.rng.random() < 0.3:
+            step["amount"] = t.small("Amount", lo + (1 if strong else 0), hi, "a reward is at least 2" if strong else "")
+            if op == "remove_damage" and t.chance("Remove all damage instead?", 0.3):
                 step["amount"] = "all"
-            elif op in ("deal_damage", "draw", "gain_vp") and self.rng.random() < 0.15:
-                step["amount"] = {"per": {"owner": self.rng.choice(("you", "any")), "trait": self.rng.choice(self.traits)},
-                                  "k": 1, "cap": self.rng.choice((3, 4, 5))}
+            elif op in ("deal_damage", "draw", "gain_vp") and t.chance("Scale with a count instead?", 0.15):
+                step["amount"] = {"per": {"owner": t.choice("Count whose units", ("you", "any")),
+                                          "trait": t.choice("Count which job", self.traits)},
+                                  "k": 1, "cap": t.choice("Up to", (3, 4, 5))}
 
         side = "you" if pol == HELPS else "opponent"
         if kind == "player":
+            t.fixed("Target", side, "helpful effects target you, harmful ones your opponent")
             step["target"] = side
             return [step]
 
         # Unit effects: reuse an earlier choice, make a new one, hit everything matching, or this card.
-        earlier = [name for name, s in self.names if s == side]
-        can_use_this = (side == "you" and ability.get("kind") in ("triggered", "static")
-                        and ability.get("trigger", {}).get("event") != "on_defeated" and op != "ready")
-        choose = choose or op == "defeat"  # defeat always goes through a restricted choice
-        if earlier and not choose and self.rng.random() < 0.6:
-            step["target"] = {"ref": earlier[-1]}
-            return [step]
-        how = "choose" if choose else self._w({"choose": 6, "all": 2, "this": 2 if can_use_this else 0})
-        if how == "this":
-            step["target"] = "this"
-            return [step]
-        if how == "all":
-            step["target"] = {"all": self._filter(side)}
-            if isinstance(step.get("amount"), int) and op == "deal_damage":
-                step["amount"] = min(step["amount"], 2)  # area damage stays small
-            return [step]
-        name = "it" if not any(n == "it" for n, _ in self.names) else "other"
-        self.names.append((name, side))
-        f = self._filter(side, extra_chance=1.0 if op == "defeat" else 0.35)
-        if op == "defeat" and "trait" in f:
-            del f["trait"]  # a trait alone doesn't limit how strong the target is
-            f["cost_max"] = self.rng.choice((2, 3))
+        with t.section("target"):
+            earlier = [name for name, s in self.names if s == side]
+            can_use_this = (side == "you" and ability.get("kind") in ("triggered", "static")
+                            and ability.get("trigger", {}).get("event") != "on_defeated" and op != "ready")
+            choose = choose or op == "defeat"  # defeat always goes through a restricted choice
+            if earlier and not choose and t.chance(f"Reuse '{earlier[-1]}'?", 0.6):
+                step["target"] = {"ref": earlier[-1]}
+                return [step]
+            if choose:
+                how = "choose"
+                t.fixed("Target", "choose", "defeat always targets a restricted choice" if op == "defeat"
+                        else "the follow-up needs a chosen unit")
+            else:
+                how = t.weighted("Target", {"choose": 6, "all": 2, "this": 2 if can_use_this else 0},
+                                 "" if can_use_this else "'this' isn't possible here")
+            if how == "this":
+                step["target"] = "this"
+                return [step]
+            if how == "all":
+                step["target"] = {"all": self._filter(side)}
+                if isinstance(step.get("amount"), int) and op == "deal_damage" and step["amount"] > 2:
+                    t.fixed("Amount", 2, "area damage stays small")
+                    step["amount"] = 2
+                return [step]
+            name = "it" if not any(n == "it" for n, _ in self.names) else "other"
+            self.names.append((name, side))
+            f = self._filter(side, extra_chance=1.0 if op == "defeat" else 0.35)
+            if op == "defeat" and "trait" in f:
+                del f["trait"]  # a trait alone doesn't limit how strong the target is
+                f["cost_max"] = t.choice("Cost at most", (2, 3), "a job alone doesn't limit a defeat target")
         choose_step = {"choose": {"count": 1, "filter": f}, "as": name}
         step["target"] = {"ref": name}
         return [choose_step, step]
 
     def _static(self) -> dict:
-        kind = self._w({"self_situational": 4, "lord": 3, "self_keyword": 2, "discount": 1, "debuff": 1})
-        trait = self.rng.choice(self.traits)
+        t = self.trace
+        kind = t.weighted("Static kind", {"self_situational": 4, "lord": 3, "self_keyword": 2, "discount": 1, "debuff": 1})
+        trait = t.choice("Job", self.traits)
         if kind == "self_situational":
-            amount = (self._small(1, 2) if self.rng.random() < 0.5 else
-                      {"per": {"owner": self.rng.choice(("you", "any")), "trait": trait}, "k": 1,
-                       "cap": self.rng.choice((3, 4))})
-            stat = "power" if self.rng.random() < 0.8 else "health"
+            if t.chance("Fixed amount? (else scale with a count)", 0.5):
+                amount = t.small("Amount", 1, 2)
+            else:
+                amount = {"per": {"owner": t.choice("Count whose units", ("you", "any")), "trait": trait}, "k": 1,
+                          "cap": t.choice("Up to", (3, 4))}
+            stat = "power" if t.chance("Power? (else health)", 0.8) else "health"
             situation = "attacking" if stat == "power" else "defending"
+            t.fixed("While", situation, "power matters when attacking, health when defending")
             return {"condition": {"this_is": situation},
                     "modifiers": [{"subject": "this", "stat": stat, "amount": amount}]}
         if kind == "lord":
             return {"condition": None, "modifiers": [{"subject": {"all": {"owner": "you", "trait": trait, "not_this": True}},
-                                                      "stat": self.rng.choice(("power", "health")), "amount": 1}]}
+                                                      "stat": t.choice("Stat", ("power", "health")), "amount": 1}]}
         if kind == "self_keyword":
-            condition = self.rng.choice(({"this_is": "damaged"},
-                                         {"count": {"owner": "you", "trait": trait, "not_this": True}, "at_least": 2}))
+            condition = t.choice("While", ({"this_is": "damaged"},
+                                           {"count": {"owner": "you", "trait": trait, "not_this": True}, "at_least": 2}))
             return {"condition": condition,
-                    "modifiers": [{"subject": "this", **dict(zip(("keyword", "value"), self.rng.choice(GRANTABLE_KEYWORDS)))}]}
+                    "modifiers": [{"subject": "this", **dict(zip(("keyword", "value"), t.choice("Keyword", GRANTABLE_KEYWORDS)))}]}
         if kind == "discount":
             return {"condition": None, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": trait}}]}
         return {"condition": None, "modifiers": [{"subject": {"all": {"owner": "opponent", "damaged": True}},

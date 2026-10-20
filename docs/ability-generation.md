@@ -82,7 +82,10 @@ Trade-offs worth knowing:
 ### 4. Build and cost the card
 
 `CardGenerator._build` turns the ability into a card:
-- **Names:** mushroom species + job.
+- **Names:** units are a species + job with a subtitle picked from the ability ("Porcini
+  Baker – Up Before Dawn"). Actions get an event name: an aspect word plus a noun for the main
+  effect ("Ember Volley"). See [theme.md](theme.md#card-names). Names are only reserved by kept
+  cards, and every full name in a set is unique.
 - **Aspect:** random.
 - **Energy source:** 80% of cards.
 - **Cost and stats:** from the rough ability value in `src/cards/costing.py`. Units also get an
@@ -108,13 +111,13 @@ ability twice.
 
 ## Where it stands
 
-Card lab, seed 1, 60 cards, 6 jobs, variety 4: 329 draws, 60 kept.
+Card lab, seed 1, 60 cards, 6 jobs, variety 4: 322 draws, 60 kept.
 
 | Stopped at | Draws | Main reason |
 |---|---|---|
-| Grammar | 0 | (legal by construction) |
-| Quality | 85 | steps not connected 50, too complex 31, dominated option 4 |
-| Card | 4 | couldn't matter on the card |
+| Grammar | 1 | almost always legal by construction (this one: a "this turn" bonus at the end of the turn) |
+| Quality | 74 | steps not connected 50, too complex 24 (dominated options are rarer: about 1 in 100 draws) |
+| Card | 7 | couldn't matter on the card |
 | Variety | 180 | expected: 3 of every 4 good draws are set aside |
 
 Problems still visible in the output, and what will deal with each:
@@ -176,6 +179,23 @@ A self-contained page with one batch baked in, which needs no Python to view (fo
 uv run python -m scripts.card_lab --export lab.html --seed 7 --count 80
 ```
 
+The **card explorer** (<http://localhost:8765/explorer>, linked from the lab) generates one card per
+button press and shows its *derivation*: the path the sampler took through the grammar. Every
+random decision is listed in its section (trigger, steps, effect, target, card), with:
+- all the options it had, as a bar whose segment widths are their probabilities, and the one it took
+- the options the rules had closed at that point (for example "you may" inside an activated
+  ability), and forced steps with the reason
+- how likely the whole path was ("1 in 7,831" for the ability)
+- the draws thrown away on the way to the card, each with its own path and the test it failed
+
+The sampler records this through `src/cards/trace.py`. The tracer makes exactly the same calls on
+the random generator as plain sampling, so tracing never changes what is generated. To bake
+100 cards into a page where the button deals from the batch:
+
+```bash
+uv run python -m scripts.card_lab --export-explorer explorer.html --count 100 --variety 1
+```
+
 The page shows:
 - each kept card in the client's card style
 - the funnel of draws through each stage, with counts per reason
@@ -192,3 +212,7 @@ client. It uses the same pipeline.
   - One ability per card.
   - New card check: a keyword the unit already has.
   - Card text now says "chosen opposing Chef unit", not "chosen Chef opposing unit".
+- **2026-10-20:** Derivation traces (`src/cards/trace.py`) and the card explorer, which shows
+  the path through the grammar for one card at a time.
+- **2026-10-20:** Subtitles for units and event names for actions (`src/cards/names.py`),
+  shown in the card lab and explorer.

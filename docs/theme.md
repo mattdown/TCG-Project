@@ -13,7 +13,7 @@ The game's name is still to be decided.
   card games. They live in `PythonServer/src/game/terms.py`.
 - **Aspects get habitat names** (below).
 - **Traits are jobs** (below).
-- **Card names** combine a mushroom species with a job.
+- **Unit names** combine a mushroom species with a job, plus a subtitle. **Action cards** get event names.
 
 ## Aspects
 
@@ -46,7 +46,30 @@ The starting list, open to additions:
 
 ## Card names
 
-Card names are a **species + job**, ideally with a pun or alliteration:
+**Units** are a **species + job** (the character) with a **subtitle** (this version of it):
+"Porcini Baker – Up Before Dawn". 18 species × 20 jobs is only 360 characters, and a 3000-card
+set needs the same character to come back several times with different abilities, as versions
+of a character do in other card games.
+
+The subtitle is picked from what the card does. It comes from a phrase bank keyed by:
+- the ability's trigger ("Up Before Dawn" for start of turn, "Last Batch" when defeated)
+- or its main effect ("Bookworm" for drawing, "Gentle Touch" for healing)
+- or, for statics, its kind ("Head of the Guild" for "your other Bakers get +1")
+
+A generic bank ("Apprentice", "Old Timer") is the fallback. Every species + job + subtitle is
+unique in a set.
+
+**Action cards** are events, not characters, so they have no species or job. Their name is an
+aspect word plus a noun for the main effect: "Ember Volley" (damage), "Frost Forecast" (draw),
+"Lichen Rally" (ready). Each aspect has its own words (Ember: Ember, Cinder, Smoulder,
+Bonfire; Frost: Frost, Rime, Snowdrift, Icicle; …).
+
+The phrase banks are theme data in `PythonServer/src/cards/theme.py`, and
+`src/cards/names.py` picks from them. Names never affect rules or what the network sees. They
+can be replaced later by an LLM naming pass that reads the card text. Today's banks give about
+100,000 unit names and 1,800 action names.
+
+Species + job pairs, ideally with a pun or alliteration:
 
 - Oyster Fisher
 - Inkcap Scholar

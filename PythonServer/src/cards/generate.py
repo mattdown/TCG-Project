@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from src.cards.abilities import AbilitySampler, render, validate
 from src.cards.costing import ability_value
+from src.cards.names import Namer
 from src.cards.quality import MAX_COMPLEXITY, complexity, quality_problems, skeleton
 from src.cards.schema import Card
 from src.cards.theme import JOBS, SPECIES
@@ -35,6 +36,7 @@ class Attempt:
     problems: list[str] = field(default_factory=list)
     card: Card | None = None
     archetype: str | None = None
+    trace: dict | None = None  # every random decision (src/cards/trace.py)
 
 
 class CardGenerator:
@@ -54,17 +56,26 @@ class CardGenerator:
         self.variety = variety
         self.max_complexity = max_complexity
         self.sampler = AbilitySampler(rng, traits=jobs)
+        self.namer = Namer(self.sampler.trace)
         self.shapes = Counter()
         self.attempts: list[Attempt] = []
         self._next = 0
 
     def attempt(self, card_type: str | None = None) -> Attempt:
         """One draw from the grammar taken as far through the pipeline as it gets."""
-        rng = self.rng
-        card_type = card_type or ("action" if rng.random() < self.action_share else "unit")
-        ability = self.sampler.raw(card_type)
+        t = self.sampler.trace
+        t.reset()
+        p = self.action_share
+        if card_type is None:
+            card_type = "action" if t.chance("Action card?", p) else "unit"
+        else:
+            t.record("Action card?", [("yes", p), ("no", 1 - p)], "yes" if card_type == "action" else "no",
+                     "decided once per card: redraws after a thrown-away ability keep it")
+        with t.section("ability"):
+            ability = self.sampler.raw(card_type, reset=False)
         a = Attempt(self._next, card_type, ability, render(ability, card_type), complexity(ability),
                     round(ability_value(ability), 2))
+        a.trace = t.root
         self._next += 1
         self.attempts.append(a)
         if problems := validate(ability, card_type):
@@ -73,7 +84,8 @@ class CardGenerator:
             a.stopped_at, a.problems = "quality", problems
         else:
             try:
-                a.card, a.archetype = self._build(a.index, card_type, ability, a.value)
+                with t.section("card"):
+                    a.card, a.archetype = self._build(a.index, card_type, ability, a.value)
             except ValueError as e:
                 a.stopped_at, a.problems = "card", [str(e).split(": ", 1)[-1]]
         return a
@@ -93,30 +105,41 @@ class CardGenerator:
             if a is not best:
                 a.stopped_at, a.problems = "variety", ["kept a draw whose shape had been used less instead"]
         self.shapes[skeleton(best.ability, abstract_traits=True)] += 1
+        self.namer.reserve(best.card)
         return best
 
     def _build(self, index: int, card_type: str, ability: dict, value: float) -> tuple[Card, str | None]:
-        rng = self.rng
-        species, job = rng.choice(SPECIES), rng.choice(self.jobs)
-        name = f"{species} {job}"
-        aspect = (rng.choice(ASPECTS),)
-        energy_source = rng.random() < 0.8
+        t = self.sampler.trace
+        aspect = (t.choice("Aspect", ASPECTS),)
+        energy_source = t.chance("Energy source?", 0.8)
         if card_type == "action":
+            name = self.namer.action(aspect[0], ability)
             cost = max(0, math.ceil(value / 2))
+            t.fixed("Cost", cost, f"half the ability's rough value ({value:g}), rounded up")
             return Card(f"gen-{index}", name, "action", aspect, energy_source, cost, 0, 0, 0,
                         abilities=(ability,)), None
 
-        archetype = rng.choice(list(ARCHETYPES))
+        species, job = t.choice("Species", SPECIES), t.choice("Job", self.jobs)
+        name = f"{species} {job}"
+        subtitle = self.namer.subtitle(name, ability)
+
+        archetype = t.choice("Archetype", list(ARCHETYPES))
         keywords = {}
-        if rng.random() < 0.35:
-            options = {k: w for k, w in ARCHETYPE_KEYWORDS[archetype].items() if w}
-            keyword = rng.choices(list(options), list(options.values()))[0]
+        if t.chance("Add a keyword?", 0.35):
+            keyword = t.weighted("Keyword", ARCHETYPE_KEYWORDS[archetype], f"weighted for a {archetype}")
             lo, hi = KEYWORD_RANGE.get(keyword, (1, 1))
-            keywords[keyword] = rng.randint(lo, hi)
+            keywords[keyword] = t.randint("Keyword value", lo, hi)
         spend = math.ceil(value) + keyword_value(keywords)
-        cost = rng.randint(1, 5)
+        cost = t.randint("Starting cost", 1, 5)
+        start = cost
         while stat_budget(cost, energy_source) - spend < MIN_STATS_VALUE and cost < 9:
             cost += 1
-        stats = _allocate(rng, max(MIN_STATS_VALUE, stat_budget(cost, energy_source) - spend), ARCHETYPES[archetype])
+        if cost != start:
+            t.fixed("Cost", cost, "raised until the card can afford its ability and keywords plus minimum stats")
+        budget = max(MIN_STATS_VALUE, stat_budget(cost, energy_source) - spend)
+        stats = _allocate(self.rng, budget, ARCHETYPES[archetype])
+        t.fixed("Stats", f"{stats['power']} power, {stats['health']} health, {stats['score']} VP",
+                f"stat budget {stat_budget(cost, energy_source)} for cost {cost}, minus {spend} for the ability and "
+                f"keywords, spread at random with {archetype} weights")
         return Card(f"gen-{index}", name, "unit", aspect, energy_source, cost, **stats, traits=(job,),
-                    keywords=tuple(sorted(keywords.items())), abilities=(ability,)), archetype
+                    keywords=tuple(sorted(keywords.items())), abilities=(ability,), subtitle=subtitle), archetype

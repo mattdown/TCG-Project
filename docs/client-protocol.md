@@ -20,6 +20,11 @@ Client milestones 1–3 are done: the board, playing a full game, and abilities 
 action cards, the choice prompt, ⟳ buttons, ability feedback, the dev scenario panel). The
 protocol below is complete for everything the server does today.
 
+**Next for the client: card subtitles.** Cards now have a `subtitle` (see `card_set`). Show it
+under the name in the name banner, smaller and in italics: "Porcini Baker" / "Up Before Dawn".
+Action cards have event names ("Ember Volley") and an empty subtitle. The card lab's card
+(`PythonServer/scripts/card_kit.html`) shows one way to lay it out.
+
 **Checking cards by hand.**
 1. Generate the coverage set: from `PythonServer/`, run `uv run python -m scripts.generate_cards --kind coverage`.
    It writes `cardsets/coverage.json`: a small set that uses every building block of the
@@ -64,6 +69,7 @@ stats and names here.
 | Field | Meaning |
 |---|---|
 | `id` | card definition ID, referenced by `card_id` in the state |
+| `name`, `subtitle` | units: `"Porcini Baker"` and `"Up Before Dawn"`, the version of the character (show it under the name, smaller); action cards: an event name such as `"Ember Volley"` and an empty `subtitle`. Sets made before subtitles existed have `""` everywhere |
 | `type` | `"unit"` or `"action"` (played from hand, its ability resolves, then it goes to the discard pile; no stats) |
 | `aspects` | one of `aspect_1` … `aspect_6`: Ember, Bog, Moss, Meadow, Glow, Frost ([theme.md](theme.md)) |
 | `energy_source` | can be added to the energy zone |

@@ -30,6 +30,7 @@ class Card:
     keywords: tuple[tuple[str, int], ...] = ()  # sorted (name, value); value is 1 for keywords without a number
     # Ability trees (dicts). Compared but not hashed, so cards stay usable as dict keys.
     abilities: tuple[dict, ...] = field(default=(), hash=False)
+    subtitle: str = ""  # tells apart versions of the same character: "Porcini Baker – Up Before Dawn"
 
     def __post_init__(self):
         if self.type not in CARD_TYPES:

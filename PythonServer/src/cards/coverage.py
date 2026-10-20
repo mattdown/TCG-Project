@@ -11,6 +11,8 @@ from collections import Counter
 
 from src.cards.abilities import render
 from src.cards.generate import CardGenerator
+from src.cards.names import Namer, full_name
+from src.cards.trace import Tracer
 from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
 from src.game.terms import ASPECTS, keyword_text
@@ -154,16 +156,23 @@ def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int =
         pick(min(open_candidates(True), key=lambda i: len(features[i])))
 
     species = rng.sample(SPECIES, len(SPECIES))
-    # Jobs take turns, and each job steps through the species list, so every name is unique.
-    names = [(f"{species[(n // jobs) % len(species)]} {job_list[n % jobs]}", job_list[n % jobs])
-             for n in range(len(chosen))]
-    cards, covered_by = [], {}
+    namer = Namer(Tracer(rng))
+    cards, covered_by, units = [], {}, 0
     for n, i in enumerate(chosen):
         c = pool[i]
-        name, job = names[n]
-        card = Card(f"{prefix}-{n + 1:03d}", name, c.type, (ASPECTS[n % len(ASPECTS)],), c.energy_source, c.cost,
-                    c.power, c.health, c.score, traits=(job,) if c.type == "unit" else (), keywords=c.keywords,
-                    abilities=c.abilities)
+        aspect = ASPECTS[n % len(ASPECTS)]
+        if c.type == "unit":
+            # Jobs take turns, and each job steps through the species list, so species + job pairs differ.
+            job = job_list[units % jobs]
+            name, traits = f"{species[(units // jobs) % len(species)]} {job}", (job,)
+            subtitle = namer.subtitle(name, c.abilities[0])
+            units += 1
+        else:
+            name, traits, subtitle = namer.action(aspect, c.abilities[0]), (), ""
+        card = Card(f"{prefix}-{n + 1:03d}", name, c.type, (aspect,), c.energy_source, c.cost,
+                    c.power, c.health, c.score, traits=traits, keywords=c.keywords, abilities=c.abilities,
+                    subtitle=subtitle)
+        namer.reserve(card)
         cards.append(card)
         covered_by[card.id] = sorted(features[i])
     notes = {
@@ -186,7 +195,7 @@ def coverage_report(card_set: CardSet) -> str:
     for c in card_set.cards:
         stats = "action" if c.type == "action" else f"{c.power} power · {c.health} health · {c.score} score"
         keywords = ", ".join(keyword_text(k, v) for k, v in c.keywords)
-        lines.append(f"- [ ] **{c.id} {c.name}** (cost {c.cost}, {stats}{', ' + keywords if keywords else ''})")
+        lines.append(f"- [ ] **{c.id} {full_name(c)}** (cost {c.cost}, {stats}{', ' + keywords if keywords else ''})")
         for ability in c.abilities:
             lines.append(f"  - {render(ability, c.type)}")
     lines += ["", "## Building blocks", "", "| Building block | Cards |", "|---|---|"]

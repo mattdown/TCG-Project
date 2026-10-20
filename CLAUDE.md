@@ -39,7 +39,7 @@ Decisions already made (don't re-open without a reason):
 PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/cards/    card schema (pure data), generators (vanilla, keywords, coverage), ability
                 sampler / validator / card text, quality tests, the card pipeline
-                (generate.py), rough costing
+                (generate.py), derivation traces (trace.py), rough costing
   src/game/     rules engine, decks, terms.py (every player-facing name)
   src/graph/    encode.py (state → NumPy) → builder.py (PyG) / dense.py (padded tensors)
   src/model/    gnn.py, transformer.py, registry.py (create / save / load by arch)
@@ -60,7 +60,7 @@ docs/           technical plan, client protocol and design, theme, draw.io diagr
 uv sync
 uv run pytest
 uv run python -m scripts.generate_cards
-uv run python -m scripts.card_lab           # card generation lab: web page (--text, --export)
+uv run python -m scripts.card_lab           # card lab web page, /explorer for one card's path (--text, --export)
 uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
 uv run python -m scripts.benchmark [--models a.pt b.pt]
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
