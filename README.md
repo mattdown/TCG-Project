@@ -38,7 +38,7 @@ uv sync
 
 | Command | What it does |
 |---|---|
-| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`). `--kind coverage` writes `cardsets/coverage.json`: a small set that uses every ability building block at least twice (about a quarter action cards), plus a Markdown checklist |
+| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`). `--kind abilities --count N` writes `cardsets/abilities_N.json`: N cards with one ability each from the full generation pipeline, plus a Markdown checklist. `--kind coverage` writes `cardsets/coverage.json`: a small set that uses every ability building block at least twice (about a quarter action cards), plus a Markdown checklist |
 | `uv run python -m scripts.card_lab` | Card lab: generates cards with abilities and shows every stage of the pipeline, including what was thrown away and why ([docs/ability-generation.md](docs/ability-generation.md)). Opens a web page; `/explorer` generates one card at a time and shows the path it took through the grammar. `--text` prints to the terminal; `--export lab.html` / `--export-explorer explorer.html` write self-contained pages |
 | `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--arch transformer --iterations 200 --device mps` |
 | `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and neural agents (`--models a.pt b.pt` to compare checkpoints) |

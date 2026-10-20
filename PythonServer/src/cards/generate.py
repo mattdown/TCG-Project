@@ -9,13 +9,13 @@ coverage generator uses the same pipeline. docs/ability-generation.md describes 
 import math
 import random
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from src.cards.abilities import AbilitySampler, render, validate
 from src.cards.costing import ability_value
 from src.cards.names import Namer
 from src.cards.quality import MAX_COMPLEXITY, complexity, quality_problems, skeleton
-from src.cards.schema import Card
+from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
 from src.cards.vanilla import (ARCHETYPES, ARCHETYPE_KEYWORDS, KEYWORD_RANGE, MIN_STATS_VALUE, _allocate,
                                keyword_value, stat_budget)
@@ -143,3 +143,19 @@ class CardGenerator:
                 f"keywords, spread at random with {archetype} weights")
         return Card(f"gen-{index}", name, "unit", aspect, energy_source, cost, **stats, traits=(job,),
                     keywords=tuple(sorted(keywords.items())), abilities=(ability,), subtitle=subtitle), archetype
+
+
+def generate_ability_set(count: int, seed: int = 0, jobs: int = 6, action_share: float = 0.25, variety: int = 4,
+                         prefix: str = "A1") -> CardSet:
+    """`count` cards with one ability each, through the whole pipeline. As in the coverage set,
+    abilities only refer to `jobs` jobs and the units use the same jobs, so job conditions can be met."""
+    rng = random.Random(seed)
+    job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
+    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety)
+    kept = [generator.card().card for _ in range(count)]
+    cards = [replace(c, id=f"{prefix}-{n + 1:03d}") for n, c in enumerate(kept)]
+    stopped = Counter(a.stopped_at for a in generator.attempts if a.stopped_at)
+    notes = {"generator": "abilities", "seed": seed, "jobs": list(job_list), "action_share": action_share,
+             "variety": variety, "draws": len(generator.attempts), "stopped_at": dict(stopped),
+             "costing": "rough ability values from src/cards/costing.py"}
+    return CardSet(f"abilities_{count}", cards, notes)

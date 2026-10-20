@@ -201,8 +201,11 @@ The page shows:
 - the funnel of draws through each stage, with counts per reason
 - for each card, the checks it passed, its costing, its ability tree and its shape
 
-`scripts.generate_cards --kind coverage` builds the coverage set for checking the engine and
-client. It uses the same pipeline.
+`scripts.generate_cards --kind abilities --count N` writes a playable set of N cards straight
+from this pipeline (`cardsets/abilities_N.json`, plus a checklist `.md`). It uses 6 jobs, like the
+coverage set, so job conditions can be met. Run the server on it with
+`scripts.server --cards cardsets/abilities_200.json`. `--kind coverage` builds the coverage set
+for checking the engine and client. It uses the same pipeline.
 
 ## Log
 
@@ -214,5 +217,6 @@ client. It uses the same pipeline.
   - Card text now says "chosen opposing Chef unit", not "chosen Chef opposing unit".
 - **2026-10-20:** Derivation traces (`src/cards/trace.py`) and the card explorer, which shows
   the path through the grammar for one card at a time.
+- **2026-10-20:** `generate_cards --kind abilities --count N`: playable sets straight from the pipeline.
 - **2026-10-20:** Subtitles for units and event names for actions (`src/cards/names.py`),
   shown in the card lab and explorer.

@@ -186,19 +186,35 @@ def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int =
     return CardSet("coverage", cards, notes)
 
 
-def coverage_report(card_set: CardSet) -> str:
-    """A Markdown checklist: every card with its text, then every building block with the cards that use it."""
-    lines = [f"# {card_set.name}: checklist", "",
-             f"Generated from the grammar (seed {card_set.notes['seed']}), so every building block appears "
-             f"at least {card_set.notes['per_feature']} times. Costs are rough (src/cards/costing.py).", "",
-             "## Cards", ""]
+def card_lines(card_set: CardSet) -> list[str]:
+    """A Markdown checklist entry per card: name, cost, stats, keywords and ability text."""
+    lines = []
     for c in card_set.cards:
         stats = "action" if c.type == "action" else f"{c.power} power · {c.health} health · {c.score} score"
         keywords = ", ".join(keyword_text(k, v) for k, v in c.keywords)
         lines.append(f"- [ ] **{c.id} {full_name(c)}** (cost {c.cost}, {stats}{', ' + keywords if keywords else ''})")
         for ability in c.abilities:
             lines.append(f"  - {render(ability, c.type)}")
+    return lines
+
+
+def coverage_report(card_set: CardSet) -> str:
+    """A Markdown checklist: every card with its text, then every building block with the cards that use it."""
+    lines = [f"# {card_set.name}: checklist", "",
+             f"Generated from the grammar (seed {card_set.notes['seed']}), so every building block appears "
+             f"at least {card_set.notes['per_feature']} times. Costs are rough (src/cards/costing.py).", "",
+             "## Cards", "", *card_lines(card_set)]
     lines += ["", "## Building blocks", "", "| Building block | Cards |", "|---|---|"]
     for feature, cards in card_set.notes["features"].items():
         lines.append(f"| {feature} | {', '.join(cards)} |")
+    return "\n".join(lines) + "\n"
+
+
+def ability_set_report(card_set: CardSet) -> str:
+    notes = card_set.notes
+    stopped = ", ".join(f"{k} {v}" for k, v in notes["stopped_at"].items())
+    lines = [f"# {card_set.name}: checklist", "",
+             f"{len(card_set)} cards with abilities (seed {notes['seed']}, jobs: {', '.join(notes['jobs'])}). "
+             f"{notes['draws']} draws from the grammar; stopped at: {stopped}. "
+             "Costs are rough (src/cards/costing.py).", "", *card_lines(card_set)]
     return "\n".join(lines) + "\n"

@@ -2,7 +2,10 @@ import random
 
 from scripts.card_lab import one, run
 from src.cards.abilities import AbilitySampler, card_problems, render
-from src.cards.generate import CardGenerator
+from src.agents.heuristic_agent import HeuristicAgent
+from src.agents.match import play_match
+from src.agents.random_agent import RandomAgent
+from src.cards.generate import CardGenerator, generate_ability_set
 from src.cards.quality import (MAX_COMPLEXITY, complexity, disconnected_steps, dominated_options, quality_problems,
                                skeleton)
 from src.cards.names import full_name, main_effect, static_kind
@@ -168,3 +171,12 @@ def test_main_effect_and_static_kind():
     assert main_effect(may) == "gain_vp"
     discount = {"kind": "static", "condition": None, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you"}}]}
     assert static_kind(discount) == "discount"
+
+
+def test_ability_set_is_playable():
+    card_set = generate_ability_set(60, seed=2)
+    assert len(card_set) == 60 and card_set.name == "abilities_60"
+    assert [c.id for c in card_set.cards[:2]] == ["A1-001", "A1-002"]
+    assert {c.traits[0] for c in card_set.cards if c.type == "unit"} <= set(card_set.notes["jobs"])
+    result = play_match(RandomAgent(), HeuristicAgent(), card_set, num_games=4, seed=1)
+    assert result

@@ -59,7 +59,7 @@ docs/           technical plan, client protocol and design, theme, draw.io diagr
 ```
 uv sync
 uv run pytest
-uv run python -m scripts.generate_cards
+uv run python -m scripts.generate_cards     # --kind keywords|vanilla|abilities|coverage, --count N
 uv run python -m scripts.card_lab           # card lab web page, /explorer for one card's path (--text, --export)
 uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
 uv run python -m scripts.benchmark [--models a.pt b.pt]
