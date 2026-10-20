@@ -24,6 +24,7 @@ namespace Tcg.Board
         const float HandMaxWidth = 700f;
         const float BackStep = 40f;
         const float Move = 0.3f;
+        const float FreshDrop = 18f;  // units played this turn sit back from the divider
 
         public UiTheme Theme;
 
@@ -289,7 +290,10 @@ namespace Tcg.Board
                     view.Rect.position = from;  // e.g. played from the opponent's hand
                     view.Rect.localScale = Vector3.one * 0.4f;
                 }
-                var pos = new Vector2((i - (n - 1) / 2f) * (slot + RowGap) * fit, 0f);
+                // A unit played this turn (fresh) waits a little back, towards its owner, and moves up
+                // into line when it can act.
+                float back = c.fresh ? FreshDrop * (zone == "human_play" ? -1f : 1f) : 0f;
+                var pos = new Vector2((i - (n - 1) / 2f) * (slot + RowGap) * fit, back);
                 Place(view, pos, Vector3.one * FieldScale * fit, Quaternion.identity, animate);
                 view.Rect.SetSiblingIndex(i);
                 view.SetMark(CardMark.None);
@@ -298,7 +302,7 @@ namespace Tcg.Board
             }
             if (extraSlots > 0)
             {
-                _ghost.anchoredPosition = new Vector2((n - 1) / 2f * (slot + RowGap) * fit, 0f);
+                _ghost.anchoredPosition = new Vector2((n - 1) / 2f * (slot + RowGap) * fit, -FreshDrop);  // lands fresh
                 _ghost.localScale = Vector3.one * fit;
             }
         }
