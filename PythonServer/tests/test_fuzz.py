@@ -27,10 +27,16 @@ def ability_pool(rng: random.Random, n: int = 120) -> list[Card]:
             cards.append(Card(f"A{i}", f"Action {i}", "action", aspects, rng.random() < 0.8, rng.randint(0, 5),
                               0, 0, 0, abilities=(sampler.ability("action"),)))
         else:
-            abilities = tuple(sampler.ability("unit") for _ in range(rng.choice((0, 1, 1, 2))))
-            cards.append(Card(f"U{i}", f"Unit {i}", "unit", aspects, rng.random() < 0.8, rng.randint(1, 6),
-                              rng.randint(0, 5), rng.randint(1, 6), rng.randint(0, 3),
-                              traits=(rng.choice(("Fisher", "Baker", "Knight", "Chef")),), abilities=abilities))
+            while True:  # resample cards whose abilities could never matter (Card rejects them)
+                abilities = tuple(sampler.ability("unit") for _ in range(rng.choice((0, 1, 1, 2))))
+                try:
+                    cards.append(Card(f"U{i}", f"Unit {i}", "unit", aspects, rng.random() < 0.8, rng.randint(1, 6),
+                                      rng.randint(0, 5), rng.randint(1, 6), rng.randint(1, 3),
+                                      traits=(rng.choice(("Fisher", "Baker", "Knight", "Chef")),),
+                                      abilities=abilities))
+                    break
+                except ValueError:
+                    continue
     return cards
 
 

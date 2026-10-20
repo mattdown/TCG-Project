@@ -9,7 +9,7 @@ import copy
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
-from src.cards.abilities import validate
+from src.cards.abilities import card_problems, validate
 from src.game.terms import ASPECTS, KEYWORDS
 
 CARD_TYPES = ("unit", "action")
@@ -38,12 +38,17 @@ class Card:
             raise ValueError(f"{self.id}: invalid aspects {self.aspects}")
         if self.cost < 0 or self.power < 0 or self.score < 0 or (self.type == "unit" and self.health < 1):
             raise ValueError(f"{self.id}: invalid stats")
+        if self.type == "unit" and self.score < 1:
+            raise ValueError(f"{self.id}: every unit scores at least 1 VP")
         if self.type == "action" and (self.power or self.health or self.score or self.keywords):
             raise ValueError(f"{self.id}: action cards have no stats or keywords")
         for ability in self.abilities:
             problems = validate(ability, self.type)
             if problems:
                 raise ValueError(f"{self.id}: invalid ability: {'; '.join(problems)}")
+        problems = card_problems(self.type, self.health, dict(self.keywords), self.abilities)
+        if problems:
+            raise ValueError(f"{self.id}: {'; '.join(problems)}")
         for name, value in self.keywords:
             if name not in KEYWORDS or value < 1 or (not KEYWORDS[name] and value != 1):
                 raise ValueError(f"{self.id}: invalid keyword {name} {value}")

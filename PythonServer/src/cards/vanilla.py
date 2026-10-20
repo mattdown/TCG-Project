@@ -23,6 +23,7 @@ NON_ENERGY_BONUS = 1
 ENERGY_SOURCE_RATE = 0.8
 MAX_STATS = {"power": 10, "health": 10, "score": 4}
 STAT_COST = {"power": 1, "health": 1, "score": SCORE_VALUE}
+MIN_STATS_VALUE = 1 + 1 + SCORE_VALUE  # 1 power, 1 health, 1 score
 
 # Relative weights for spending the budget on (power, health, score).
 ARCHETYPES = {
@@ -53,7 +54,7 @@ def stat_value(power: int, health: int, score: int) -> int:
 
 
 def _allocate(rng: random.Random, budget: int, weights: dict[str, float]) -> dict[str, int]:
-    stats = {"power": 1, "health": 1, "score": 0}
+    stats = {"power": 1, "health": 1, "score": 1}  # every unit scores at least 1 VP
     remaining = budget - stat_value(**stats)
     while remaining > 0:
         options = [s for s in stats if STAT_COST[s] <= remaining and stats[s] < MAX_STATS[s]]
@@ -149,8 +150,8 @@ def generate_keyword_set(n: int = 200, seed: int = 0, keyword_rate: float = 0.45
             name = rng.choices(list(options), list(options.values()))[0]
             lo, hi = KEYWORD_RANGE.get(name, (1, 1))
             value = rng.randint(lo, hi)
-            # Leave at least 1 power and 1 health.
-            if keyword_value(keywords | {name: value}) <= budget - 2:
+            # Leave room for 1 power, 1 health and 1 score.
+            if keyword_value(keywords | {name: value}) <= budget - MIN_STATS_VALUE:
                 keywords[name] = value
 
         stats = _allocate(rng, budget - keyword_value(keywords), ARCHETYPES[archetype])

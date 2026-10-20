@@ -584,7 +584,10 @@ class Game:
         duration = step.get("duration", "this_turn")
 
         def lasting(uid: int, **fields) -> ActiveEffect:
-            return ActiveEffect(uid=uid, expires_turn=s.turn if duration == "this_turn" else None,
+            # "Until the start of your next turn": through the opponent's next turn, if it's your turn now.
+            expires = {"this_turn": s.turn,
+                       "until_your_next_turn": s.turn + (s.active_player == frame.controller)}.get(duration)
+            return ActiveEffect(uid=uid, expires_turn=expires,
                                 source=frame.source if duration == "while_this_in_play" else None, **fields)
 
         for t in targets:

@@ -49,7 +49,13 @@ EFFECTS = {
 EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "exhaust": 4, "ready": 3,
                   "cant_ready": 3, "modify_stat": 8, "grant_keyword": 4, "draw": 8, "discard": 3, "gain_vp": 6,
                   "lose_vp": 3, "add_energy": 2}
-GRANTABLE_KEYWORDS = (("guard", 1), ("elusive", 1), ("charge", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
+GRANTABLE_KEYWORDS = (("guard", 1), ("elusive", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
+# Guard, Elusive and Armor protect a unit during the opponent's turn, so a grant lasts until the
+# start of your next turn; Duelist only matters when you attack, so it lasts this turn. Charge is
+# never granted: it only matters on the turn a unit is played.
+GRANT_DURATION = {"guard": "until_your_next_turn", "elusive": "until_your_next_turn",
+                  "armor": "until_your_next_turn", "duelist": "this_turn"}
+DURATION_TEXT = {"this_turn": "this turn", "until_your_next_turn": "until the start of your next turn"}
 TRIGGERS = {"on_play": 10, "on_score": 4, "on_attack": 3, "on_defeated": 3, "start_of_turn": 3, "end_of_turn": 2,
             "another_played": 2, "opposing_defeated": 2}
 SITUATIONS = ("attacking", "defending", "exhausted", "damaged")
@@ -80,6 +86,13 @@ class AbilitySampler:
         return self.rng.choices(values, [1 / (i + 1) for i in range(len(values))])[0]
 
     def ability(self, card_type: str = "unit") -> dict:
+        """A random ability that passes validate(): the rare one that doesn't is resampled."""
+        while True:
+            ability = self._ability(card_type)
+            if not validate(ability, card_type):
+                return ability
+
+    def _ability(self, card_type: str) -> dict:
         if card_type == "action":
             kind = "on_resolve"
         else:
@@ -95,6 +108,12 @@ class AbilitySampler:
         elif kind == "activated":
             ability["cost"] = self._cost()
         ability["steps"] = self._steps(ability)
+        if kind == "triggered" and ability["trigger"]["event"] == "end_of_turn":
+            # A "this turn" bonus at the end of your turn would end at once: make it last through
+            # the opponent's turn instead.
+            for step in _effects_in(ability["steps"]):
+                if step["effect"] == "modify_stat":
+                    step["duration"] = "until_your_next_turn"
         return ability
 
     def _trigger(self) -> dict:
@@ -188,7 +207,7 @@ class AbilitySampler:
             pol = HELPS if sign > 0 else HURTS
         elif op == "grant_keyword":
             keyword, value = self.rng.choice(GRANTABLE_KEYWORDS)
-            step.update(keyword=keyword, value=value, duration="this_turn")
+            step.update(keyword=keyword, value=value, duration=GRANT_DURATION[keyword])
         elif op == "cant_ready":
             step["duration"] = "until_their_next_turn"
         elif op == "ready":
@@ -275,6 +294,8 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
                 problems.append("scaling amount without a cap")
             if m.get("subject") == "this" and card_type != "unit":
                 problems.append("'this' modifier on a card that isn't in play")
+            if m.get("keyword") == "charge":
+                problems.append("Charge can't be granted: it only matters on the turn a unit is played")
         return problems
     if card_type == "action" and ability["kind"] != "on_resolve":
         problems.append("action cards only have on-resolve abilities")
@@ -320,6 +341,11 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
         target = step["target"]
         if op == "ready" and not step.get("no_score_or_activate"):
             problems.append("readied units must be barred from scoring and ⟳ that turn")
+        if op == "grant_keyword":
+            if step["keyword"] == "charge":
+                problems.append("Charge can't be granted: it only matters on the turn a unit is played")
+            elif step.get("duration") != GRANT_DURATION[step["keyword"]]:
+                problems.append(f"{step['keyword']} must last {DURATION_TEXT[GRANT_DURATION[step['keyword']]]}")
         if isinstance(target, dict) and "ref" in target:
             if target["ref"] not in scope:
                 problems.append(f"{op} refers to {target['ref']!r} before it is chosen")
@@ -349,8 +375,47 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
             problems.append("scaling amount without a cap")
 
     walk(ability["steps"], {}, 0, False)
+    if ability["kind"] == "triggered" and ability["trigger"]["event"] == "end_of_turn" and any(
+            e["effect"] in ("modify_stat", "grant_keyword") and e.get("duration", "this_turn") == "this_turn"
+            for e in _effects_in(ability["steps"])):
+        problems.append("a 'this turn' effect at the end of your turn ends as soon as it starts")
     if choices > MAX_CHOICES:
         problems.append("too many choices")
+    return problems
+
+
+def _effects_in(steps: list):
+    """Every effect step, including ones nested inside if / may / choose one."""
+    for step in steps:
+        if "effect" in step:
+            yield step
+        for key in ("then", "else", "may", "if_you_do"):
+            yield from _effects_in(step.get(key, []))
+        for branch in step.get("choose_one", []):
+            yield from _effects_in(branch)
+
+
+def card_problems(card_type: str, health: int, keywords: dict, abilities) -> list[str]:
+    """Problems that depend on the card as well as the ability: abilities that could never matter."""
+    problems = []
+    for ability in abilities:
+        conditions = [ability.get("condition") or {}]
+        effects = list(_effects_in(ability.get("steps", [])))
+        on_this = [e for e in effects if e["target"] == "this"]
+        # A 1-health unit is defeated by its first damage, so it's never "damaged" while in play.
+        if card_type == "unit" and health < 2 and (
+                any(c.get("this_is") == "damaged" for c in conditions)
+                or any(e["effect"] == "remove_damage" for e in on_this)):
+            problems.append("only matters once this unit is damaged, but 1 damage defeats it")
+        # A unit is fresh the turn it's played: it can't score, and can only duel with Charge.
+        # It also has no damage yet.
+        if ability["kind"] == "triggered" and ability["trigger"]["event"] == "on_play":
+            if any(e["effect"] == "remove_damage" for e in on_this):
+                problems.append("removes damage from a unit that was just played and has none")
+            for e in on_this:
+                if e["effect"] == "modify_stat" and e.get("duration", "this_turn") == "this_turn" and (
+                        e["stat"] == "score" or (e["stat"] == "power" and not keywords.get("charge"))):
+                    problems.append(f"+{e['stat']} this turn on a unit that was just played and can't use it")
     return problems
 
 
@@ -482,9 +547,11 @@ class Renderer:
             return f"{_cap(t)} can’t ready at the start of {its} next turn."
         if op == "modify_stat":
             sign = "+" if s["delta"] > 0 else "−"
-            return f"{_cap(t)} get{s_} {sign}{abs(s['delta'])} {s['stat']} this turn."
+            duration = DURATION_TEXT[s.get("duration", "this_turn")]
+            return f"{_cap(t)} get{s_} {sign}{abs(s['delta'])} {s['stat']} {duration}."
         if op == "grant_keyword":
-            return f"{_cap(t)} gain{s_} {keyword_text(s['keyword'], s.get('value', 1))} this turn."
+            duration = DURATION_TEXT[s.get("duration", "this_turn")]
+            return f"{_cap(t)} gain{s_} {keyword_text(s['keyword'], s.get('value', 1))} {duration}."
         raise ValueError(op)
 
     def steps(self, steps: list) -> str:

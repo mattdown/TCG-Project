@@ -236,8 +236,17 @@ class GameSession:
             "abilities": r.abilities,
             "healed": [{"uid": uid, "amount": n} for uid, n in r.healed.items()],
             "effects": [{"uid": e.uid, "kind": e.kind, "stat": e.stat, "keyword": e.keyword, "value": e.value,
-                         "this_turn": e.expires_turn is not None} for e in r.effects],
+                         "this_turn": e.expires_turn == self.game.state.turn,
+                         "lasts": self._lasts(e)} for e in r.effects],
         }
+
+    def _lasts(self, e) -> str:
+        """How long a lasting effect lasts, for the client's label."""
+        if e.kind == "cant_ready":
+            return "until_its_next_turn"
+        if e.expires_turn is None:
+            return "while_in_play" if e.source is not None else "permanent"
+        return "this_turn" if e.expires_turn == self.game.state.turn else "until_your_next_turn"
 
     def _move_view(self, m: Move) -> dict:
         public = m.owner == self.human_seat or m.dest in PUBLIC_ZONES or m.source in PUBLIC_ZONES

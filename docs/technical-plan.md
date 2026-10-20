@@ -154,7 +154,7 @@ Modifier   := Subject gets stat ±Amount [while Condition]
 Subject    := this | all(Filter)
 Amount     := n | k per count(Filter), up to cap | stat_of(Name)
 Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, exhausted?, keyword?, not_this?}
-Duration   := this_turn | until_their_next_turn | while_this_in_play | permanent
+Duration   := this_turn | until_your_next_turn | until_their_next_turn | while_this_in_play | permanent
 ```
 
 A `Name` can only refer to a choice made earlier in the same ability. That keeps every tree
@@ -183,6 +183,19 @@ card is accepted:
   Costs go before the colon, never in "you may … if you do". A `ready` effect always adds
   "it can't score or use ⟳ abilities this turn", so two cards can't ready each other in an
   endless loop. Duel loops end by themselves, because units take damage.
+- **Abilities must be able to matter.** These checks look at the whole card, not just the
+  ability, and also run whenever a card is created:
+  - Every unit scores at least 1 VP.
+  - Abilities that only work once the unit is damaged ("while this unit is damaged…", "remove
+    damage from this unit") need at least 2 health, because 1 damage defeats a 1-health unit.
+  - A unit is fresh the turn it's played, so "when you play this unit, it gets +score this
+    turn" never helps, and +power this turn only helps with Charge. It has no damage yet, so
+    "remove damage from this unit" when played never helps either.
+  - A "this turn" bonus from an end-of-turn ability would end at once, so those bonuses last
+    until the start of your next turn instead.
+  - Granted Guard, Elusive and Armor protect against the opponent, so they last until the start
+    of your next turn. Granted Duelist lasts this turn. Charge is never granted: it only
+    matters on the turn a unit is played.
 - **Size.** At most 2 abilities per card, 4 steps per sequence, nesting depth 2, and 2
   choices per ability.
 - **Ranges.** Every number comes from its range (e.g. `deal_damage` 1–5). A scaling amount

@@ -1,10 +1,11 @@
 import pytest
 
+from src.cards.coverage import generate_coverage_set
 from src.cards.schema import Card
 from src.cards.vanilla import generate_keyword_set, keyword_value, stat_budget, stat_value
 from src.game.actions import Action, ActionType
 from src.game.state import Zone
-from tests.helpers import put_in_hand, give_energy, put_in_play, started_game, unit
+from tests.helpers import fixture_set, give_energy, put_in_hand, put_in_play, started_game, unit
 
 
 def duels(game):
@@ -96,3 +97,21 @@ def test_keyword_set_spends_budget_on_keywords():
         value = stat_value(card.power, card.health, card.score) + keyword_value(dict(card.keywords))
         assert abs(value - stat_budget(card.cost, card.energy_source)) <= 1
         assert card.traits and card.power >= 1 and card.health >= 1
+
+
+def test_units_always_score():
+    with pytest.raises(ValueError):
+        unit(score=0)
+    for card in generate_keyword_set().cards + generate_coverage_set(seed=1).cards:
+        assert card.type == "action" or card.score >= 1
+
+
+def test_granted_elusive_lasts_through_the_opponents_turn():
+    game = started_game()
+    slippery = put_in_play(game, 0, fixture_set()["SLIPPERY"])
+    game.step(Action(ActionType.SCORE, slippery))
+    assert game.keyword(slippery, "elusive")
+    game.step(Action(ActionType.END_TURN))  # the opponent's turn: still Elusive
+    assert game.keyword(slippery, "elusive")
+    game.step(Action(ActionType.END_TURN))  # back to us: it's gone
+    assert not game.keyword(slippery, "elusive")

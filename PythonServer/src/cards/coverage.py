@@ -14,8 +14,8 @@ from src.cards.abilities import AbilitySampler, render
 from src.cards.costing import ability_value
 from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
-from src.cards.vanilla import (ARCHETYPES, ARCHETYPE_KEYWORDS, KEYWORD_RANGE, _allocate, keyword_value,
-                               stat_budget)
+from src.cards.vanilla import (ARCHETYPES, ARCHETYPE_KEYWORDS, KEYWORD_RANGE, MIN_STATS_VALUE, _allocate,
+                               keyword_value, stat_budget)
 from src.game.terms import ASPECTS, KEYWORDS, keyword_text
 
 FILTER_FIELDS = ("trait", "damaged", "exhausted", "cost_max", "not_this")
@@ -119,6 +119,14 @@ class _CandidateMaker:
         self.sampler = AbilitySampler(rng, traits=jobs)
 
     def card(self, index: int) -> Card:
+        """A random candidate. Cards whose abilities could never matter (Card rejects them) are resampled."""
+        while True:
+            try:
+                return self._card(index)
+            except ValueError:
+                continue
+
+    def _card(self, index: int) -> Card:
         rng = self.rng
         card_type = "action" if rng.random() < 0.25 else "unit"
         ability = self.sampler.ability(card_type)
@@ -138,17 +146,18 @@ class _CandidateMaker:
             keywords[name] = rng.randint(lo, hi)
         spend = math.ceil(value) + keyword_value(keywords)
         cost = rng.randint(1, 5)
-        while stat_budget(cost, energy_source) - spend < 2 and cost < 9:  # leave at least 1 power, 1 health
+        while stat_budget(cost, energy_source) - spend < MIN_STATS_VALUE and cost < 9:
             cost += 1
-        stats = _allocate(rng, max(2, stat_budget(cost, energy_source) - spend), ARCHETYPES[archetype])
+        stats = _allocate(rng, max(MIN_STATS_VALUE, stat_budget(cost, energy_source) - spend), ARCHETYPES[archetype])
         return Card(f"cand-{index}", "", "unit", aspect, energy_source, cost, **stats,
                     keywords=tuple(sorted(keywords.items())), abilities=(ability,))
 
 
 def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int = 4000, max_cards: int = 60,
-                          jobs: int = 6, prefix: str = "C1") -> CardSet:
+                          jobs: int = 6, action_share: float = 0.25, prefix: str = "C1") -> CardSet:
     """Abilities only refer to `jobs` jobs, and the units are spread across the same jobs, so
-    every condition and filter can actually be met in a game."""
+    every condition and filter can actually be met in a game. About `action_share` of the cards
+    are action cards, and no ability appears twice."""
     rng = random.Random(seed)
     job_list = tuple(rng.sample(JOBS, jobs))
     maker = _CandidateMaker(rng, job_list)
@@ -156,17 +165,36 @@ def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int =
     features = [card_features(c) for c in pool]
     reachable = set().union(*features)
     counts = Counter()
-    chosen = []
-    while len(chosen) < max_cards:
-        def gain(i):
-            return sum(1 for f in features[i] if counts[f] < per_feature)
+    chosen, seen_abilities = [], []
 
-        # New coverage per building block on the card: prefers simpler cards, which are easier to check by hand.
-        best = max((i for i in range(len(pool)) if i not in chosen), key=lambda i: gain(i) / len(features[i]) ** 0.5)
-        if gain(best) == 0:
+    def gain(i):
+        return sum(1 for f in features[i] if counts[f] < per_feature)
+
+    def open_candidates(action: bool | None = None):
+        return [i for i in range(len(pool)) if i not in chosen and pool[i].abilities not in seen_abilities
+                and (action is None or (pool[i].type == "action") == action)]
+
+    def pick(i):
+        chosen.append(i)
+        seen_abilities.append(pool[i].abilities)
+        counts.update(features[i])
+
+    def actions_wanted() -> bool:
+        return sum(pool[i].type == "action" for i in chosen) < action_share * (len(chosen) + 1)
+
+    # New coverage per building block on the card: prefers simpler cards, which are easier to check by hand.
+    def score(i):
+        return gain(i) / len(features[i]) ** 0.5
+
+    while len(chosen) < max_cards:
+        useful = [i for i in open_candidates(actions_wanted()) if gain(i) > 0] or \
+                 [i for i in open_candidates() if gain(i) > 0]
+        if not useful:
             break
-        chosen.append(best)
-        counts.update(features[best])
+        pick(max(useful, key=score))
+    # Coverage done: top up with the simplest action cards until they make up action_share of the set.
+    while actions_wanted() and len(chosen) < max_cards and open_candidates(True):
+        pick(min(open_candidates(True), key=lambda i: len(features[i])))
 
     species = rng.sample(SPECIES, len(SPECIES))
     # Jobs take turns, and each job steps through the species list, so every name is unique.
@@ -189,7 +217,7 @@ def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int =
         "jobs": list(job_list),
         "costing": "rough ability values from src/cards/costing.py",
     }
-    return CardSet(f"coverage_{len(cards)}", cards, notes)
+    return CardSet("coverage", cards, notes)
 
 
 def coverage_report(card_set: CardSet) -> str:

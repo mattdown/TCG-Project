@@ -1,0 +1,552 @@
+{
+ "name": "coverage",
+ "cards": [
+  {"id": "C1-001", "name": "Ghost Scholar", "type": "action", "aspects": ["aspect_1"], "energy_source": false, "cost": 2, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "damaged": true}}, "as": "it"}, {"effect": "deal_damage", "amount": {"per": {"owner": "any", "trait": "Baker"}, "k": 1, "cap": 3}, "target": {"ref": "it"}}, {"if": {"defeated": "it"}, "then": [{"effect": "gain_vp", "amount": {"per": {"owner": "you", "trait": "Scholar"}, "k": 1, "cap": 4}, "target": "you"}]}]}]},
+  {"id": "C1-002", "name": "Ghost Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": false, "cost": 3, "power": 1, "health": 1, "score": 1, "traits": ["Miner"], "keywords": {"duelist": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_play"}, "condition": {"count": {"owner": "you", "trait": "Lamplighter", "not_this": true}, "at_least": 3}, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 3}}, "as": "it"}, {"effect": "deal_damage", "amount": {"per": {"owner": "any", "trait": "Baker"}, "k": 1, "cap": 5}, "target": {"ref": "it"}}, {"if": {"defeated": "it"}, "then": [{"effect": "add_energy", "target": "you"}]}]}]},
+  {"id": "C1-003", "name": "Ghost Baker", "type": "unit", "aspects": ["aspect_3"], "energy_source": true, "cost": 5, "power": 4, "health": 1, "score": 1, "traits": ["Baker"], "keywords": {"elusive": true}, "abilities": [{"kind": "activated", "cost": [{"exhaust_this": true}, {"pay": 3}], "steps": [{"choose_one": [[{"effect": "discard", "random": true, "amount": 1, "target": "opponent"}], [{"effect": "grant_keyword", "keyword": "duelist", "value": 2, "duration": "this_turn", "target": {"all": {"owner": "you", "not_this": true}}}]]}]}]},
+  {"id": "C1-004", "name": "Ghost Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": true, "cost": 5, "power": 1, "health": 2, "score": 1, "traits": ["Lamplighter"], "keywords": {"elusive": true}, "abilities": [{"kind": "activated", "cost": [{"exhaust_this": true}, {"pay": 3}], "steps": [{"effect": "grant_keyword", "keyword": "guard", "value": 1, "duration": "until_your_next_turn", "target": {"all": {"owner": "you", "not_this": true, "exhausted": true}}}, {"effect": "lose_vp", "amount": 1, "target": "opponent"}]}]},
+  {"id": "C1-005", "name": "Ghost Chef", "type": "action", "aspects": ["aspect_5"], "energy_source": true, "cost": 1, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"may": [{"choose": {"count": 1, "filter": {"owner": "you", "exhausted": false}}, "as": "that"}, {"effect": "exhaust", "target": {"ref": "that"}}], "if_you_do": [{"choose": {"count": 1, "filter": {"owner": "you", "cost_max": 4}}, "as": "it"}, {"effect": "modify_stat", "stat": "health", "delta": 2, "duration": "this_turn", "target": {"ref": "it"}}]}]}]},
+  {"id": "C1-006", "name": "Ghost Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": true, "cost": 9, "power": 1, "health": 1, "score": 1, "traits": ["Postman"], "keywords": {"armor": 1}, "abilities": [{"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": null, "steps": [{"effect": "modify_stat", "stat": "power", "delta": 1, "duration": "until_your_next_turn", "target": "this"}, {"effect": "draw", "amount": 3, "target": "you"}]}]},
+  {"id": "C1-007", "name": "Porcini Scholar", "type": "unit", "aspects": ["aspect_1"], "energy_source": false, "cost": 6, "power": 1, "health": 2, "score": 1, "traits": ["Scholar"], "keywords": {"armor": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": null, "steps": [{"choose_one": [[{"effect": "draw", "amount": 1, "target": "you"}], [{"effect": "remove_damage", "amount": 1, "target": "this"}]]}]}]},
+  {"id": "C1-008", "name": "Porcini Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Miner"], "keywords": {"guard": true}, "abilities": [{"kind": "static", "condition": {"this_is": "damaged"}, "modifiers": [{"subject": "this", "keyword": "duelist", "value": 2}]}]},
+  {"id": "C1-009", "name": "Porcini Baker", "type": "action", "aspects": ["aspect_3"], "energy_source": false, "cost": 1, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"may": [{"choose": {"count": 1, "filter": {"owner": "you", "exhausted": false}}, "as": "that"}, {"effect": "exhaust", "target": {"ref": "that"}}], "if_you_do": [{"choose": {"count": 1, "filter": {"owner": "you", "damaged": true}}, "as": "it"}, {"effect": "remove_damage", "amount": 4, "target": {"ref": "it"}}]}]}]},
+  {"id": "C1-010", "name": "Porcini Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Lamplighter"], "keywords": {"duelist": 2}, "abilities": [{"kind": "static", "condition": {"this_is": "attacking"}, "modifiers": [{"subject": "this", "stat": "power", "amount": 1}]}]},
+  {"id": "C1-011", "name": "Porcini Chef", "type": "unit", "aspects": ["aspect_5"], "energy_source": true, "cost": 5, "power": 1, "health": 3, "score": 1, "traits": ["Chef"], "keywords": {"guard": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_score"}, "condition": {"behind_on_vp": true}, "steps": [{"effect": "gain_vp", "amount": 2, "target": "you"}]}]},
+  {"id": "C1-012", "name": "Porcini Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Postman"], "keywords": {"charge": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_play"}, "condition": {"behind_on_vp": true}, "steps": [{"effect": "modify_stat", "stat": "power", "delta": -1, "duration": "this_turn", "target": {"all": {"owner": "opponent"}}}, {"effect": "add_energy", "target": "you"}]}]},
+  {"id": "C1-013", "name": "Shiitake Scholar", "type": "action", "aspects": ["aspect_1"], "energy_source": true, "cost": 3, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "cant_ready", "duration": "until_their_next_turn", "target": {"all": {"owner": "opponent"}}}, {"effect": "lose_vp", "amount": 1, "target": "opponent"}]}]},
+  {"id": "C1-014", "name": "Shiitake Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": true, "cost": 4, "power": 1, "health": 2, "score": 2, "traits": ["Miner"], "keywords": {"charge": true}, "abilities": [{"kind": "static", "condition": {"this_is": "attacking"}, "modifiers": [{"subject": "this", "stat": "power", "amount": 2}]}]},
+  {"id": "C1-015", "name": "Shiitake Baker", "type": "unit", "aspects": ["aspect_3"], "energy_source": true, "cost": 7, "power": 1, "health": 1, "score": 1, "traits": ["Baker"], "keywords": {"guard": true}, "abilities": [{"kind": "activated", "cost": [{"exhaust_this": true}, {"discard": 1}], "steps": [{"effect": "cant_ready", "duration": "until_their_next_turn", "target": {"all": {"owner": "opponent"}}}, {"effect": "discard", "random": true, "amount": 2, "target": "opponent"}]}]},
+  {"id": "C1-016", "name": "Shiitake Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": false, "cost": 2, "power": 3, "health": 1, "score": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "defending"}, "modifiers": [{"subject": "this", "stat": "health", "amount": 1}]}]},
+  {"id": "C1-017", "name": "Shiitake Chef", "type": "action", "aspects": ["aspect_5"], "energy_source": true, "cost": 1, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "ready", "no_score_or_activate": true, "target": {"all": {"owner": "you"}}}]}]},
+  {"id": "C1-018", "name": "Shiitake Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": false, "cost": 4, "power": 4, "health": 2, "score": 2, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "damaged"}, "modifiers": [{"subject": "this", "keyword": "duelist", "value": 1}]}]},
+  {"id": "C1-019", "name": "Lion's-mane Scholar", "type": "unit", "aspects": ["aspect_1"], "energy_source": true, "cost": 3, "power": 1, "health": 1, "score": 2, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "defending"}, "modifiers": [{"subject": "this", "stat": "health", "amount": 2}]}]},
+  {"id": "C1-020", "name": "Lion's-mane Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": true, "cost": 3, "power": 1, "health": 1, "score": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_score"}, "condition": {"count": {"owner": "you", "trait": "Postman", "not_this": true}, "at_least": 2}, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}, {"effect": "return_to_hand", "target": {"ref": "it"}}]}]},
+  {"id": "C1-021", "name": "Lion's-mane Baker", "type": "action", "aspects": ["aspect_3"], "energy_source": true, "cost": 3, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "return_to_hand", "target": {"all": {"owner": "opponent"}}}]}]},
+  {"id": "C1-022", "name": "Lion's-mane Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": true, "cost": 4, "power": 1, "health": 2, "score": 1, "traits": ["Lamplighter"], "keywords": {"armor": 1}, "abilities": [{"kind": "triggered", "trigger": {"event": "opposing_defeated"}, "condition": null, "steps": [{"effect": "remove_damage", "amount": "all", "target": "this"}]}]},
+  {"id": "C1-023", "name": "Lion's-mane Chef", "type": "unit", "aspects": ["aspect_5"], "energy_source": true, "cost": 4, "power": 2, "health": 1, "score": 2, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": null, "steps": [{"effect": "modify_stat", "stat": "power", "delta": 2, "duration": "this_turn", "target": "this"}]}]},
+  {"id": "C1-024", "name": "Lion's-mane Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "opposing_defeated"}, "condition": null, "steps": [{"effect": "ready", "no_score_or_activate": true, "target": {"all": {"owner": "you", "not_this": true}}}]}]},
+  {"id": "C1-025", "name": "Puffball Scholar", "type": "action", "aspects": ["aspect_1"], "energy_source": false, "cost": 2, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "exhausted": true}}, "as": "it"}, {"effect": "defeat", "target": {"ref": "it"}}]}]},
+  {"id": "C1-026", "name": "Puffball Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": true, "cost": 6, "power": 1, "health": 1, "score": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "exhausted": true}}, "as": "it"}, {"effect": "defeat", "target": {"ref": "it"}}]}]},
+  {"id": "C1-027", "name": "Puffball Baker", "type": "unit", "aspects": ["aspect_3"], "energy_source": true, "cost": 4, "power": 2, "health": 3, "score": 2, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}, {"effect": "modify_stat", "stat": "power", "delta": -1, "duration": "this_turn", "target": {"ref": "it"}}]}]},
+  {"id": "C1-028", "name": "Puffball Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": true, "cost": 2, "power": 1, "health": 1, "score": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": null, "steps": [{"effect": "modify_stat", "stat": "health", "delta": 2, "duration": "this_turn", "target": {"all": {"owner": "you", "not_this": true}}}]}]},
+  {"id": "C1-029", "name": "Puffball Chef", "type": "action", "aspects": ["aspect_5"], "energy_source": true, "cost": 2, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "remove_damage", "amount": "all", "target": {"all": {"owner": "you", "trait": "Lamplighter"}}}]}]},
+  {"id": "C1-030", "name": "Puffball Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": null, "steps": [{"effect": "modify_stat", "stat": "score", "delta": 1, "duration": "this_turn", "target": {"all": {"owner": "you", "not_this": true, "damaged": true}}}]}]},
+  {"id": "C1-031", "name": "Snowcap Scholar", "type": "unit", "aspects": ["aspect_1"], "energy_source": true, "cost": 3, "power": 3, "health": 1, "score": 1, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "opponent", "damaged": true}}, "stat": "power", "amount": -1}]}]},
+  {"id": "C1-032", "name": "Snowcap Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": true, "cost": 3, "power": 2, "health": 2, "score": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Postman", "not_this": true}}, "stat": "power", "amount": 1}]}]},
+  {"id": "C1-033", "name": "Snowcap Baker", "type": "action", "aspects": ["aspect_3"], "energy_source": true, "cost": 3, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "modify_stat", "stat": "score", "delta": 2, "duration": "this_turn", "target": {"all": {"owner": "you", "exhausted": true}}}]}]},
+  {"id": "C1-034", "name": "Snowcap Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": true, "cost": 2, "power": 1, "health": 1, "score": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Lamplighter", "not_this": true}}, "stat": "health", "amount": 1}]}]},
+  {"id": "C1-035", "name": "Snowcap Chef", "type": "unit", "aspects": ["aspect_5"], "energy_source": false, "cost": 2, "power": 2, "health": 1, "score": 1, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Baker", "not_this": true}}, "stat": "health", "amount": 1}]}]},
+  {"id": "C1-036", "name": "Snowcap Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": true, "cost": 2, "power": 1, "health": 1, "score": 1, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": "Lamplighter"}}]}]},
+  {"id": "C1-037", "name": "Turkey-tail Scholar", "type": "unit", "aspects": ["aspect_1"], "energy_source": true, "cost": 3, "power": 1, "health": 1, "score": 2, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": "Baker"}}]}]},
+  {"id": "C1-038", "name": "Turkey-tail Miner", "type": "unit", "aspects": ["aspect_2"], "energy_source": true, "cost": 3, "power": 2, "health": 1, "score": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack"}, "condition": null, "steps": [{"effect": "discard", "random": true, "amount": 1, "target": "opponent"}]}]},
+  {"id": "C1-039", "name": "Turkey-tail Baker", "type": "unit", "aspects": ["aspect_3"], "energy_source": false, "cost": 6, "power": 1, "health": 1, "score": 1, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "activated", "cost": [{"exhaust_this": true}, {"exhaust_another": 1}], "steps": [{"effect": "gain_vp", "amount": 3, "target": "you"}]}]},
+  {"id": "C1-040", "name": "Turkey-tail Lamplighter", "type": "unit", "aspects": ["aspect_4"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "activated", "cost": [{"exhaust_this": true}, {"exhaust_another": 1}], "steps": [{"effect": "gain_vp", "amount": 1, "target": "you"}]}]},
+  {"id": "C1-041", "name": "Turkey-tail Chef", "type": "unit", "aspects": ["aspect_5"], "energy_source": true, "cost": 5, "power": 3, "health": 4, "score": 1, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "activated", "cost": [{"exhaust_this": true}, {"discard": 1}], "steps": [{"effect": "add_energy", "target": "you"}]}]},
+  {"id": "C1-042", "name": "Turkey-tail Postman", "type": "unit", "aspects": ["aspect_6"], "energy_source": true, "cost": 4, "power": 1, "health": 1, "score": 1, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "another_played", "filter": {"owner": "you", "trait": "Chef", "not_this": true}}, "condition": null, "steps": [{"effect": "gain_vp", "amount": 2, "target": "you"}]}]},
+  {"id": "C1-043", "name": "Chanterelle Scholar", "type": "unit", "aspects": ["aspect_1"], "energy_source": true, "cost": 3, "power": 1, "health": 2, "score": 1, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "another_played", "filter": {"owner": "you", "trait": "Chef", "not_this": true}}, "condition": null, "steps": [{"effect": "lose_vp", "amount": 1, "target": "opponent"}]}]},
+  {"id": "C1-044", "name": "Chanterelle Miner", "type": "action", "aspects": ["aspect_2"], "energy_source": false, "cost": 1, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "discard", "random": true, "amount": 1, "target": "opponent"}]}]},
+  {"id": "C1-045", "name": "Chanterelle Baker", "type": "action", "aspects": ["aspect_3"], "energy_source": false, "cost": 1, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "draw", "amount": 1, "target": "you"}]}]},
+  {"id": "C1-046", "name": "Chanterelle Lamplighter", "type": "action", "aspects": ["aspect_4"], "energy_source": true, "cost": 2, "power": 0, "health": 0, "score": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "draw", "amount": 2, "target": "you"}]}]}
+ ],
+ "notes": {
+ "costing": "rough ability values from src/cards/costing.py",
+ "features": {
+  "ability: activated": [
+   "C1-003",
+   "C1-004",
+   "C1-015",
+   "C1-039",
+   "C1-040",
+   "C1-041"
+  ],
+  "ability: on_resolve": [
+   "C1-001",
+   "C1-005",
+   "C1-009",
+   "C1-013",
+   "C1-017",
+   "C1-021",
+   "C1-025",
+   "C1-029",
+   "C1-033",
+   "C1-044",
+   "C1-045",
+   "C1-046"
+  ],
+  "ability: static": [
+   "C1-008",
+   "C1-010",
+   "C1-014",
+   "C1-016",
+   "C1-018",
+   "C1-019",
+   "C1-031",
+   "C1-032",
+   "C1-034",
+   "C1-035",
+   "C1-036",
+   "C1-037"
+  ],
+  "ability: triggered": [
+   "C1-002",
+   "C1-006",
+   "C1-007",
+   "C1-011",
+   "C1-012",
+   "C1-020",
+   "C1-022",
+   "C1-023",
+   "C1-024",
+   "C1-026",
+   "C1-027",
+   "C1-028",
+   "C1-030",
+   "C1-038",
+   "C1-042",
+   "C1-043"
+  ],
+  "amount: all": [
+   "C1-022",
+   "C1-029"
+  ],
+  "amount: per count, capped": [
+   "C1-001",
+   "C1-002"
+  ],
+  "card type: action": [
+   "C1-001",
+   "C1-005",
+   "C1-009",
+   "C1-013",
+   "C1-017",
+   "C1-021",
+   "C1-025",
+   "C1-029",
+   "C1-033",
+   "C1-044",
+   "C1-045",
+   "C1-046"
+  ],
+  "card type: unit": [
+   "C1-002",
+   "C1-003",
+   "C1-004",
+   "C1-006",
+   "C1-007",
+   "C1-008",
+   "C1-010",
+   "C1-011",
+   "C1-012",
+   "C1-014",
+   "C1-015",
+   "C1-016",
+   "C1-018",
+   "C1-019",
+   "C1-020",
+   "C1-022",
+   "C1-023",
+   "C1-024",
+   "C1-026",
+   "C1-027",
+   "C1-028",
+   "C1-030",
+   "C1-031",
+   "C1-032",
+   "C1-034",
+   "C1-035",
+   "C1-036",
+   "C1-037",
+   "C1-038",
+   "C1-039",
+   "C1-040",
+   "C1-041",
+   "C1-042",
+   "C1-043"
+  ],
+  "condition: behind_on_vp": [
+   "C1-011",
+   "C1-012"
+  ],
+  "condition: count": [
+   "C1-002",
+   "C1-020"
+  ],
+  "condition: defeated": [
+   "C1-001",
+   "C1-002"
+  ],
+  "condition: this_is attacking": [
+   "C1-010",
+   "C1-014"
+  ],
+  "condition: this_is damaged": [
+   "C1-008",
+   "C1-018"
+  ],
+  "condition: this_is defending": [
+   "C1-016",
+   "C1-019"
+  ],
+  "cost: discard": [
+   "C1-015",
+   "C1-041"
+  ],
+  "cost: exhaust_another": [
+   "C1-039",
+   "C1-040"
+  ],
+  "cost: exhaust_this": [
+   "C1-003",
+   "C1-004",
+   "C1-015",
+   "C1-039",
+   "C1-040",
+   "C1-041"
+  ],
+  "cost: pay": [
+   "C1-003",
+   "C1-004"
+  ],
+  "decision: choose": [
+   "C1-001",
+   "C1-002",
+   "C1-005",
+   "C1-009",
+   "C1-020",
+   "C1-025",
+   "C1-026",
+   "C1-027"
+  ],
+  "decision: choose one": [
+   "C1-003",
+   "C1-007"
+  ],
+  "decision: may": [
+   "C1-005",
+   "C1-009"
+  ],
+  "duration: this_turn": [
+   "C1-003",
+   "C1-005",
+   "C1-012",
+   "C1-023",
+   "C1-027",
+   "C1-028",
+   "C1-030",
+   "C1-033"
+  ],
+  "duration: until_their_next_turn": [
+   "C1-013",
+   "C1-015"
+  ],
+  "duration: until_your_next_turn": [
+   "C1-004",
+   "C1-006"
+  ],
+  "effect: add_energy": [
+   "C1-002",
+   "C1-012",
+   "C1-041"
+  ],
+  "effect: cant_ready": [
+   "C1-013",
+   "C1-015"
+  ],
+  "effect: deal_damage": [
+   "C1-001",
+   "C1-002"
+  ],
+  "effect: defeat": [
+   "C1-025",
+   "C1-026"
+  ],
+  "effect: discard": [
+   "C1-003",
+   "C1-015",
+   "C1-038",
+   "C1-044"
+  ],
+  "effect: draw": [
+   "C1-006",
+   "C1-007",
+   "C1-045",
+   "C1-046"
+  ],
+  "effect: exhaust": [
+   "C1-005",
+   "C1-009"
+  ],
+  "effect: gain_vp": [
+   "C1-001",
+   "C1-011",
+   "C1-039",
+   "C1-040",
+   "C1-042"
+  ],
+  "effect: grant_keyword": [
+   "C1-003",
+   "C1-004"
+  ],
+  "effect: lose_vp": [
+   "C1-004",
+   "C1-013",
+   "C1-043"
+  ],
+  "effect: modify_stat": [
+   "C1-005",
+   "C1-006",
+   "C1-012",
+   "C1-023",
+   "C1-027",
+   "C1-028",
+   "C1-030",
+   "C1-033"
+  ],
+  "effect: ready": [
+   "C1-017",
+   "C1-024"
+  ],
+  "effect: remove_damage": [
+   "C1-007",
+   "C1-009",
+   "C1-022",
+   "C1-029"
+  ],
+  "effect: return_to_hand": [
+   "C1-020",
+   "C1-021"
+  ],
+  "filter owner: any": [
+   "C1-001",
+   "C1-002"
+  ],
+  "filter owner: opponent": [
+   "C1-001",
+   "C1-002",
+   "C1-012",
+   "C1-013",
+   "C1-015",
+   "C1-020",
+   "C1-021",
+   "C1-025",
+   "C1-026",
+   "C1-027"
+  ],
+  "filter owner: you": [
+   "C1-001",
+   "C1-002",
+   "C1-003",
+   "C1-004",
+   "C1-005",
+   "C1-009",
+   "C1-017",
+   "C1-020",
+   "C1-024",
+   "C1-028",
+   "C1-029",
+   "C1-030",
+   "C1-033",
+   "C1-042",
+   "C1-043"
+  ],
+  "filter: cost_max": [
+   "C1-002",
+   "C1-005"
+  ],
+  "filter: damaged": [
+   "C1-001",
+   "C1-009",
+   "C1-030"
+  ],
+  "filter: exhausted": [
+   "C1-004",
+   "C1-005",
+   "C1-009",
+   "C1-025",
+   "C1-026",
+   "C1-033"
+  ],
+  "filter: not_this": [
+   "C1-002",
+   "C1-003",
+   "C1-004",
+   "C1-020",
+   "C1-024",
+   "C1-028",
+   "C1-030",
+   "C1-042",
+   "C1-043"
+  ],
+  "filter: trait": [
+   "C1-001",
+   "C1-002",
+   "C1-020",
+   "C1-029",
+   "C1-042",
+   "C1-043"
+  ],
+  "keyword: armor": [
+   "C1-006",
+   "C1-007",
+   "C1-022"
+  ],
+  "keyword: charge": [
+   "C1-012",
+   "C1-014"
+  ],
+  "keyword: duelist": [
+   "C1-002",
+   "C1-010"
+  ],
+  "keyword: elusive": [
+   "C1-003",
+   "C1-004"
+  ],
+  "keyword: guard": [
+   "C1-008",
+   "C1-011",
+   "C1-015"
+  ],
+  "stat change: health +": [
+   "C1-005",
+   "C1-028"
+  ],
+  "stat change: power +": [
+   "C1-006",
+   "C1-023"
+  ],
+  "stat change: power \u2212": [
+   "C1-012",
+   "C1-027"
+  ],
+  "stat change: score +": [
+   "C1-030",
+   "C1-033"
+  ],
+  "static: cost reduction": [
+   "C1-036",
+   "C1-037"
+  ],
+  "static: health for all(\u2026)": [
+   "C1-034",
+   "C1-035"
+  ],
+  "static: health for this card": [
+   "C1-016",
+   "C1-019"
+  ],
+  "static: keyword for this card": [
+   "C1-008",
+   "C1-018"
+  ],
+  "static: power for all(\u2026)": [
+   "C1-031",
+   "C1-032"
+  ],
+  "static: power for this card": [
+   "C1-010",
+   "C1-014"
+  ],
+  "step: if": [
+   "C1-001",
+   "C1-002"
+  ],
+  "target: all(\u2026)": [
+   "C1-003",
+   "C1-004",
+   "C1-012",
+   "C1-013",
+   "C1-015",
+   "C1-017",
+   "C1-021",
+   "C1-024",
+   "C1-028",
+   "C1-029",
+   "C1-030",
+   "C1-033"
+  ],
+  "target: an earlier choice": [
+   "C1-001",
+   "C1-002",
+   "C1-005",
+   "C1-009",
+   "C1-020",
+   "C1-025",
+   "C1-026",
+   "C1-027"
+  ],
+  "target: opponent": [
+   "C1-003",
+   "C1-004",
+   "C1-013",
+   "C1-015",
+   "C1-038",
+   "C1-043",
+   "C1-044"
+  ],
+  "target: this card": [
+   "C1-006",
+   "C1-007",
+   "C1-022",
+   "C1-023"
+  ],
+  "target: you": [
+   "C1-001",
+   "C1-002",
+   "C1-006",
+   "C1-007",
+   "C1-011",
+   "C1-012",
+   "C1-039",
+   "C1-040",
+   "C1-041",
+   "C1-042",
+   "C1-045",
+   "C1-046"
+  ],
+  "trigger: another_played": [
+   "C1-042",
+   "C1-043"
+  ],
+  "trigger: end_of_turn": [
+   "C1-006",
+   "C1-007"
+  ],
+  "trigger: on_attack": [
+   "C1-027",
+   "C1-038"
+  ],
+  "trigger: on_defeated": [
+   "C1-028",
+   "C1-030"
+  ],
+  "trigger: on_play": [
+   "C1-002",
+   "C1-012"
+  ],
+  "trigger: on_score": [
+   "C1-011",
+   "C1-020"
+  ],
+  "trigger: opposing_defeated": [
+   "C1-022",
+   "C1-024"
+  ],
+  "trigger: start_of_turn": [
+   "C1-023",
+   "C1-026"
+  ]
+ },
+ "generator": "coverage",
+ "jobs": [
+  "Scholar",
+  "Miner",
+  "Baker",
+  "Lamplighter",
+  "Chef",
+  "Postman"
+ ],
+ "per_feature": 2,
+ "seed": 0
+}
+}

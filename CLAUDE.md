@@ -33,7 +33,8 @@ Decisions already made (don't re-open without a reason):
 
 ```
 PythonServer/   Python 3.12, managed with uv. Run everything from here.
-  src/cards/    card schema (pure data), vanilla card generator
+  src/cards/    card schema (pure data), generators (vanilla, keywords, coverage), ability
+                sampler / validator / card text, rough costing
   src/game/     rules engine, decks, terms.py (every player-facing name)
   src/graph/    encode.py (state → NumPy) → builder.py (PyG) / dense.py (padded tensors)
   src/model/    gnn.py, transformer.py, registry.py (create / save / load by arch)
