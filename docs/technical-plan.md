@@ -197,7 +197,9 @@ card is accepted:
     of your next turn. Granted Duelist lasts this turn. Charge is never granted: it only
     matters on the turn a unit is played.
 - **Size.** At most 2 abilities per card, 4 steps per sequence, nesting depth 2, and 2
-  choices per ability.
+  choices per ability. The generator currently makes one ability per card and applies a
+  stricter complexity budget, plus quality tests that look at the tree's shape: see
+  [ability-generation.md](ability-generation.md).
 - **Ranges.** Every number comes from its range (e.g. `deal_damage` 1–5). A scaling amount
   must have a cap, so the card's strength is bounded and the cost model can price it.
 - **Validation pipeline:**

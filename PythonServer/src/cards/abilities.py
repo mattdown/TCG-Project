@@ -16,14 +16,16 @@ Abilities use the authoring form from docs/technical-plan.md section 3: plain di
     filter  = {"owner": "you" | "opponent" | "any", "trait"?, "damaged"?, "exhausted"?, "cost_max"?, "not_this"?}
 
 The sampler builds trees that satisfy the constraints by construction; validate() checks
-them independently, so it can also vet trees written by hand or by another generator.
+them independently, so it can also vet trees written by hand or by another generator. The
+quality tests in quality.py then drop legal abilities that aren't worth generating.
 The sampling weights are hand-tuned placeholders, and the cost model will set cards' cost
 and stats later.
 """
 import random
 
+from src.cards.quality import quality_problems
 from src.cards.theme import JOBS
-from src.game.terms import keyword_text
+from src.game.terms import KEYWORDS, keyword_text
 
 TRAITS = JOBS  # traits are jobs (docs/theme.md)
 HELPS, HURTS = "helps", "hurts"
@@ -86,13 +88,15 @@ class AbilitySampler:
         return self.rng.choices(values, [1 / (i + 1) for i in range(len(values))])[0]
 
     def ability(self, card_type: str = "unit") -> dict:
-        """A random ability that passes validate(): the rare one that doesn't is resampled."""
+        """A random ability that passes validate() and the quality tests (src/cards/quality.py).
+        Abilities that fail are resampled."""
         while True:
-            ability = self._ability(card_type)
-            if not validate(ability, card_type):
+            ability = self.raw(card_type)
+            if not validate(ability, card_type) and not quality_problems(ability):
                 return ability
 
-    def _ability(self, card_type: str) -> dict:
+    def raw(self, card_type: str) -> dict:
+        """One draw from the grammar, before any checks."""
         if card_type == "action":
             kind = "on_resolve"
         else:
@@ -407,6 +411,11 @@ def card_problems(card_type: str, health: int, keywords: dict, abilities) -> lis
                 any(c.get("this_is") == "damaged" for c in conditions)
                 or any(e["effect"] == "remove_damage" for e in on_this)):
             problems.append("only matters once this unit is damaged, but 1 damage defeats it")
+        # Keywords without a number don't stack, so giving this unit one it already has does nothing.
+        given = [m for m in ability.get("modifiers", []) if m.get("subject") == "this" and "keyword" in m]
+        given += [e for e in on_this if e["effect"] == "grant_keyword"]
+        if any(not KEYWORDS[g["keyword"]] and keywords.get(g["keyword"]) for g in given):
+            problems.append("gives this unit a keyword it already has")
         # A unit is fresh the turn it's played: it can't score, and can only duel with Charge.
         # It also has no damage yet.
         if ability["kind"] == "triggered" and ability["trigger"]["event"] == "on_play":
@@ -449,6 +458,12 @@ def _adjectives(f: dict) -> str:
     return " ".join(words)
 
 
+def _opposing(f: dict) -> str:
+    """"damaged opposing Chef": the job goes next to the noun, like on your own units."""
+    words = [_adjectives({k: v for k, v in f.items() if k not in ("trait", "not_this")}), "opposing", f.get("trait", "")]
+    return " ".join(w for w in words if w)
+
+
 def _suffix(f: dict) -> str:
     return f" with cost {f['cost_max']} or less" if "cost_max" in f else ""
 
@@ -457,7 +472,7 @@ def _all_phrase(f: dict) -> str:
     adj = _adjectives(f)
     noun = f"{adj} units".strip() if adj else "units"
     if f["owner"] == "opponent":
-        return f"all {adj + ' ' if adj else ''}opposing units{_suffix(f)}"
+        return f"all {_opposing(f)} units{_suffix(f)}"
     if f["owner"] == "you":
         return f"your {noun}{_suffix(f)}"
     return f"all {noun}{_suffix(f)}"
@@ -468,7 +483,7 @@ def _count_phrase(f: dict) -> str:
     if f["owner"] == "you":
         return f"each of your {adj + ' ' if adj else ''}units"
     if f["owner"] == "opponent":
-        return f"each opposing {adj + ' ' if adj else ''}unit"
+        return f"each {_opposing(f)} unit"
     return f"each {adj + ' ' if adj else ''}unit in play"
 
 
@@ -476,7 +491,7 @@ def _chosen_phrase(f: dict) -> str:
     adj = _adjectives({k: v for k, v in f.items() if k != "not_this"})
     unit = f"{adj} unit".strip() if adj else "unit"
     if f["owner"] == "opponent":
-        return f"chosen {adj + ' ' if adj else ''}opposing unit{_suffix(f)}"
+        return f"chosen {_opposing(f)} unit{_suffix(f)}"
     other = "another" if f.get("not_this") else "a"
     return f"{other} chosen {unit} of yours{_suffix(f)}"
 

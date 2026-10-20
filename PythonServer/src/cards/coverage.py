@@ -6,17 +6,14 @@ statics, amounts, targets, costs, keywords, card types), then picks cards greedi
 every block it ever saw is used at least `per_feature` times. The result is for checking the
 engine and the client, not for balance.
 """
-import math
 import random
 from collections import Counter
 
-from src.cards.abilities import AbilitySampler, render
-from src.cards.costing import ability_value
+from src.cards.abilities import render
+from src.cards.generate import CardGenerator
 from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
-from src.cards.vanilla import (ARCHETYPES, ARCHETYPE_KEYWORDS, KEYWORD_RANGE, MIN_STATS_VALUE, _allocate,
-                               keyword_value, stat_budget)
-from src.game.terms import ASPECTS, KEYWORDS, keyword_text
+from src.game.terms import ASPECTS, keyword_text
 
 FILTER_FIELDS = ("trait", "damaged", "exhausted", "cost_max", "not_this")
 
@@ -113,46 +110,6 @@ def card_features(card: Card) -> set[str]:
     return out
 
 
-class _CandidateMaker:
-    def __init__(self, rng: random.Random, jobs: tuple[str, ...]):
-        self.rng = rng
-        self.sampler = AbilitySampler(rng, traits=jobs)
-
-    def card(self, index: int) -> Card:
-        """A random candidate. Cards whose abilities could never matter (Card rejects them) are resampled."""
-        while True:
-            try:
-                return self._card(index)
-            except ValueError:
-                continue
-
-    def _card(self, index: int) -> Card:
-        rng = self.rng
-        card_type = "action" if rng.random() < 0.25 else "unit"
-        ability = self.sampler.ability(card_type)
-        value = ability_value(ability)
-        aspect = (ASPECTS[index % len(ASPECTS)],)
-        energy_source = rng.random() < 0.8
-        if card_type == "action":
-            cost = max(0, math.ceil(value / 2))
-            return Card(f"cand-{index}", "", "action", aspect, energy_source, cost, 0, 0, 0, abilities=(ability,))
-
-        archetype = rng.choice(list(ARCHETYPES))
-        keywords = {}
-        if rng.random() < 0.35:
-            options = {k: w for k, w in ARCHETYPE_KEYWORDS[archetype].items() if w}
-            name = rng.choices(list(options), list(options.values()))[0]
-            lo, hi = KEYWORD_RANGE.get(name, (1, 1))
-            keywords[name] = rng.randint(lo, hi)
-        spend = math.ceil(value) + keyword_value(keywords)
-        cost = rng.randint(1, 5)
-        while stat_budget(cost, energy_source) - spend < MIN_STATS_VALUE and cost < 9:
-            cost += 1
-        stats = _allocate(rng, max(MIN_STATS_VALUE, stat_budget(cost, energy_source) - spend), ARCHETYPES[archetype])
-        return Card(f"cand-{index}", "", "unit", aspect, energy_source, cost, **stats,
-                    keywords=tuple(sorted(keywords.items())), abilities=(ability,))
-
-
 def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int = 4000, max_cards: int = 60,
                           jobs: int = 6, action_share: float = 0.25, prefix: str = "C1") -> CardSet:
     """Abilities only refer to `jobs` jobs, and the units are spread across the same jobs, so
@@ -160,8 +117,8 @@ def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int =
     are action cards, and no ability appears twice."""
     rng = random.Random(seed)
     job_list = tuple(rng.sample(JOBS, jobs))
-    maker = _CandidateMaker(rng, job_list)
-    pool = [maker.card(i) for i in range(candidates)]
+    generator = CardGenerator(rng, job_list, action_share=0.25)
+    pool = [generator.good().card for _ in range(candidates)]
     features = [card_features(c) for c in pool]
     reachable = set().union(*features)
     counts = Counter()

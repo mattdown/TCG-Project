@@ -25,6 +25,10 @@ Decisions already made (don't re-open without a reason):
 - **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;
   aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost); traits are jobs, not yet tied to abilities.
 - **Client:** the Unity client is a thin view. The Python server owns all rules and state.
+- **Ability generation:** generate and test with general tests on the tree's shape, never
+  rules about particular cards; one ability per card for now. Keep
+  [docs/ability-generation.md](docs/ability-generation.md) up to date (stages, tests,
+  numbers, log) whenever the generator changes.
 - **Abilities:** authored as trees (the grammar in docs/technical-plan.md section 3), compiled to
   decision graphs that the engine walks and the GNN reads. Static abilities and keywords stay
   declarative.
@@ -34,14 +38,15 @@ Decisions already made (don't re-open without a reason):
 ```
 PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/cards/    card schema (pure data), generators (vanilla, keywords, coverage), ability
-                sampler / validator / card text, rough costing
+                sampler / validator / card text, quality tests, the card pipeline
+                (generate.py), rough costing
   src/game/     rules engine, decks, terms.py (every player-facing name)
   src/graph/    encode.py (state → NumPy) → builder.py (PyG) / dense.py (padded tensors)
   src/model/    gnn.py, transformer.py, registry.py (create / save / load by arch)
   src/agents/   random, heuristic, neural agents; match runner
   src/training/ PPO self-play
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
-  scripts/      generate_cards, train, benchmark, server (run as `python -m scripts.<name>`)
+  scripts/      generate_cards, card_lab, train, benchmark, server (run as `python -m scripts.<name>`)
   cardsets/     generated card sets (JSON, one card per line)
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
@@ -55,6 +60,7 @@ docs/           technical plan, client protocol and design, theme, draw.io diagr
 uv sync
 uv run pytest
 uv run python -m scripts.generate_cards
+uv run python -m scripts.card_lab           # card generation lab: web page (--text, --export)
 uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
 uv run python -m scripts.benchmark [--models a.pt b.pt]
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
