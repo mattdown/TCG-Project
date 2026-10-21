@@ -4,8 +4,9 @@ Nodes:
   card    every visible card (see encode.py)
   player  you (index 0) and the opponent (index 1)
   global  one node: turn, phase
-  action  each legal option. Not part of message passing: it only stores which card nodes
-          the option refers to, so the policy head can score it after message passing.
+  ability the steps of every visible card's abilities (src/graph/abilities.py)
+  action  each legal option. Not part of message passing: it only stores which card and
+          ability nodes the option refers to, so the policy head can score it after message passing.
 """
 import numpy as np
 import torch
@@ -13,7 +14,15 @@ from torch_geometric.data import HeteroData
 
 from src.graph.encode import EncodedObs
 
-NODE_TYPES = ("card", "player", "global")
+NODE_TYPES = ("card", "player", "global", "ability")
+# Ability edges as stored in EncodedObs, with their reverse, so information flows both ways.
+ABILITY_EDGES = {  # field: ((forward), (reverse))
+    "node_card": (("ability", "part_of", "card"), ("card", "has_part", "ability")),
+    "node_next": (("ability", "next", "ability"), ("ability", "prev", "ability")),
+    "node_uses": (("ability", "uses", "ability"), ("ability", "used_by", "ability")),
+    "node_matches": (("ability", "matches", "card"), ("card", "matched_by", "ability")),
+    "node_bound": (("ability", "bound_to", "card"), ("card", "bound_by", "ability")),
+}
 EDGE_TYPES = (
     ("card", "belongs_to", "player"),
     ("player", "has_card", "card"),
@@ -21,7 +30,15 @@ EDGE_TYPES = (
     ("player", "opposes", "player"),
     ("player", "in", "global"),
     ("global", "has", "player"),
+    *(et for pair in ABILITY_EDGES.values() for et in pair),
 )
+
+
+def _ability_pairs(obs: EncodedObs, field: str) -> np.ndarray:
+    """[2, E] for an ability edge field; part_of is stored as one card index per node."""
+    if field == "node_card":
+        return np.stack([np.arange(obs.num_nodes), obs.node_card])
+    return getattr(obs, field)
 
 
 def _edges(src: np.ndarray, dst: np.ndarray) -> torch.Tensor:
@@ -49,9 +66,18 @@ def to_hetero_data(obs: EncodedObs) -> HeteroData:
     data["player", "in", "global"].edge_index = _edges(np.array([0, 1]), np.array([0, 0]))
     data["global", "has", "player"].edge_index = _edges(np.array([0, 0]), np.array([0, 1]))
 
+    data["ability"].x = torch.from_numpy(obs.node_features)
+    data["ability"].num_nodes = obs.num_nodes
+    for field, (forward, reverse) in ABILITY_EDGES.items():
+        src, dst = _ability_pairs(obs, field)
+        data[forward].edge_index = _edges(src, dst)
+        data[reverse].edge_index = _edges(dst, src)
+
     data["action"].type = torch.from_numpy(obs.action_type)
     data["action"].actor = torch.from_numpy(obs.action_actor)
     data["action"].target = torch.from_numpy(obs.action_target)
+    data["action"].context = torch.from_numpy(obs.action_context)
+    data["action"].option = torch.from_numpy(obs.action_option)
     data["action"].num_nodes = obs.num_actions
     return data
 
@@ -99,10 +125,25 @@ def collate_hetero(observations: list[EncodedObs]) -> HeteroData:
     data["player", "in", "global"].edge_index = _edges(players, players // 2)
     data["global", "has", "player"].edge_index = _edges(players // 2, players)
 
+    n_nodes = np.array([o.num_nodes for o in observations])
+    node_ptr = np.concatenate([[0], np.cumsum(n_nodes)])
+    data["ability"].x = torch.from_numpy(np.concatenate([o.node_features for o in observations]))
+    data["ability"].num_nodes = int(node_ptr[-1])
+    data["ability"].ptr = torch.from_numpy(node_ptr.astype(np.int64))
+    for field, (forward, reverse) in ABILITY_EDGES.items():
+        dst_ptr = node_ptr if forward[2] == "ability" else card_ptr
+        pairs = [_ability_pairs(o, field) + np.array([[node_ptr[b]], [dst_ptr[b]]])
+                 for b, o in enumerate(observations)]
+        src, dst = np.concatenate(pairs, axis=1) if pairs else np.zeros((2, 0), dtype=np.int64)
+        data[forward].edge_index = _edges(src, dst)
+        data[reverse].edge_index = _edges(dst, src)
+
     data["action"].type = torch.from_numpy(np.concatenate([o.action_type for o in observations]))
-    # The GNN adds card.ptr itself, so actor / target stay local to each graph.
+    # The GNN adds card.ptr / ability.ptr itself, so actor, target, context and option stay local to each graph.
     data["action"].actor = torch.from_numpy(np.concatenate([o.action_actor for o in observations]))
     data["action"].target = torch.from_numpy(np.concatenate([o.action_target for o in observations]))
+    data["action"].context = torch.from_numpy(np.concatenate([o.action_context for o in observations]))
+    data["action"].option = torch.from_numpy(np.concatenate([o.action_option for o in observations]))
     data["action"].batch = torch.from_numpy(np.repeat(graphs, n_actions).astype(np.int64))
     data["action"].num_nodes = int(n_actions.sum())
     return data

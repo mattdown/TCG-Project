@@ -5,7 +5,7 @@ graph isn't thrown away: each pair of tokens has a relation (belongs_to, faces, 
 and each relation adds a learned bias per attention head. Everything is dense matrix
 multiplies on fixed shapes, which suits GPUs, TPUs and compilers, and ports to JAX directly.
 
-Card encoder, action slots and heads are the same as in the GNN.
+Card encoder, ability node input, action slots and heads are the same as in the GNN.
 """
 import torch
 import torch.nn.functional as F
@@ -13,6 +13,7 @@ from torch import nn
 
 from src.game.actions import ActionType
 from src.graph.dense import GLOBAL_TOKEN, NUM_FIXED_TOKENS, RELATIONS, DenseBatch, collate_dense
+from src.graph.abilities import NODE_DIM
 from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, PLAYER_DIM, EncodedObs
 from src.model.common import mlp
 
@@ -50,11 +51,12 @@ class EntityTransformerNet(nn.Module):
         self.card_in = nn.Linear(hidden + CARD_DYNAMIC_DIM, hidden)
         self.player_in = nn.Linear(PLAYER_DIM, hidden)
         self.global_in = nn.Linear(GLOBAL_DIM, hidden)
+        self.ability_in = mlp(NODE_DIM, hidden, hidden)
         self.layers = nn.ModuleList(RelationalAttentionLayer(hidden, heads) for _ in range(num_layers))
         self.final_norm = nn.LayerNorm(hidden)
         self.action_type_emb = nn.Embedding(len(ActionType), hidden)
-        self.empty_slot = nn.Parameter(torch.zeros(2, hidden))
-        self.policy_head = mlp(4 * hidden, hidden, 1)
+        self.empty_slot = nn.Parameter(torch.zeros(4, hidden))
+        self.policy_head = mlp(6 * hidden, hidden, 1)
         self.value_head = mlp(3 * hidden, hidden, 1)
 
     @staticmethod
@@ -63,15 +65,18 @@ class EntityTransformerNet(nn.Module):
 
     def forward(self, batch: DenseBatch) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         cards = self.card_in(torch.cat([self.card_encoder(batch.card_static), batch.card_dynamic], dim=-1))
-        x = torch.cat([self.global_in(batch.global_)[:, None], self.player_in(batch.player), cards], dim=1)
+        nodes = self.ability_in(batch.node_features)
+        x = torch.cat([self.global_in(batch.global_)[:, None], self.player_in(batch.player), cards, nodes], dim=1)
         fixed = batch.card_mask.new_ones(batch.card_mask.size(0), NUM_FIXED_TOKENS)
-        key_mask = torch.cat([fixed, batch.card_mask], dim=1)
+        key_mask = torch.cat([fixed, batch.card_mask, batch.node_mask], dim=1)
         for layer in self.layers:
             x = layer(x, batch.relation, key_mask)
         x = self.final_norm(x)
 
-        g, card_h = x[:, GLOBAL_TOKEN], x[:, NUM_FIXED_TOKENS:]
-        slots = [self._slot(card_h, batch.action_actor, 0), self._slot(card_h, batch.action_target, 1)]
+        N = batch.card_mask.size(1)
+        g, card_h, node_h = x[:, GLOBAL_TOKEN], x[:, NUM_FIXED_TOKENS:NUM_FIXED_TOKENS + N], x[:, NUM_FIXED_TOKENS + N:]
+        slots = [self._slot(card_h, batch.action_actor, 0), self._slot(card_h, batch.action_target, 1),
+                 self._slot(node_h, batch.action_context, 2), self._slot(node_h, batch.action_option, 3)]
         A = batch.action_type.size(1)
         action_in = torch.cat([self.action_type_emb(batch.action_type), *slots, g[:, None].expand(-1, A, -1)], dim=-1)
         logits = self.policy_head(action_in).squeeze(-1)  # [B, A]

@@ -377,35 +377,36 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 | Node type | Features |
 |---|---|
 | `card` (each card instance that is visible) | card embedding from the card encoder + zone, exhausted, damage, fresh, hidden (Elusive), frozen, owner (relative: you / opponent) |
-| ability graph nodes: `entry`, `choose`, `may`, `choose_one`, `if`, `for_each`, `effect`, `end`, plus `static` | node type + parameters (op, amount, count, stat, keyword, duration, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved |
+| `ability` (`src/graph/abilities.py`): one per step of each visible card's abilities: `entry`, `choose`, `may`, `choose_one`, `if`, `effect`, `end`, and one `modifier` per static modifier | node kind + ability kind + trigger event + condition + parameters (op, amount, scaling, stat and delta, keyword, duration, target kind, count, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved. 84 features |
 | `player` (you, opponent): the heroes | health, mana, crystals, hand size, deck size, units and how many can attack, Spare Spore, fatigue |
 | `global` | turn number, phase, whose turn |
-| `active_effect` | effect type + parameters + turns until it expires |
+| `active_effect` (not yet built) | effect type + parameters + turns until it expires |
 
 | Edge type | Kind | Meaning |
 |---|---|---|
-| `has_ability` | static | card → each of its abilities' `entry` (or `static`) node |
-| `next`, `then`, `else`, `option`, `if_you_do` | static | control flow inside a decision graph |
-| `uses` | static | data flow: a `choose` / `for_each` → every later step that refers to its name ("it") |
-| `owns`, `in_zone` | dynamic | player → card, card → zone |
+| `part_of` | static | every ability node → its card |
+| `next` | static | control flow inside a decision graph (next step, branches, static modifiers) |
+| `uses` | static | data flow: a `choose` → every later step that refers to its name ("it") |
+| `belongs_to` | dynamic | card → its owner's player node (zones are card features) |
 | `faces` | dynamic | between every unit in play and every opposing unit, so units can weigh up direct threats |
 | `matches` | dynamic | a node with a Filter (`choose`, `effect` on `all(…)`, `if` on `count(…)`, `static`, a scaling `amount`) → every card the Filter currently matches, computed by the engine (respects Elusive) |
 | `bound_to` | dynamic | while an ability resolves: a `choose` node → the card(s) already chosen for it |
-| `affects`, `source_of` | dynamic | active effect → affected card; card → effect it created |
+| `affects`, `source_of` (not yet built) | dynamic | active effect → affected card; card → effect it created |
 
 Every edge type also gets its reverse, so information flows both ways.
 
 **Hidden information.** The opponent's hand and deck are counts on their player node. Your
 own deck is a count too, plus optionally a deck-composition summary.
 
-**Size.** About 20–60 card nodes plus about 5–10 ability nodes per card with abilities,
-so a few hundred nodes. That batches easily on a GPU.
+**Size.** About 10–30 visible cards plus 4–7 ability nodes per card with an ability: about
+20 ability nodes per state on `set_200`. Encoding takes about 85 µs per state; a GNN forward
+and backward pass about 2.4× as long as without abilities.
 
 ## 6. Model (`src/model/`)
 
-- **Card encoder:** an MLP over stats and keywords, plus a small GNN over the card's own
-  ability subgraph, pooled into one card embedding. It depends only on the card definition,
-  so embeddings can be cached per card during self-play and invalidated when weights change.
+- **Card encoder:** an MLP over stats and keywords. The card's ability isn't pooled into it:
+  its ability nodes take part in message passing with the rest of the state (`part_of`
+  edges), so the card's embedding and its abilities' meaning can depend on the board.
 - **State encoder:** a heterogeneous GNN (e.g. `HeteroConv` with GATv2 / Transformer
   convolutions) with 4–6 layers. An **entity transformer** with edges as attention biases
   (the AlphaStar / OpenAI Five pattern) is the main alternative. Game states are small enough
@@ -416,10 +417,10 @@ so a few hundred nodes. That batches easily on a GPU.
   padded to a few fixed sizes, so it also suits TPUs and a JAX port.
 - **Policy head:** each legal option (attacking the hero is an action type with no target
   card) is encoded as `MLP([action-type embedding,
-  emb(actor node), emb(target node), emb(context node), emb(global)])` and scored, with a
-  softmax over the legal options only (a pointer-network style head). While an ability
-  resolves, the context is the decision node being resolved. For a `choose`, the target is
-  the card. For a `choose_one`, the target is the first node of the option's branch.
+  emb(actor node), emb(target node), emb(context node), emb(option node), emb(global)])` and
+  scored, with a softmax over the legal options only (a pointer-network style head). While an
+  ability resolves, the context is the decision node being resolved. For a `choose`, the target
+  is the card. For a `choose_one`, the option is the first node of the option's branch.
 - **Value head:** win probability from the pooled player and global nodes. Auxiliary targets
   (final health difference, turns remaining) help early training.
 - **Cost model:** predicts a card's fair cost from its embedding, trained on the agent's games

@@ -5,7 +5,9 @@ import pytest
 import torch
 from torch_geometric.data import Batch
 
-from src.cards.vanilla import generate_vanilla_set
+from functools import lru_cache
+
+from src.cards.generate import generate_card_set
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game
@@ -19,8 +21,13 @@ from tests.helpers import put_in_play, started_game, unit
 ARCHS = sorted(ARCHITECTURES)
 
 
+@lru_cache(maxsize=None)
+def ability_set():
+    return generate_card_set(120, seed=4)
+
+
 def random_positions(n, seed=0):
-    card_set = generate_vanilla_set()
+    card_set = ability_set()
     rng = random.Random(seed)
     observations = []
     while len(observations) < n:
@@ -97,7 +104,8 @@ def test_dense_batch_padding():
     batch = collate_dense([o.encoded for o in observations])
     assert batch.card_mask.sum(1).tolist() == [o.encoded.num_cards for o in observations]
     assert batch.action_mask.sum(1).tolist() == [o.encoded.num_actions for o in observations]
-    assert batch.relation.shape[1] == NUM_FIXED_TOKENS + batch.card_static.shape[1]
+    assert batch.node_mask.sum(1).tolist() == [o.encoded.num_nodes for o in observations]
+    assert batch.relation.shape[1] == NUM_FIXED_TOKENS + batch.card_static.shape[1] + batch.node_features.shape[1]
 
 
 # --- models
