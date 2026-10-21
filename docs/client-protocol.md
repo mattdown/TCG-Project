@@ -41,6 +41,14 @@ Milestone 4, rules v2 (done):
 - **Unit states:** `frozen` (can't attack on its next turn: show ice), `hidden` (Elusive and
   hasn't attacked yet: enemies can't target it).
 
+**Next for the client (milestone 5, small):**
+- **Neutral cards:** `aspects` can be empty (`[]`). Draw them in the neutral grey `#8A93AD`
+  instead of an aspect colour; don't index `aspects[0]` without checking.
+- **Hero aspect:** each player has an `aspect` (the deck's). Tint or frame the hero portrait
+  with it.
+- **Vanilla and keyword-only units** have no `ability_text`: show flavour, or just the
+  keywords, in the text box.
+
 **Checking cards by hand.**
 1. Generate the coverage set: from `PythonServer/`, run `uv run python -m scripts.generate_cards --kind coverage`.
    It writes `cardsets/coverage.json`: a small set that uses every building block of the
@@ -87,7 +95,7 @@ stats and names here.
 | `id` | card definition ID, referenced by `card_id` in the state |
 | `name`, `subtitle` | units: `"Porcini Baker"` and `"Up Before Dawn"`, the version of the character (show it under the name, smaller); action cards: an event name such as `"Ember Volley"` and an empty `subtitle`. Sets made before subtitles existed have `""` everywhere |
 | `type` | `"unit"` or `"action"` (played from hand, its ability resolves, then it goes to the discard pile; no stats) |
-| `aspects` | one of `aspect_1` … `aspect_6`: Ember, Bog, Moss, Meadow, Glow, Frost ([theme.md](theme.md)) |
+| `aspects` | `[]` for a **neutral** card (any deck can use it; show it in grey, `#8A93AD`), or one of `aspect_1` … `aspect_6`: Ember, Bog, Moss, Meadow, Glow, Frost ([theme.md](theme.md)) |
 | `cost`, `power`, `health` | mana cost and stats (actions have 0 power and health) |
 | `traits` | the unit's job, e.g. `["Scholar"]` |
 | `keywords` | `{"guard": true, "duelist": 2}`: flags are `true`, Duelist and Armor carry a number. Show them as `Guard.`, `Duelist +2.` (see the keyword rules below) |
@@ -203,7 +211,8 @@ The quick option when no step-by-step animation is needed.
 ## The state
 
 Always from the human's point of view: the AI's hand and both decks' contents are never
-sent. A mid-game example (turn 7, the human's turn; most of the hand and the previews trimmed):
+sent. A mid-game example (turn 7, the human's turn; most of the hand and the previews trimmed;
+captured before decks became one aspect plus neutral, so a replay of seed 7 now differs):
 
 ```json
 {
@@ -215,7 +224,7 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand and the pre
   "game_over": false,
   "winner": null,
   "players": [
-    {"health": 22, "mana": 4, "crystals": 4, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 5,
+    {"aspect": "aspect_3", "health": 22, "mana": 4, "crystals": 4, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 5,
      "hand": [{"uid": 29, "card_id": "K1-070", "exhausted": false, "fresh": false, "damage": 0, "cost": 4,
                "power": 3, "health": 5, "keywords": {"charge": true}, "can_attack": false, "frozen": false,
                "hidden": false}, …],
@@ -224,7 +233,7 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand and the pre
                "hidden": false}],
      "discard": [ …1 card… ],
      "mulligan_marked": []},
-    {"health": 21, "mana": 0, "crystals": 3, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 4,
+    {"aspect": "aspect_2", "health": 21, "mana": 0, "crystals": 3, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 4,
      "hand": null,
      "play": [{"uid": 53, "card_id": "K1-133", "exhausted": true, "fresh": false, "damage": 0, …},
               {"uid": 54, "card_id": "K1-151", "exhausted": true, "fresh": false, "damage": 1, …},
@@ -255,6 +264,7 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand and the pre
 | `decision_player` | who must choose next. If it's `human_seat`, show `legal_actions`; otherwise ask the AI |
 | `winner` | seat number, or `null` for a draw (turn 100) when `game_over` is true |
 | `players[i]` | indexed by seat, not "you / them": use `human_seat` to tell which is the human |
+| `aspect` | the hero's aspect: the deck's most common aspect (`null` if it has only neutral cards). For now aspects are only colours and decks mix them; later a deck will be one aspect plus neutral cards. Use it to tint the hero portrait |
 | `health` | the hero's health left; 0 loses |
 | `mana` / `crystals` | unspent mana this turn / mana crystals (one more each turn, up to `max_mana`; all refill at the start of your turn) |
 | `spare_spore` | the second player's one-off +1 mana is still available |

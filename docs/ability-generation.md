@@ -82,12 +82,28 @@ Trade-offs worth knowing:
 
 ### 4. Build and cost the card
 
+**Card kinds.** The first decision is the kind of card, from shares of the whole set:
+- vanilla units (stats only, about 4%)
+- keyword-only units (about 25%)
+- action cards (25%)
+- units with one ability (the rest)
+
+Vanilla and keyword-only units skip the ability stages. They are neutral, and a **duplicate**
+stage stops any with the same cost, stats and keywords as a card already in the set.
+
+Only about 44–70 fair vanilla stat lines exist up to 10 mana, and about 1,200 keyword-only
+ones with balanced stats (5 at 1 mana, 32 at 2). So after 100 duplicates in a row the generator
+makes a unit with an ability instead. These counts come from the budget rule, with every stat
+at least 1 and at most 12.
+
 `CardGenerator._build` turns the ability into a card:
 - **Names:** units are a species + job with a subtitle picked from the ability ("Porcini
   Baker – Up Before Dawn"). Actions get an event name: an aspect word plus a noun for the main
   effect ("Ember Volley"). See [theme.md](theme.md#card-names). Names are only reserved by kept
   cards, and every full name in a set is unique.
-- **Aspect:** random.
+- **Aspect:** random, or neutral 10% of the time. Aspects have no identity yet (it should
+  later come from clustering generated cards, technical plan section 2), so for now decks
+  ignore them.
 - **Cost and stats:** from the rough ability value in `src/cards/costing.py`. Units also get an
   archetype (how stats are spread) and sometimes a keyword. The stat budget is 2 × cost + 1
   (Hearthstone players' rule of thumb), minus the ability's rough value.
@@ -202,10 +218,10 @@ The page shows:
 - the funnel of draws through each stage, with counts per reason
 - for each card, the checks it passed, its costing, its ability tree and its shape
 
-`scripts.generate_cards --kind abilities --count N` writes a playable set of N cards straight
-from this pipeline (`cardsets/abilities_N.json`, plus a checklist `.md`). It uses 6 jobs, like the
-coverage set, so job conditions can be met. Run the server on it with
-`scripts.server --cards cardsets/abilities_200.json`. `--kind coverage` builds the coverage set
+`scripts.generate_cards --kind set --count N` writes a playable set of N cards straight from
+this pipeline (`cardsets/set_N.json`, plus a checklist `.md`), with `--vanilla-share`,
+`--keyword-share` and `--action-share`. It uses 6 jobs, like the coverage set, so job conditions
+can be met. Run the server on it with `scripts.server --cards cardsets/set_200.json`. `--kind coverage` builds the coverage set
 for checking the engine and client. It uses the same pipeline.
 
 ## Log
@@ -226,3 +242,7 @@ for checking the engine and client. It uses the same pipeline.
   mana crystal", and the scoring trigger became "whenever this unit attacks the enemy hero".
   Activated abilities, `ready`, `exhaust` and the "exhausted" filter are no longer generated;
   Elusive is no longer granted. Stat budget 2 × cost + 1 from power and health only.
+- **2026-10-21:** Card kinds: vanilla (4%) and keyword-only (25%) neutral units alongside ability
+  cards, with a duplicate stage for them; keyword subtitles; aspects random or neutral (decks are
+  one aspect plus neutral cards, behind `ONE_ASPECT`, off for now). `--kind abilities` became
+  `--kind set` (`set_200`).

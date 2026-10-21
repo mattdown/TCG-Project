@@ -11,7 +11,9 @@ The game's name is still to be decided.
 - **Game terms and keywords stay as they are:** VP, energy, unit, score, duel, exhausted,
   fresh, Guard, Elusive, Charge, Evolve, and so on. Players already know these words from other
   card games. They live in `PythonServer/src/game/terms.py`.
-- **Aspects get habitat names** (below).
+- **Aspects get habitat names** (below). Later they work like Hearthstone classes (your hero
+  comes from one habitat, and your deck is that habitat's cards plus neutral cards); for now
+  they are only colours.
 - **Traits are jobs** (below).
 - **Unit names** combine a mushroom species with a job, plus a subtitle. **Action cards** get event names.
 
@@ -28,6 +30,11 @@ ones in [client-design.md](client-design.md).
 | `aspect_4` | **Meadow** | `#F5B52E` | sunny field mushrooms: farms, bakeries, wildflowers |
 | `aspect_5` | **Glow** | `#9152E0` | bioluminescent night shrooms: fireflies, moonlight, soft glows |
 | `aspect_6` | **Frost** | `#22BCC9` | snowcaps of the winter woods: ice, pine needles, frost |
+
+**Neutral cards** have no habitat (shown in grey, `#8A93AD`): any deck can use them. Vanilla and
+keyword-only units are neutral. What each habitat is *good at* isn't decided yet: it should come
+from clustering the generated cards (docs/technical-plan.md section 2), not from a hand-written
+list. For now ability cards get a habitat at random.
 
 ## Jobs (traits)
 

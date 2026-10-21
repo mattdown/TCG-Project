@@ -28,11 +28,19 @@ from src.game.terms import ASPECT_NAMES, keyword_text
 PAGE = Path(__file__).with_name("card_lab.html")
 EXPLORER_PAGE = Path(__file__).with_name("card_explorer.html")
 CARD_KIT = Path(__file__).with_name("card_kit.html")  # the card's markup and style, shared by both pages
-DEFAULTS = {"seed": 1, "count": 60, "jobs": 6, "action_share": 0.25, "variety": 4}
+DEFAULTS = {"seed": 1, "count": 60, "jobs": 6, "action_share": 0.25, "vanilla_share": 0.04, "keyword_share": 0.25,
+            "variety": 4}
+SHARES = ("action_share", "vanilla_share", "keyword_share")
 
 
 def _checks(a: Attempt) -> list[dict]:
     """Every test's verdict, so the page can show the whole pipeline for one draw."""
+    if a.ability is None:  # vanilla and keyword-only units
+        return [{"test": "card", "name": "Fits a card",
+                 "problems": a.problems if a.stopped_at == "card" else []},
+                {"test": "duplicate", "name": "Not a duplicate",
+                 "problems": a.problems if a.stopped_at == "duplicate" else []}] if a.stopped_at != "card" else \
+               [{"test": "card", "name": "Fits a card", "problems": a.problems}]
     grammar = validate(a.ability, a.card_type)
     size = complexity(a.ability)
     steps = a.ability.get("steps", [])
@@ -56,39 +64,51 @@ def _attempt_json(a: Attempt, trace: bool = False) -> dict:
     c = a.card
     card = None if c is None else {
         "name": c.name, "subtitle": c.subtitle, "type": c.type, "cost": c.cost, "power": c.power, "health": c.health,
-        "aspect": c.aspects[0], "aspect_name": ASPECT_NAMES[c.aspects[0]],
+        "aspect": c.aspects[0] if c.aspects else None,
+        "aspect_name": ASPECT_NAMES[c.aspects[0]] if c.aspects else "Neutral",
         "traits": list(c.traits), "keywords": [keyword_text(k, v) for k, v in c.keywords], "archetype": a.archetype,
     }
-    return {"index": a.index, "card_type": a.card_type, "kind": a.ability["kind"], "text": a.text,
+    kind = a.ability["kind"] if a.ability else a.kind  # triggered, static, … or vanilla, keywords
+    shape = skeleton(a.ability, abstract_traits=True) if a.ability else json.dumps(a.kind)
+    return {"index": a.index, "card_type": a.card_type, "kind": kind, "text": a.text if a.ability else "",
             "complexity": a.complexity, "value": a.value, "stopped_at": a.stopped_at, "problems": a.problems,
-            "checks": _checks(a), "tree": a.ability, "card": card,
-            "shape": skeleton(a.ability, abstract_traits=True)} | (_trace_json(a.trace) if trace else {})
+            "checks": _checks(a), "tree": a.ability, "card": card, "shape": shape} | \
+        (_trace_json(a.trace) if trace else {})
 
 
 def _trace_json(root: dict) -> dict:
-    ability = next(c for c in root["children"] if c.get("section") == "ability")
-    return {"trace": root, "ability_p": path_probability(ability), "ability_decisions": decisions(ability),
-            "decisions": decisions(root)}
+    ability = next((c for c in root["children"] if c.get("section") == "ability"), None)
+    if ability is None:  # no ability: the odds are the whole card's
+        return {"trace": root, "has_ability": False, "ability_p": path_probability(root),
+                "ability_decisions": decisions(root), "decisions": decisions(root)}
+    return {"trace": root, "has_ability": True, "ability_p": path_probability(ability),
+            "ability_decisions": decisions(ability), "decisions": decisions(root)}
 
 
-def one(seed: int, jobs: int, action_share: float, variety: int) -> dict:
+def one(seed: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
+        variety: int) -> dict:
     """One kept card with its derivation, plus every draw made on the way to it."""
     rng = random.Random(seed)
     job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
-    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety)
+    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety,
+                              vanilla_share=vanilla_share, keyword_share=keyword_share)
     kept = generator.card()
     return {"seed": seed, "job_list": list(job_list), "max_complexity": MAX_COMPLEXITY,
-            "params": {"jobs": jobs, "action_share": action_share, "variety": variety},
+            "params": {"jobs": jobs, "action_share": action_share, "vanilla_share": vanilla_share,
+                       "keyword_share": keyword_share, "variety": variety},
             "kept": _attempt_json(kept, trace=True),
             "others": [_attempt_json(a, trace=True) for a in generator.attempts if a is not kept]}
 
 
-def run(seed: int, count: int, jobs: int, action_share: float, variety: int) -> dict:
+def run(seed: int, count: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
+        variety: int) -> dict:
     rng = random.Random(seed)
     job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
-    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety)
+    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety,
+                              vanilla_share=vanilla_share, keyword_share=keyword_share)
     kept = [generator.card().index for _ in range(count)]
-    return {"params": {"seed": seed, "count": count, "jobs": jobs, "action_share": action_share, "variety": variety},
+    return {"params": {"seed": seed, "count": count, "jobs": jobs, "action_share": action_share,
+                       "vanilla_share": vanilla_share, "keyword_share": keyword_share, "variety": variety},
             "job_list": list(job_list), "stages": list(STAGES), "max_complexity": MAX_COMPLEXITY,
             "kept": kept, "attempts": [_attempt_json(a) for a in generator.attempts]}
 
@@ -101,7 +121,7 @@ def print_text(data: dict, rejected: bool):
         stats = "" if c["type"] == "action" else f" {c["power"]}/{c["health"]},"
         keywords = "".join(f" {k}." for k in c["keywords"])
         name = f"{c['name']} – {c['subtitle']}" if c["subtitle"] else c["name"]
-        print(f"{n:3d}. {name} [{c['type']}, cost {c['cost']},{stats} {a['kind']}]{keywords} {a['text']}")
+        print(f"{n:3d}. {name} [{c['type']}, cost {c['cost']},{stats} {a['kind']}, {c['aspect_name']}]{keywords} {a['text']}")
     stopped = [a for a in data["attempts"] if a["stopped_at"]]
     print(f"\n{len(data['attempts'])} draws, {len(data['kept'])} kept. Stopped at: "
           + ", ".join(f"{s} {sum(a['stopped_at'] == s for a in stopped)}" for s in data["stages"]))
@@ -176,7 +196,8 @@ def main():
         args.export.write_text(page(run(**params)))
         print(f"Wrote {args.export}")
     elif args.export_explorer:
-        cards = [one(args.seed * 100_000 + i, args.jobs, args.action_share, args.variety) for i in range(args.count)]
+        shares = {k: getattr(args, k) for k in SHARES}
+        cards = [one(args.seed * 100_000 + i, args.jobs, variety=args.variety, **shares) for i in range(args.count)]
         args.export_explorer.write_text(page({"cards": cards}, EXPLORER_PAGE))
         print(f"Wrote {args.export_explorer}")
     else:

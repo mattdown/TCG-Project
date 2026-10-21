@@ -172,6 +172,7 @@ class GameSession:
         players = []
         for p, ps in enumerate(s.players):
             players.append({
+                "aspect": ps.aspect,
                 "health": ps.health,
                 "mana": ps.mana,
                 "crystals": ps.crystals,

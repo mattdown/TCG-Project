@@ -125,7 +125,7 @@ const ASPECTS = { aspect_1: "Ember", aspect_2: "Bog", aspect_3: "Moss", aspect_4
 const SECTION_TEXT = { card: "Card", ability: "Ability", trigger: "Trigger", condition: "Condition", cost: "Cost", steps: "Steps",
   effect: "Effect", target: "Target", static: "Static ability" };
 const STOP_TEXT = { grammar: "illegal under the grammar", quality: "failed a quality test", card: "couldn't matter on the card",
-  variety: "set aside for variety" };
+  duplicate: "same cost, stats and keywords as a card already made", variety: "set aside for variety" };
 const state = { data: null, viewing: null, timer: null, deck: [] };
 const $ = (id) => document.getElementById(id);
 
@@ -172,14 +172,17 @@ function show(a, animate) {
   $("viewing").innerHTML = kept ? "" : `<div class="viewing"><div class="say"><b>A thrown-away draw:</b> ${STOP_TEXT[a.stopped_at]}.
       ${esc(a.problems.join("; "))}</div><button class="btn small" id="back" type="button">Back to the kept card</button></div>`;
   if (!kept) $("back").onclick = () => show(state.data.kept, false);
-  $("text").innerHTML = abilityHtml(a);
+  $("text").innerHTML = a.tree ? abilityHtml(a)
+    : `<i>No ability: a ${a.kind === "vanilla" ? "vanilla unit (stats only)" : "keyword-only unit"}, neutral, so any deck can use it.</i>`;
   $("path").innerHTML = sectionHtml(a.trace);
   $("tree").textContent = JSON.stringify(a.tree, null, 2);
   $("checks").innerHTML = checksHtml(a);
   $("odds").innerHTML = `<h3>How likely was this?</h3>
     <div class="big">1 in ${oneIn(a.ability_p)}</div>
-    <div class="muted">chance of this exact ability path: ${a.ability_decisions} random decisions in the grammar.
-      ${a.card ? `With the card's name, aspect, cost and stats: 1 in ${oneIn(a.ability_p * cardP(a.trace))}.` : ""}</div>`;
+    <div class="muted">${a.has_ability
+      ? `chance of this exact ability path: ${a.ability_decisions} random decisions in the grammar.
+         ${a.card ? `With the card's name, aspect, cost and stats: 1 in ${oneIn(a.ability_p * cardP(a.trace))}.` : ""}`
+      : `chance of this exact card: ${a.ability_decisions} random decisions (no ability).`}</div>`;
   document.querySelectorAll(".thrown button").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.i === a.index));
 
   const hero = $("hero");
@@ -220,7 +223,7 @@ async function generate() {
     render(state.deck.pop());
     return;
   }
-  const params = new URLSearchParams({ jobs: 6, action_share: 0.25, variety: 1, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) });
+  const params = new URLSearchParams({ jobs: 6, action_share: 0.25, vanilla_share: 0.04, keyword_share: 0.25, variety: 1, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) });
   params.set("seed", Math.floor(Math.random() * 1e9));
   const data = await (await fetch("/api/one?" + params)).json();
   if (data.error) { $("text").textContent = data.error; return; }

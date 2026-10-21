@@ -40,7 +40,7 @@ module (`src/game/terms.py`), so a rename is a single change.
 | **Fresh** | Played this turn: can't attack or use ⟳ yet |
 | **⟳ ability** | A unit's activated ability, used *instead of* attacking that turn |
 | **Defeated** | Damage ≥ health: the unit goes to the discard pile |
-| **Aspects** (6) | Card colours; decks use 1–2 aspects |
+| **Aspects** (6) | Habitats. Planned: Hearthstone-style classes (a deck is one aspect's cards plus neutral cards; the hero takes the deck's aspect). For now only colours: decks draw from the whole set |
 | **Traits** | Unit tags that abilities can refer to: jobs (docs/theme.md) |
 | **Keywords** | Guard, Charge, Duelist +N, Armor +N, Elusive |
 
@@ -64,7 +64,9 @@ module (`src/game/terms.py`), so a rename is a single change.
 
 ## 2. Rules scope (v2)
 
-- **Players and decks.** Two players, 30-card decks (up to 2 copies of a card, 1–2 aspects).
+- **Players and decks.** Two players, 30-card decks (up to 2 copies of a card). Planned: one
+  aspect's cards plus neutral cards, the hero taking the deck's aspect. For now aspects are only
+  colours and decks draw from the whole set (`ONE_ASPECT` in `src/game/decks.py`).
   Each player has a hero with 30 health. A hero at 0 health loses; if both reach 0 at once,
   it's a draw.
 - **Start.** The first player draws 3 cards, the second 4. Each player may replace any of
@@ -99,6 +101,13 @@ module (`src/game/terms.py`), so a rename is a single change.
   | Duelist +N | +N power while attacking |
   | Armor +N | Takes N less damage from attacks |
   | Elusive | Can't be attacked or chosen by enemy abilities until it attacks or uses ⟳ |
+
+**Aspects and jobs.** Aspects are classes (deckbuilding and, later, a strategic identity);
+jobs are tribes that cross aspects (the synergies abilities refer to). Vanilla and keyword-only
+units are neutral. Aspect identity isn't designed by hand: once a big generated pool exists,
+clustering the cards by what they do (unsupervised) should suggest six groups to name after
+the habitats. Until then ability cards get a random aspect and the deck rule is off, so aspects
+are only colours.
 
 **From v1, dropped:** ink and energy sources, scoring and VP, "only exhausted units can be
 challenged", sites, chants and Evolve, and the keywords Berserk, Inspire, Veiled, Fragile,

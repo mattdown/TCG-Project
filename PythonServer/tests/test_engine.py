@@ -1,11 +1,12 @@
 import random
+from dataclasses import replace
 
 import pytest
 
 from src.cards.vanilla import generate_vanilla_set
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
-from src.game.engine import Game, GameConfig, Move
+from src.game.engine import Game, GameConfig, Move, deck_aspect
 from src.game.state import Phase, Zone
 from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit, filler_deck
 
@@ -292,3 +293,12 @@ def test_results_record_lasting_effects():
     result = game.step(END, record=True)
     assert [(e.uid, e.kind, e.stat, e.value) for e in result.effects] == [(chef, "stat", "power", 1)]
     assert game.stat(chef, "power") == cards["WARMUP"].power + 1
+
+
+def test_hero_takes_the_decks_aspect():
+    glow = replace(unit(name="Glow"), aspects=("aspect_5",))
+    neutral = replace(unit(name="Neutral"), aspects=())
+    assert deck_aspect([glow] * 10 + [neutral] * 20) == "aspect_5"
+    assert deck_aspect([neutral] * 30) is None
+    game = Game([glow] * 10 + [neutral] * 20, filler_deck(), seed=0, first_player=0)
+    assert [p.aspect for p in game.state.players] == ["aspect_5", "aspect_1"]

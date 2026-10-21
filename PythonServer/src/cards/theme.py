@@ -65,6 +65,19 @@ SUBTITLES_BY_STATIC = {
     "debuff": ("Rubs Salt In", "Kicks When Down", "Jeering Crowd", "Unkind Words", "Lingering Gloom",
                "Pours Cold Water", "Doom and Gloom", "Grim Reminder", "Stormcloud", "Dampener"),
 }
+# Keyword-only units (no ability) are named after their keyword.
+SUBTITLES_BY_KEYWORD = {
+    "guard": ("Stout Defender", "Gatekeeper", "Holds the Line", "Shield Wall", "Big Brother", "Bouncer",
+              "Night Watch", "Stands Guard", "Bodyguard", "Doorstop"),
+    "elusive": ("Now You See Me", "Hide and Seek", "Shadow Walker", "Under the Leaves", "Quiet Feet",
+                "Master of Disguise", "Behind You", "Camouflaged", "Lurker", "In the Fog"),
+    "charge": ("In a Hurry", "Late for Work", "First Out the Door", "Full Speed", "Running Start",
+               "No Time to Lose", "Express Delivery", "Off Like a Shot", "Head Start", "Rush Job"),
+    "duelist": ("Swashbuckler", "Fencing Champion", "Sharp Elbows", "Picks Fights", "Spoiling for a Duel",
+                "Sword Hand", "Quick Jab", "Brawler", "Ring Fighter", "Knuckle Duster"),
+    "armor": ("Thick Cap", "Tough Skin", "Iron Stalk", "Tin Hat", "Hard Shell", "Plated",
+              "Bark Armour", "Cast Iron", "Padded Coat", "Weathered"),
+}
 SUBTITLES_GENERIC = ("Apprentice", "Old Timer", "Weekend Helper", "Part-Timer", "Rookie", "Veteran",
                      "Village Favourite", "Wanderer", "Daydreamer", "Night Owl", "Odd Job", "Second Cousin",
                      "Trainee", "Retired (Mostly)", "Volunteer", "Understudy")

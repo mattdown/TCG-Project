@@ -15,7 +15,7 @@ from src.cards.names import Namer, full_name
 from src.cards.trace import Tracer
 from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
-from src.game.terms import ASPECTS, keyword_text
+from src.game.terms import ASPECT_NAMES, ASPECTS, keyword_text
 
 FILTER_FIELDS = ("trait", "damaged", "exhausted", "cost_max", "not_this")
 
@@ -191,7 +191,9 @@ def card_lines(card_set: CardSet) -> list[str]:
     for c in card_set.cards:
         stats = "action" if c.type == "action" else f"{c.power} power · {c.health} health"
         keywords = ", ".join(keyword_text(k, v) for k, v in c.keywords)
-        lines.append(f"- [ ] **{c.id} {full_name(c)}** (cost {c.cost}, {stats}{', ' + keywords if keywords else ''})")
+        details = [f"cost {c.cost}", stats, *([keywords] if keywords else []),
+                   ASPECT_NAMES[c.aspects[0]] if c.aspects else "Neutral"]
+        lines.append(f"- [ ] **{c.id} {full_name(c)}** ({', '.join(details)})")
         for ability in c.abilities:
             lines.append(f"  - {render(ability, c.type)}")
     return lines
@@ -209,11 +211,12 @@ def coverage_report(card_set: CardSet) -> str:
     return "\n".join(lines) + "\n"
 
 
-def ability_set_report(card_set: CardSet) -> str:
+def card_set_report(card_set: CardSet) -> str:
     notes = card_set.notes
     stopped = ", ".join(f"{k} {v}" for k, v in notes["stopped_at"].items())
+    kinds = ", ".join(f"{k} {v}" for k, v in notes["kinds"].items())
     lines = [f"# {card_set.name}: checklist", "",
-             f"{len(card_set)} cards with abilities (seed {notes['seed']}, jobs: {', '.join(notes['jobs'])}). "
+             f"{len(card_set)} cards ({kinds}; seed {notes['seed']}, jobs: {', '.join(notes['jobs'])}). "
              f"{notes['draws']} draws from the grammar; stopped at: {stopped}. "
              "Costs are rough (src/cards/costing.py).", "", *card_lines(card_set)]
     return "\n".join(lines) + "\n"

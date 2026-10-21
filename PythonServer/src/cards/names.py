@@ -5,8 +5,8 @@ Dawn"), so the same character can come back with different abilities. Actions ge
 name instead: an aspect word plus a noun for their main effect ("Ember Volley"). Every full
 name in a set is unique. Names are theme only: no rule or network input depends on them.
 """
-from src.cards.theme import (ACTION_NOUNS, ACTION_WORDS, SUBTITLES_BY_EFFECT, SUBTITLES_BY_STATIC,
-                             SUBTITLES_BY_TRIGGER, SUBTITLES_GENERIC)
+from src.cards.theme import (ACTION_NOUNS, ACTION_WORDS, SUBTITLES_BY_EFFECT, SUBTITLES_BY_KEYWORD,
+                             SUBTITLES_BY_STATIC, SUBTITLES_BY_TRIGGER, SUBTITLES_GENERIC)
 from src.cards.trace import Tracer
 
 
@@ -45,12 +45,14 @@ class Namer:
     def reserve(self, card) -> None:
         self.used.add(full_name(card))
 
-    def subtitle(self, name: str, ability: dict | None) -> str:
-        """A subtitle that makes `name` unique in the set."""
+    def subtitle(self, name: str, ability: dict | None, keywords: dict | None = None) -> str:
+        """A subtitle that makes `name` unique in the set. Units without an ability are named
+        after their keyword, if they have one."""
         t = self.trace
         banks = []
         if ability is None:
-            pass
+            for keyword in sorted(keywords or {}):
+                banks.append((f"its keyword ({keyword})", SUBTITLES_BY_KEYWORD[keyword]))
         elif ability["kind"] == "static":
             banks.append(("what the static does", SUBTITLES_BY_STATIC[static_kind(ability)]))
         else:
@@ -74,11 +76,12 @@ class Namer:
             subtitle = f"{SUBTITLES_GENERIC[0]} {n}"
         return subtitle
 
-    def action(self, aspect: str, ability: dict) -> str:
-        """An event name: a word from the card's aspect and a noun for its main effect."""
+    def action(self, aspect: str | None, ability: dict) -> str:
+        """An event name: a word from the card's aspect (any aspect for a neutral card) and a noun
+        for its main effect."""
         nouns = ACTION_NOUNS[main_effect(ability)]
-        own = [f"{w} {n}" for w in ACTION_WORDS[aspect] for n in nouns]
         every = [f"{w} {n}" for words in ACTION_WORDS.values() for w in words for n in nouns]
+        own = [f"{w} {n}" for w in ACTION_WORDS[aspect] for n in nouns] if aspect else every
         name = None
         for options, note in ((own, "an aspect word + a noun for the main effect"), (every, "this aspect's names are used up")):
             options = [o for o in options if o not in self.used]

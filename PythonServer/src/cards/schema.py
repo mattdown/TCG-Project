@@ -20,7 +20,7 @@ class Card:
     id: str  # bookkeeping only, never shown to the network
     name: str
     type: str
-    aspects: tuple[str, ...]
+    aspects: tuple[str, ...]  # one aspect, or () for a neutral card that any deck can use
     cost: int
     power: int
     health: int
@@ -33,8 +33,8 @@ class Card:
     def __post_init__(self):
         if self.type not in CARD_TYPES:
             raise ValueError(f"{self.id}: unknown card type {self.type!r}")
-        if not self.aspects or any(a not in ASPECTS for a in self.aspects):
-            raise ValueError(f"{self.id}: invalid aspects {self.aspects}")
+        if len(self.aspects) > 1 or any(a not in ASPECTS for a in self.aspects):
+            raise ValueError(f"{self.id}: a card has one aspect, or none for a neutral card: {self.aspects}")
         if self.cost < 0 or self.power < 0 or (self.type == "unit" and self.health < 1):
             raise ValueError(f"{self.id}: invalid stats")
         if self.type == "action" and (self.power or self.health or self.keywords):

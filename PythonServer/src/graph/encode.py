@@ -23,7 +23,7 @@ from src.game.terms import ASPECTS
 KEYWORD_SCALE = {"guard": 1, "elusive": 1, "charge": 1, "duelist": 3, "armor": 2}
 CARD_STATIC_DIM = 3 + len(KEYWORD_SCALE) + len(ASPECTS)
 CARD_DYNAMIC_DIM = 10
-PLAYER_DIM = 13
+PLAYER_DIM = 13 + len(ASPECTS)
 GLOBAL_DIM = 4
 
 
@@ -89,7 +89,7 @@ def observe(game: Game, player: int) -> Observation:
                 len(ps.deck) / 30, len(ps.discard) / 30, len(ps.play) / cfg.max_board,
                 sum(game.can_attack(u) for u in ps.play) / cfg.max_board,
                 sum(game.stat(u, "power") for u in ps.play) / 30, ps.spare_spore, s.active_player == p,
-                ps.mulligan_done, ps.fatigue / 10]
+                ps.mulligan_done, ps.fatigue / 10, *(float(ps.aspect == a) for a in ASPECTS)]
 
     actions = game.legal_actions() if s.decision_player == player else []
     encoded = EncodedObs(

@@ -38,7 +38,7 @@ uv sync
 
 | Command | What it does |
 |---|---|
-| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`). `--kind abilities --count N` writes `cardsets/abilities_N.json`: N cards with one ability each from the full generation pipeline, plus a Markdown checklist. `--kind coverage` writes `cardsets/coverage.json`: a small set that uses every ability building block at least twice (about a quarter action cards), plus a Markdown checklist |
+| `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`). `--kind set --count N` writes `cardsets/set_N.json`: a full set from the generation pipeline (about 4% vanilla and 25% keyword-only neutral units, a quarter action cards, the rest units with one ability; `--vanilla-share`, `--keyword-share`, `--action-share`), plus a Markdown checklist. `--kind coverage` writes `cardsets/coverage.json`: a small set that uses every ability building block at least twice (about a quarter action cards), plus a Markdown checklist |
 | `uv run python -m scripts.card_lab` | Card lab: generates cards with abilities and shows every stage of the pipeline, including what was thrown away and why ([docs/ability-generation.md](docs/ability-generation.md)). Opens a web page; `/explorer` generates one card at a time and shows the path it took through the grammar. `--text` prints to the terminal; `--export lab.html` / `--export-explorer explorer.html` write self-contained pages |
 | `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--arch transformer --iterations 200 --device mps` |
 | `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and neural agents (`--models a.pt b.pt` to compare checkpoints) |
@@ -48,8 +48,9 @@ uv sync
 ## Current rules
 
 Rules v2, Hearthstone-style ([docs/technical-plan.md](docs/technical-plan.md) section 2).
-Two players, each with a hero on 30 health and a 30-card deck of one or two aspects (up to 2
-copies of a card). The first player starts with 3 cards, the second with 4 and the **Spare
+Two players, each with a hero on 30 health and a 30-card deck (up to 2 copies of a card).
+Aspects are only colours for now; later a deck will be one aspect's cards plus neutral cards,
+like a Hearthstone class. The first player starts with 3 cards, the second with 4 and the **Spare
 Spore** (once per game: +1 mana that turn); both may mulligan once. Each turn: gain a mana
 crystal (up to 10) and refill them all, your units can attack again, draw a card, then any
 number of actions:
@@ -76,7 +77,7 @@ section 3: triggered (when played, attacks, attacks the enemy hero, is defeated,
 of turn, …), on-resolve (action cards) and static. Units have no activated abilities in v2:
 they only attack. The engine compiles each ability to a decision graph and resolves it on a
 stack; choices inside abilities (choose a target, "you may", "choose one") are ordinary
-decisions. The default card set has no abilities yet; `abilities_200`, the coverage set, the
+decisions. The default card set has no abilities yet; `set_200`, the coverage set, the
 tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`) use generated ones.
 
 ## Unity client protocol

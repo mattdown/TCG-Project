@@ -33,6 +33,7 @@
 </style>
 <script>
 const ASPECT_COLOURS = { aspect_1: "#F0533A", aspect_2: "#2F86E8", aspect_3: "#43B04F", aspect_4: "#F5B52E", aspect_5: "#9152E0", aspect_6: "#22BCC9" };
+const NEUTRAL_COLOUR = "#8A93AD";  // cards any deck can use
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
@@ -70,7 +71,7 @@ function cardHtml(a) {
   const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
   const unit = c.type === "unit";
   return `<div class="card ${unit ? "" : "action"} ${a.stopped_at ? "stopped" : ""}" data-i="${a.index}"
-      style="--aspect:${ASPECT_COLOURS[c.aspect]};--rim:#FFC93C" title="${esc(c.subtitle ? c.name + " – " + c.subtitle : c.name)}">
+      style="--aspect:${ASPECT_COLOURS[c.aspect] || NEUTRAL_COLOUR};--rim:#FFC93C" title="${esc(c.subtitle ? c.name + " – " + c.subtitle : c.name)}">
     <div class="art">${mushroom(c.name)}</div>
     <div class="gem"><span>${c.cost}</span></div>
     <div class="banner">${esc(c.name)}${c.subtitle ? `<small>${esc(c.subtitle)}</small>` : ""}</div>

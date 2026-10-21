@@ -41,8 +41,10 @@ def test_unknown_card_fields_are_rejected():
 def test_random_decks_are_legal():
     card_set = generate_vanilla_set()
     rng = random.Random(0)
-    for _ in range(50):
-        deck = random_deck(card_set, rng)
-        assert len(deck) == DECK_SIZE
-        assert max(Counter(c.id for c in deck).values()) <= MAX_COPIES
-        assert len({a for c in deck for a in c.aspects}) <= 2
+    for one_aspect in (False, True):
+        for _ in range(50):
+            deck = random_deck(card_set, rng, one_aspect=one_aspect)
+            assert len(deck) == DECK_SIZE
+            assert max(Counter(c.id for c in deck).values()) <= MAX_COPIES
+            if one_aspect:
+                assert len({a for c in deck for a in c.aspects}) <= 1  # one aspect plus neutral cards

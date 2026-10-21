@@ -29,7 +29,11 @@ Decisions already made (don't re-open without a reason):
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
 - **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;
-  aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost); traits are jobs, not yet tied to abilities.
+  aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost). For now they are only colours:
+  assigned at random, and decks draw from the whole set (`ONE_ASPECT = False` in
+  `src/game/decks.py`). Later they become Hearthstone-style classes (a deck is one aspect plus
+  neutral cards), with an identity from clustering generated cards. Traits are jobs
+  (tribes that cross aspects), not yet tied to abilities.
 - **Client:** the Unity client is a thin view. The Python server owns all rules and state.
 - **Ability generation:** generate and test with general tests on the tree's shape, never
   rules about particular cards; one ability per card for now. Keep
@@ -65,7 +69,7 @@ docs/           technical plan, client protocol and design, theme, draw.io diagr
 ```
 uv sync
 uv run pytest
-uv run python -m scripts.generate_cards     # --kind keywords|vanilla|abilities|coverage, --count N
+uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
 uv run python -m scripts.card_lab           # card lab web page, /explorer for one card's path (--text, --export)
 uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
 uv run python -m scripts.benchmark [--models a.pt b.pt]

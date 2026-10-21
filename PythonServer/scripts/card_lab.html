@@ -96,6 +96,8 @@ pre { background: var(--outline); border-radius: 10px; padding: 12px; font: 12px
       <label>Seed <input name="seed" type="number" min="0"></label>
       <label>Cards <input name="count" type="number" min="1" max="500"></label>
       <label>Jobs <input name="jobs" type="number" min="1" max="20"></label>
+      <label>Vanilla <input name="vanilla_share" type="number" min="0" max="1" step="0.01"></label>
+      <label>Keyword-only <input name="keyword_share" type="number" min="0" max="1" step="0.05"></label>
       <label>Actions <input name="action_share" type="number" min="0" max="1" step="0.05"></label>
       <label>Variety <input name="variety" type="number" min="1" max="16"></label>
       <button class="btn" type="submit">Generate</button>
@@ -114,9 +116,10 @@ pre { background: var(--outline); border-radius: 10px; padding: 12px; font: 12px
     <span style="width:12px"></span>
     <button class="chip" data-kind="" aria-pressed="true">All</button>
     <button class="chip" data-kind="triggered" aria-pressed="false">Triggered</button>
-    <button class="chip" data-kind="activated" aria-pressed="false">Activated ⟳</button>
     <button class="chip" data-kind="static" aria-pressed="false">Static</button>
     <button class="chip" data-kind="on_resolve" aria-pressed="false">Actions</button>
+    <button class="chip" data-kind="keywords" aria-pressed="false">Keyword-only</button>
+    <button class="chip" data-kind="vanilla" aria-pressed="false">Vanilla</button>
     <input class="search" id="search" type="search" placeholder="Search card text…">
   </div>
   <div id="results"></div>
@@ -131,13 +134,16 @@ pre { background: var(--outline); border-radius: 10px; padding: 12px; font: 12px
 <script>
 const STAGE_TEXT = {
   grammar: ["Grammar", "illegal trees"], quality: ["Quality", "complex, unconnected or fake choices"],
-  card: ["Card", "couldn't matter on the card"], variety: ["Variety", "too similar to earlier cards"],
+  card: ["Card", "couldn't matter or doesn't fit"], duplicate: ["Duplicate", "same stats as a card in the set"],
+  variety: ["Variety", "too similar to earlier cards"],
 };
 const TEST_TEXT = {
   grammar: "Illegal under the grammar", complexity: "Too complex", connected: "Steps not connected",
   dominated: "Dominated choose-one option", card: "Couldn't matter on the card", variety: "Too similar to earlier cards",
+  duplicate: "Duplicate stats",
 };
-const KIND_TEXT = { triggered: "Triggered", activated: "Activated", static: "Static", on_resolve: "Action" };
+const KIND_TEXT = { triggered: "Triggered ability", activated: "Activated ability", static: "Static ability",
+  on_resolve: "Action", vanilla: "Vanilla", keywords: "Keyword-only" };
 
 const state = { data: null, view: "kept", kind: "", stage: "", search: "", selected: null };
 const $ = (id) => document.getElementById(id);
@@ -181,8 +187,8 @@ function renderResults() {
     out.innerHTML = `<div class="list">${items.map((a) => {
       const f = firstFailure(a);
       return `<button class="row" data-i="${a.index}"><span class="tag ${a.stopped_at}">${a.stopped_at}</span>
-        <div><div>${esc(a.text)}</div><div class="why">${esc((f ? f.problems : a.problems).join("; "))}</div>
-        <div class="meta">${a.card_type} · ${KIND_TEXT[a.kind]} · ${a.complexity} nodes</div></div></button>`;
+        <div><div>${esc(a.text || (a.card ? `${a.card.cost} mana ${a.card.power}/${a.card.health} ${a.card.keywords.join(", ")}` : ""))}</div><div class="why">${esc((f ? f.problems : a.problems).join("; "))}</div>
+        <div class="meta">${KIND_TEXT[a.kind]}${a.tree ? ` · ${a.complexity} nodes` : ""}</div></div></button>`;
     }).join("")}</div>`;
   }
   fitText(out);
@@ -200,19 +206,19 @@ function renderDetail(i) {
   if (!a.checks.some((ch) => ch.test === "card")) checks += `<li class="skip">Card building and costing: not reached</li>`;
   const costing = c ? `<dl class="kv">
       <dt>Card type</dt><dd>${c.type}${c.archetype ? ` (${c.archetype})` : ""}</dd>
-      <dt>Ability value</dt><dd>${a.value} budget points (rough, from costing.py)</dd>
+      ${a.tree ? `<dt>Ability value</dt><dd>${a.value} budget points (rough, from costing.py)</dd>` : ""}
       <dt>Cost</dt><dd>${c.cost} mana</dd>
       ${c.type === "unit" ? `<dt>Stats</dt><dd>${c.power} power · ${c.health} health</dd>` : ""}
       ${c.keywords.length ? `<dt>Keywords</dt><dd>${c.keywords.map(esc).join(", ")}</dd>` : ""}
       <dt>Aspect</dt><dd>${c.aspect_name}</dd></dl>` : `<p class="meta">Not reached: the card is only built once the ability passes the tests.</p>`;
   $("detail").innerHTML = `
-    <h2>${esc(c ? c.name : "Ability draw #" + a.index)}</h2>${c && c.subtitle ? `<div class="meta" style="font-style:italic">${esc(c.subtitle)}</div>` : ""}
-    <div class="meta">${verdict} · draw #${a.index} · ${KIND_TEXT[a.kind]} ability · ${a.complexity} nodes</div>
+    <h2>${esc(c ? c.name : "Draw #" + a.index)}</h2>${c && c.subtitle ? `<div class="meta" style="font-style:italic">${esc(c.subtitle)}</div>` : ""}
+    <div class="meta">${verdict} · draw #${a.index} · ${KIND_TEXT[a.kind]}${a.tree ? ` · ${a.complexity} nodes` : ""}</div>
     ${c ? `<div class="hero">${cardHtml({ ...a, stopped_at: null })}</div>` : `<h3>Card text</h3><div class="say">${esc(a.text)}</div>`}
     <h3>Pipeline</h3><ul class="checks">${checks}</ul>
     <h3>Costing</h3>${costing}
-    <h3>Ability tree</h3><pre>${esc(JSON.stringify(a.tree, null, 2))}</pre>
-    <h3>Shape</h3><p class="meta">The tree with numbers and jobs blanked out. The variety stage counts these.</p><pre>${esc(JSON.stringify(JSON.parse(a.shape)))}</pre>`;
+    ${a.tree ? `<h3>Ability tree</h3><pre>${esc(JSON.stringify(a.tree, null, 2))}</pre>
+    <h3>Shape</h3><p class="meta">The tree with numbers and jobs blanked out. The variety stage counts these.</p><pre>${esc(JSON.stringify(JSON.parse(a.shape)))}</pre>` : ""}`;
   fitText($("detail"));
   $("drawer").classList.add("open"); $("scrim").classList.add("open"); $("drawer").setAttribute("aria-hidden", "false");
 }
@@ -261,7 +267,7 @@ if (window.LAB_DATA) {
   $("controls").style.display = "none";
   render();
 } else {
-  fillForm({ seed: 1, count: 60, jobs: 6, action_share: 0.25, variety: 4, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) });
+  fillForm({ seed: 1, count: 60, jobs: 6, vanilla_share: 0.04, keyword_share: 0.25, action_share: 0.25, variety: 4, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) });
   $("controls").addEventListener("submit", (e) => { e.preventDefault(); generate(); });
   $("reroll").addEventListener("click", () => { $("controls").elements.seed.value = Math.floor(Math.random() * 100000); generate(); });
   document.fonts.ready.then(generate);

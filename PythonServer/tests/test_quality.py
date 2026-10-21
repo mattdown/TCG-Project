@@ -1,11 +1,12 @@
 import random
+from collections import Counter
 
 from scripts.card_lab import one, run
 from src.cards.abilities import AbilitySampler, card_problems, render
 from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.match import play_match
 from src.agents.random_agent import RandomAgent
-from src.cards.generate import CardGenerator, generate_ability_set
+from src.cards.generate import CardGenerator, generate_card_set, identity
 from src.cards.quality import (MAX_COMPLEXITY, complexity, disconnected_steps, dominated_options, quality_problems,
                                skeleton)
 from src.cards.names import full_name, main_effect, static_kind
@@ -92,7 +93,7 @@ def test_generator_records_every_attempt_and_keeps_one_ability_per_card():
     assert len(generator.attempts) >= 3 * len(kept)
     stopped = [a for a in generator.attempts if a.stopped_at]
     assert all(a.problems for a in stopped)
-    assert {a.stopped_at for a in stopped} <= {"grammar", "quality", "card", "variety"}
+    assert {a.stopped_at for a in stopped} <= {"grammar", "quality", "card", "duplicate", "variety"}
 
 
 def test_variety_spreads_shapes():
@@ -103,14 +104,17 @@ def test_variety_spreads_shapes():
 
 
 def test_card_lab_data():
-    data = run(seed=3, count=10, jobs=6, action_share=0.25, variety=2)
-    assert len(data["kept"]) == 10
+    data = run(seed=3, count=30, jobs=6, action_share=0.25, vanilla_share=0.1, keyword_share=0.3, variety=2)
+    assert len(data["kept"]) == 30
     for a in data["attempts"]:
-        assert a["checks"][0]["test"] == "grammar"
+        assert a["checks"][0]["test"] == ("grammar" if a["tree"] else "card")
         assert (a["card"] is None) == (a["stopped_at"] in ("grammar", "quality", "card"))
-    assert all(data["attempts"][i]["card"]["traits"][0] in data["job_list"]
-               for i in data["kept"] if data["attempts"][i]["card"]["type"] == "unit")
-    assert render(data["attempts"][data["kept"][0]]["tree"], data["attempts"][data["kept"][0]]["card_type"])
+    kept = [data["attempts"][i] for i in data["kept"]]
+    assert all(a["card"]["traits"][0] in data["job_list"] for a in kept if a["card"]["type"] == "unit")
+    assert {a["kind"] for a in kept} >= {"vanilla", "keywords", "on_resolve"}
+    assert all(a["card"]["aspect"] is None for a in kept if a["kind"] in ("vanilla", "keywords"))
+    ability = next(a for a in kept if a["tree"])
+    assert render(ability["tree"], ability["card_type"])
 
 
 def _decisions(node):
@@ -126,7 +130,7 @@ def test_trace_records_every_decision_with_its_options():
     for _ in range(30):
         a = generator.card()
         steps = list(_decisions(a.trace))
-        assert steps[0]["decision"] == "Action card?"
+        assert steps[0]["decision"] == "Card kind"
         assert any(d["decision"] == "Ability kind" for d in steps)
         for d in steps:
             chosen = next(o for o in d["options"] if o["name"] == d["chosen"])
@@ -147,7 +151,7 @@ def test_tracing_matches_plain_sampling():
 
 
 def test_explorer_data():
-    data = one(seed=12, jobs=6, action_share=0.25, variety=1)
+    data = one(seed=12, jobs=6, action_share=0.25, vanilla_share=0.0, keyword_share=0.0, variety=1)
     kept = data["kept"]
     assert kept["stopped_at"] is None and kept["card"] is not None
     assert 0 < kept["ability_p"] <= 1 and kept["ability_decisions"] >= 1
@@ -173,10 +177,29 @@ def test_main_effect_and_static_kind():
     assert static_kind(discount) == "discount"
 
 
-def test_ability_set_is_playable():
-    card_set = generate_ability_set(60, seed=2)
-    assert len(card_set) == 60 and card_set.name == "abilities_60"
-    assert [c.id for c in card_set.cards[:2]] == ["A1-001", "A1-002"]
+def test_card_set_is_playable():
+    card_set = generate_card_set(60, seed=2)
+    assert len(card_set) == 60 and card_set.name == "set_60"
+    assert [c.id for c in card_set.cards[:2]] == ["S1-001", "S1-002"]
     assert {c.traits[0] for c in card_set.cards if c.type == "unit"} <= set(card_set.notes["jobs"])
     result = play_match(RandomAgent(), HeuristicAgent(), card_set, num_games=4, seed=1)
     assert result
+
+
+def test_kinds_follow_their_shares_and_plain_cards_are_neutral_and_unique():
+    generator = CardGenerator(random.Random(8), vanilla_share=0.1, keyword_share=0.3, action_share=0.2)
+    kept = [generator.card() for _ in range(300)]
+    kinds = Counter(a.kind for a in kept)
+    assert 15 <= kinds["vanilla"] <= 45 and 60 <= kinds["keywords"] <= 120 and 35 <= kinds["action"] <= 85
+    plain = [a.card for a in kept if a.kind in ("vanilla", "keywords")]
+    assert all(c.aspects == () and not c.abilities for c in plain)
+    assert all(not c.keywords for a in kept if a.kind == "vanilla" for c in [a.card])
+    assert all(c.keywords for a in kept if a.kind == "keywords" for c in [a.card])
+    assert len({identity(c) for c in plain}) == len(plain)
+    assert any(a.stopped_at == "duplicate" for a in generator.attempts)
+
+
+def test_plain_cards_fall_back_to_ability_units_when_every_stat_line_is_taken():
+    generator = CardGenerator(random.Random(9), vanilla_share=1.0, action_share=0.0)
+    kept = [generator.card() for _ in range(120)]  # there are only about 70 fair vanilla stat lines
+    assert sum(a.kind == "vanilla" for a in kept) < 80 and any(a.kind == "unit" for a in kept)

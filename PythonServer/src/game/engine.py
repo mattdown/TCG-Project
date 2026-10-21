@@ -13,6 +13,7 @@ choose-one node, the engine stops and that choice becomes the next decision.
 """
 import copy
 import random
+from collections import Counter
 from dataclasses import dataclass, field
 
 from src.cards.abilities import Renderer, render
@@ -77,7 +78,7 @@ class Game:
                 uids.append(len(cards))
                 cards.append(CardInstance(len(cards), card, owner, Zone.DECK))
             self.rng.shuffle(uids)
-            players.append(PlayerState(deck=uids, health=config.hero_health))
+            players.append(PlayerState(deck=uids, health=config.hero_health, aspect=deck_aspect(deck)))
         first = self.rng.randrange(2) if first_player is None else first_player
         self.state = GameState(cards, players, first_player=first, active_player=first, decision_player=first)
         players[1 - first].spare_spore = True
@@ -751,6 +752,12 @@ class Game:
             return
         self.state.phase = Phase.GAME_OVER
         self.state.winner = winner
+
+
+def deck_aspect(deck: list[Card]) -> str | None:
+    """The hero's aspect: the most common aspect in the deck (one aspect plus neutral cards)."""
+    counts = Counter(a for card in deck for a in card.aspects)
+    return counts.most_common(1)[0][0] if counts else None
 
 
 def ability_text(card: Card, index: int) -> str:
