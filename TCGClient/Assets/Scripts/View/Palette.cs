@@ -25,7 +25,6 @@ namespace Tcg.View
         public static readonly Color GlowSelected = Hex("#FFE14D");
         public static readonly Color GlowTarget = Hex("#FF4D5E");
         public static readonly Color Exhausted = new Color(10 / 255f, 16 / 255f, 36 / 255f, 0.6f);
-        public static readonly Color Zz = Hex("#BFD3FF");
         public static readonly Color OpponentAccent = Hex("#E0503C");
         public static readonly Color OpponentLip = Hex("#A8321F");
         public static readonly Color HumanAccent = Hex("#2F86E8");

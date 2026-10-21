@@ -17,7 +17,7 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 > - **No score crowns** on cards, and no score drop zone.
 > - **The Spare Spore:** a small button for the second player's one-off +1 mana.
 > - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero; no ⟳
->   buttons. A unit that has attacked is dimmed ("Zz" as before); a frozen one shows ice; a
+>   buttons. A unit that has attacked is dimmed (no "Zz" since 2026-10-22); a frozen one shows ice; a
 >   hidden (Elusive) one can't be targeted by enemies.
 > - **Subtitles** under card names.
 >
@@ -85,7 +85,7 @@ States:
 
 | State | Shown as |
 |---|---|
-| Exhausted | art dimmed with "Zz"; the card is **not** tilted, and the text stays readable |
+| Exhausted (has attacked) | art dimmed; the card is **not** tilted, and the text stays readable |
 | Damaged | health number in red |
 | Buffed / debuffed | stat number in green / red |
 | Selected | lifted 10 px, gold glow |

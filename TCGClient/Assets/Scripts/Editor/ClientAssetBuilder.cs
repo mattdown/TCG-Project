@@ -216,10 +216,9 @@ public static class ClientAssetBuilder
         cv.ArtSprites = artSprites.ToArray();
         cv.Art = Img(Box("Art", frame, 0, 0, 138, 92), artSprites[2], Color.white);
 
+        // A unit that has attacked: the art just dims (the glow on units that can attack does the rest).
         var exhausted = Box("Exhausted", frame, 0, 0, 138, 92);
         Img(exhausted, null, Palette.Exhausted);
-        var zz = Text(Stretch("Zz", exhausted, 0, 0, 0, 0), "Zz", f.Lilita, 26, Palette.Zz, TextAlignmentOptions.Center);
-        zz.fontSharedMaterial = f.LilitaOutline;
         cv.ExhaustedOverlay = exhausted.gameObject;
         exhausted.gameObject.SetActive(false);
 
