@@ -45,7 +45,7 @@ def small(arch):
 def test_encoding_matches_state():
     game = started_game()
     mine = put_in_play(game, 0, unit(name="Mine"))
-    theirs = put_in_play(game, 1, unit(name="Theirs"), exhausted=True)
+    theirs = put_in_play(game, 1, unit(name="Theirs"))
     obs = observe(game, 0)
     enc = obs.encoded
     n_cards = len(game.state.players[0].hand) + 2
@@ -53,8 +53,11 @@ def test_encoding_matches_state():
     assert enc.card_dynamic.shape == (n_cards, CARD_DYNAMIC_DIM)
     assert list(enc.card_owner[-2:]) == [0, 1] and enc.card_in_play[-2:].all()
     assert enc.num_actions == len(obs.actions) == len(game.legal_actions())
-    duel = obs.actions.index(Action(ActionType.DUEL, mine, theirs))
-    assert enc.action_actor[duel] == n_cards - 2 and enc.action_target[duel] == n_cards - 1
+    attack = obs.actions.index(Action(ActionType.ATTACK, mine, theirs))
+    assert enc.action_actor[attack] == n_cards - 2 and enc.action_target[attack] == n_cards - 1
+    hero = obs.actions.index(Action(ActionType.ATTACK_HERO, mine))
+    assert enc.action_actor[hero] == n_cards - 2 and enc.action_target[hero] == -1
+    assert enc.player[0][0] == 1.0  # full health
     assert enc.action_actor[obs.actions.index(Action(ActionType.END_TURN))] == -1
 
 

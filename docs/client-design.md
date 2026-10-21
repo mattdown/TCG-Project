@@ -8,6 +8,19 @@ talks is in [client-protocol.md](client-protocol.md).
 
 Everything named here (aspects, keywords, card names) is a placeholder, like the rest of the game.
 
+> **Rules v2 (2026-10-21).** The game moved to Hearthstone-style rules
+> ([technical-plan.md](technical-plan.md) section 2), and the look below still shows v1 in
+> places. Client milestone 4 changes:
+> - **VP bars → hero portraits** with health out of 30. The enemy hero is an attack target.
+> - **Energy gems and the energy zone → mana crystals:** full / total, up to 10, refilled each
+>   turn. No "add as energy" drop zone, no energy-source rim on the cost gem.
+> - **No score crowns** on cards, and no score drop zone.
+> - **The Spare Spore:** a small button for the second player's one-off +1 mana.
+> - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero; no ⟳
+>   buttons. A unit that has attacked is dimmed ("Zz" as before); a frozen one shows ice; a
+>   hidden (Elusive) one can't be targeted by enemies.
+> - **Subtitles** under card names.
+
 ## Look
 
 Reference: Clash Royale. Vibrant colours, chunky display type, thick dark outlines, buttons with
@@ -85,16 +98,16 @@ bright in its action colour under the finger, with a label. Highlights come from
 
 | Gesture | Drop on | Action | Highlight |
 |---|---|---|---|
-| Drag a hand card | your side of the field | `play` | green zone, "Drop to play · N energy"; a light slot shows where it lands; the gems it will spend are outlined |
-| Drag a hand card | the energy bar | `add_energy` | pink zone, "Drop to add as energy · once per turn"; a dashed gem slot appears |
-| Drag an arrow from a unit | an exhausted opposing unit | `duel` | valid targets get red rings, others dim; the hovered one shows the result ("Defeated", "Takes 2") |
-| Drag an arrow from a unit | your VP area | `score` | gold zone, "Drop to score · +N VP"; the VP bar previews the gain |
-| Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; hand cards also get PLAY / ADD ENERGY buttons, greyed out when not legal |
+| Drag a hand card | your side of the field | `play` | green zone, "Drop to play · N mana"; a light slot shows where it lands; the crystals it will spend are outlined |
+| Drag an arrow from a unit | an enemy unit | `attack` | valid targets get red rings, others dim; the hovered one shows the result ("Defeated", "Takes 2") |
+| Drag an arrow from a unit | the enemy hero | `attack_hero` | the portrait gets a red ring; the health previews the loss ("−3") |
+| Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; hand cards also get a PLAY button, greyed out when not legal |
 
-Rules behind the highlights (from `src/game/engine.py`): only exhausted opposing units can be
-dueled; a unit can duel or score only if it's ready and wasn't played this turn; energy can be
-added once per turn and only from energy-source cards; a card can be played if its cost is at
-most your ready energy.
+Rules behind the highlights (from `src/game/engine.py`): any enemy unit can be attacked, but
+while the enemy has a Guard unit, attacks must go to one; hidden Elusive units can't be
+attacked; a unit can attack once per turn, not on the turn it's played (unless it has Charge);
+a card can be played if its cost is at most your mana and, for a unit, you have fewer than 7
+in play. The client doesn't need any of this: the legal actions already say it.
 
 Drag previews come from each legal action's server-side `preview`
 ([client-protocol.md](client-protocol.md)), so the client never computes a result itself.

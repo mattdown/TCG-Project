@@ -98,7 +98,7 @@ def skeleton(tree, abstract_traits: bool = False) -> str:
 
 def dominated_options(ability: dict) -> list[str]:
     """In a choose one, an option that has the same shape as another and is no bigger in any
-    number is never worth picking ("gain 3 VP or gain 1 VP"). Every number in the grammar is
+    number is never worth picking ("draw 2 cards or draw a card"). Every number in the grammar is
     better bigger for the side that chooses it (more damage, more cards, a higher cost limit),
     so this needs no knowledge of particular effects. Options of different shapes need a value
     model to compare: the learned cost model, or how often the trained agent picks each one."""

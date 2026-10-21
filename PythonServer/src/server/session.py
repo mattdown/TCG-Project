@@ -29,8 +29,8 @@ from src.game.engine import Game, Move, StepResult, describe_action
 from src.game.state import Phase, Zone
 from src.game.terms import KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS
 
-# Zones whose cards both players see. Energy counts: adding a card as energy names it.
-PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD, Zone.ENERGY)
+# Zones whose cards both players see. A card burned from a full hand goes to the discard pile face up.
+PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD)
 
 
 class GameSession:
@@ -82,15 +82,15 @@ class GameSession:
         """Starts the human's first turn with chosen cards, for checking single cards by hand.
 
             {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
-             "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0,
-             "vp": 3, "opponent_vp": 0}
+             "opponent_play": ["C1-002"], "opponent_hand": [], "mana": 5, "opponent_mana": 0,
+             "health": 30, "opponent_health": 12}
 
-        Both mulligans are skipped. Units placed in play can act straight away. Energy is ready.
+        Both mulligans are skipped. Units placed in play can attack straight away. `mana` sets
+        the mana crystals, all full.
         """
         g = self.game
         while g.state.phase == Phase.MULLIGAN:
             g.step(Action(ActionType.KEEP_HAND))
-        energy_card = next((c for c in self.card_set.cards if c.energy_source), self.card_set.cards[0])
         for key, zone, player in (("hand", Zone.HAND, self.human_seat), ("play", Zone.PLAY, self.human_seat),
                                   ("opponent_hand", Zone.HAND, 1 - self.human_seat),
                                   ("opponent_play", Zone.PLAY, 1 - self.human_seat)):
@@ -102,11 +102,11 @@ class GameSession:
                     raise ValueError(f"unknown card id {entry['id']!r} in scenario")
                 uid = g.add_card(player, card, zone, exhausted=entry.get("exhausted", False))
                 g.card(uid).damage = entry.get("damage", 0)
-        for key, player in (("energy", self.human_seat), ("opponent_energy", 1 - self.human_seat)):
-            for _ in range(scenario.get(key, 0)):
-                g.add_card(player, energy_card, Zone.ENERGY)
-        for key, player in (("vp", self.human_seat), ("opponent_vp", 1 - self.human_seat)):
-            g.state.players[player].vp = scenario.get(key, 0)
+        for prefix, player in (("", self.human_seat), ("opponent_", 1 - self.human_seat)):
+            ps = g.state.players[player]
+            if prefix + "mana" in scenario:
+                ps.crystals = ps.mana = min(int(scenario[prefix + "mana"]), g.config.max_mana)
+            ps.health = int(scenario.get(prefix + "health", ps.health))
 
     def _state(self, _):
         return {"status": "ok", "state": self.view()}
@@ -163,18 +163,20 @@ class GameSession:
             if c.card.type == "unit":
                 # Current values, with abilities' changes: the client shows them against the card's own.
                 view.update({"power": g.stat(uid, "power"), "health": g.stat(uid, "health"),
-                             "score": g.stat(uid, "score"),
                              "keywords": {k: (g.keyword(uid, k) if KEYWORDS[k] else True)
                                           for k in KEYWORDS if g.keyword(uid, k)},
-                             "cant_ready": g.cant_ready(uid), "barred": g.barred(uid)})
+                             "can_attack": g.can_attack(uid) and c.owner == s.active_player,
+                             "frozen": g.frozen(uid), "hidden": c.zone == Zone.PLAY and g.hidden(uid)})
             return view
 
         players = []
         for p, ps in enumerate(s.players):
             players.append({
-                "vp": ps.vp,
-                "energy_ready": g.ready_energy(p),
-                "energy_total": len(ps.energy),
+                "health": ps.health,
+                "mana": ps.mana,
+                "crystals": ps.crystals,
+                "spare_spore": ps.spare_spore,
+                "fatigue": ps.fatigue,
                 "deck_count": len(ps.deck),
                 "hand_count": len(ps.hand),
                 "hand": [card_view(u) for u in ps.hand] if p == self.human_seat else None,
@@ -193,7 +195,8 @@ class GameSession:
             "game_over": s.phase == Phase.GAME_OVER,
             "winner": s.winner,
             "players": players,
-            "vp_to_win": g.config.vp_to_win,
+            "hero_health": g.config.hero_health,
+            "max_mana": g.config.max_mana,
             "pending": self._pending_view(),
             "legal_actions": [{"index": i, **a.to_dict(), "text": describe_action(g, a), "preview": self._preview(a)}
                               for i, a in enumerate(legal)],
@@ -210,14 +213,14 @@ class GameSession:
                 "chooser": self.game.state.decision_player, "ability_text": render(card.abilities[frame.ability], card.type)}
 
     def _preview(self, action: Action) -> dict | None:
-        """What a play, score or duel would do: the action tried on a copy of the game, up to the
+        """What a play or an attack would do: the action tried on a copy of the game, up to the
         first choice an ability asks for.
 
-        The client shows these while dragging ("+2 VP", "Defeated") without knowing any rules.
+        The client shows these while dragging ("−3 to the hero", "Defeated") without knowing any rules.
         Only moves of cards that were in play are kept, so a preview never reveals a card an
         ability would draw or discard at random.
         """
-        if action.type not in (ActionType.PLAY, ActionType.SCORE, ActionType.DUEL):
+        if action.type not in (ActionType.PLAY, ActionType.ATTACK, ActionType.ATTACK_HERO):
             return None
         result = self.game.clone().step(action, validate=False, record=True)
         result.moves = [m for m in result.moves if m.source == Zone.PLAY or m.uid == action.card]
@@ -228,8 +231,10 @@ class GameSession:
         return {
             "damage": [{"uid": uid, "amount": n} for uid, n in r.damage.items()],
             "defeated": r.defeated,
-            "vp": [{"player": p, "amount": n} for p, n in r.vp.items()],
-            "energy_spent": [{"player": p, "amount": n} for p, n in r.energy_spent.items()],
+            "hero_damage": [{"player": p, "amount": n} for p, n in r.hero_damage.items()],
+            "hero_healed": [{"player": p, "amount": n} for p, n in r.hero_healed.items()],
+            "mana_spent": [{"player": p, "amount": n} for p, n in r.mana_spent.items()],
+            "crystals": [{"player": p, "amount": n} for p, n in r.crystals.items()],
             "exhausted": r.exhausted,
             "readied": r.readied,
             "moves": [self._move_view(m) for m in r.moves],
@@ -242,7 +247,7 @@ class GameSession:
 
     def _lasts(self, e) -> str:
         """How long a lasting effect lasts, for the client's label."""
-        if e.kind == "cant_ready":
+        if e.kind == "freeze":
             return "until_its_next_turn"
         if e.expires_turn is None:
             return "while_in_play" if e.source is not None else "permanent"

@@ -13,7 +13,7 @@ on top of it.
 There are no example cards to learn from or copy, so the generator samples many candidates
 and throws most of them away. What matters is *how* it decides what to throw away:
 
-- **No rules about particular cards.** A test never says "don't pair VP loss with healing".
+- **No rules about particular cards.** A test never says "don't pair hero damage with healing".
   Each test looks at the *shape* of the ability tree (how many nodes, how the steps refer
   to each other, which numbers differ), so it keeps working as the grammar grows.
 - **Hand-written numbers are placeholders.** Sampling weights, the complexity budget and
@@ -41,8 +41,9 @@ what was kept.
 
 ### 1. Sample a tree
 
-`AbilitySampler.raw()` walks the grammar: ability kind (triggered / activated / static for
-units, on-resolve for actions), then trigger, condition, step pattern, effects, targets and
+`AbilitySampler.raw()` walks the grammar: ability kind (triggered or static for units,
+on-resolve for actions; activated abilities are closed off in rules v2, where units only
+attack), then trigger, condition, step pattern, effects, targets and
 numbers. The weights are hand-set placeholders (`EFFECT_WEIGHTS`, `TRIGGERS`, the step
 patterns in `_steps`).
 
@@ -65,18 +66,18 @@ Legal isn't the same as worth generating. Three tests, each a general property o
 |---|---|---|
 | **Complexity budget** | At most `MAX_COMPLEXITY` = 4 nodes. A node is each step (choice, effect, if, may, choose one), the condition, each activated cost beyond ⟳ and each static modifier. | Long abilities that stack a condition, a "you may", a choice and a follow-up |
 | **Connected steps** | Every step after the first must act on a card that an earlier step acted on, or ask about it ("if it was defeated"). Choices only name a card and aren't counted. "You may … if you do" and choose one connect their parts by construction. | Unrelated effects glued together: "+1 health this turn. Your opponent loses 1 VP." |
-| **No dominated options** | In a choose one, an option with the same shape as another (the same tree apart from its numbers) that is no bigger in any number is never worth picking. Every number in the grammar is better bigger for whoever chooses it, so no knowledge of particular effects is needed. | "Choose one: gain 3 VP, or gain 1 VP." Also the same option twice. |
+| **No dominated options** | In a choose one, an option with the same shape as another (the same tree apart from its numbers) that is no bigger in any number is never worth picking. Every number in the grammar is better bigger for whoever chooses it, so no knowledge of particular effects is needed. | "Choose one: draw 2 cards, or draw a card." Also the same option twice. |
 
 The complexity budget is the main lever on how wild the set is. 4 rejects about 6% of raw
 draws. Raising it later (by rarity, for example) is a one-line change.
 
 Trade-offs worth knowing:
 
-- **Players don't connect steps.** "Draw a card. Gain 1 VP." fails, even though both effects
+- **Players don't connect steps.** "Draw a card. Heal your hero for 2." fails, even though both effects
   are on you. Counting the player as a link would let almost any pair of player effects
   through. Two-part player effects can still be written as "you may … if you do".
-- **Dominance only compares options of the same shape.** "Gain 3 VP or your opponent loses
-  1 VP" still gets through. Comparing different effects needs a value model, so it waits for
+- **Dominance only compares options of the same shape.** "Heal your hero for 5 or deal 1
+  damage to the enemy hero" still gets through. Comparing different effects needs a value model, so it waits for
   the learned cost model or for the agent's choice statistics (below).
 
 ### 4. Build and cost the card
@@ -87,9 +88,9 @@ Trade-offs worth knowing:
   effect ("Ember Volley"). See [theme.md](theme.md#card-names). Names are only reserved by kept
   cards, and every full name in a set is unique.
 - **Aspect:** random.
-- **Energy source:** 80% of cards.
 - **Cost and stats:** from the rough ability value in `src/cards/costing.py`. Units also get an
-  archetype (how stats are spread) and sometimes a keyword. Every unit scores at least 1 VP.
+  archetype (how stats are spread) and sometimes a keyword. The stat budget is 2 × cost + 1
+  (Hearthstone players' rule of thumb), minus the ability's rough value.
 
 Then the card-level checks run (`card_problems`). They reject abilities that could never
 matter *on this card*:
@@ -111,20 +112,20 @@ ability twice.
 
 ## Where it stands
 
-Card lab, seed 1, 60 cards, 6 jobs, variety 4: 322 draws, 60 kept.
+Card lab, seed 1, 60 cards, 6 jobs, variety 4: 293 draws, 60 kept (rules v2).
 
 | Stopped at | Draws | Main reason |
 |---|---|---|
-| Grammar | 1 | almost always legal by construction (this one: a "this turn" bonus at the end of the turn) |
-| Quality | 74 | steps not connected 50, too complex 24 (dominated options are rarer: about 1 in 100 draws) |
-| Card | 7 | couldn't matter on the card |
+| Grammar | 0 | almost always legal by construction (the rare exception: a "this turn" bonus at the end of the turn) |
+| Quality | 51 | steps not connected 36, too complex 15 (dominated options are rarer: about 1 in 100 draws) |
+| Card | 2 | couldn't matter on the card |
 | Variety | 180 | expected: 3 of every 4 good draws are set aside |
 
 Problems still visible in the output, and what will deal with each:
 
 | Problem | Example | Fix |
 |---|---|---|
-| Options of different shapes where one is clearly better | "Gain 1 VP for each Archer (up to 5), or gain 1 VP" | Value model (learned cost model, or agent choice spread) |
+| Options of different shapes where one is clearly better | "Heal your hero for 1 for each Archer (up to 5), or heal your hero for 2" | Value model (learned cost model, or agent choice spread) |
 | Ability that does what a keyword does | "Duelist +1. While attacking, +2 power"; "While attacking, +1 power" is Duelist +1 | Keyword equivalence (planned, below) |
 | Expensive units with weak stats; very strong repeating effects | cost 8, 2 power, 1 health; "at the start of your turn, defeat …" | Power budget decision, then the cost model |
 | Conditions on jobs that rarely come up | "if you have 3 or more other Explorer units" | Job reachability (planned), then trigger rate |
@@ -183,8 +184,8 @@ The **card explorer** (<http://localhost:8765/explorer>, linked from the lab) ge
 button press and shows its *derivation*: the path the sampler took through the grammar. Every
 random decision is listed in its section (trigger, steps, effect, target, card), with:
 - all the options it had, as a bar whose segment widths are their probabilities, and the one it took
-- the options the rules had closed at that point (for example "you may" inside an activated
-  ability), and forced steps with the reason
+- the options the rules had closed at that point (for example activated abilities in rules
+  v2), and forced steps with the reason
 - how likely the whole path was ("1 in 7,831" for the ability)
 - the draws thrown away on the way to the card, each with its own path and the test it failed
 
@@ -220,3 +221,8 @@ for checking the engine and client. It uses the same pipeline.
 - **2026-10-20:** `generate_cards --kind abilities --count N`: playable sets straight from the pipeline.
 - **2026-10-20:** Subtitles for units and event names for actions (`src/cards/names.py`),
   shown in the card lab and explorer.
+- **2026-10-21:** Rules v2 (Hearthstone-style). The grammar's VP effects became hero effects
+  (heal your hero, damage a hero), "can't ready" became freeze, energy became "gain an empty
+  mana crystal", and the scoring trigger became "whenever this unit attacks the enemy hero".
+  Activated abilities, `ready`, `exhaust` and the "exhausted" filter are no longer generated;
+  Elusive is no longer granted. Stat budget 2 × cost + 1 from power and health only.

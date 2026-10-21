@@ -5,14 +5,13 @@ keys; anything shown to a player (action text, the Unity client) goes through TE
 """
 
 TERMS = {
-    "vp": "VP",
-    "energy": "energy",
+    "hero": "hero",
+    "mana": "mana",
     "unit": "unit",
-    "score": "score",
-    "duel": "duel",
-    "exhausted": "exhausted",
+    "attack": "attack",
     "fresh": "fresh",
     "aspect": "aspect",
+    "spare_spore": "Spare Spore",
 }
 
 ASPECTS = ("aspect_1", "aspect_2", "aspect_3", "aspect_4", "aspect_5", "aspect_6")
@@ -24,11 +23,11 @@ KEYWORDS = {"guard": False, "elusive": False, "charge": False, "duelist": True, 
 KEYWORD_NAMES = {"guard": "Guard", "elusive": "Elusive", "charge": "Charge", "duelist": "Duelist", "armor": "Armor"}
 # Reminder text for each keyword, shown when a card is inspected. N is the keyword's number.
 KEYWORD_RULES = {
-    "guard": "Can be dueled even while ready, and opponents must duel a Guard unit if they can.",
-    "elusive": "Only Elusive units can duel it.",
-    "charge": "Can duel the turn it's played (it still can't score that turn).",
-    "duelist": "+N power when it starts a duel.",
-    "armor": "Takes N less damage in a duel, never below 0.",
+    "guard": "Enemy units must attack a Guard unit if they can.",
+    "elusive": "Can't be attacked or chosen by enemy abilities until it attacks.",
+    "charge": "Can attack the turn it's played.",
+    "duelist": "+N power while attacking.",
+    "armor": "Takes N less damage from attacks, never below 0.",
 }
 
 

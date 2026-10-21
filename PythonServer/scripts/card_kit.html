@@ -13,8 +13,6 @@
 .card .gem::before { content: ""; position: absolute; inset: 9%; clip-path: inherit; background: var(--rim); }
 .card .gem::after { content: ""; position: absolute; inset: 19%; clip-path: inherit; background: var(--energy); }
 .card .gem span { position: relative; z-index: 1; font: 400 2.2em/1 "Lilita One"; color: #fff; text-shadow: 0 0 2px var(--outline), 0 2px 0 var(--outline); }
-.card .crowns { position: absolute; right: 7%; top: 5.5%; display: flex; gap: 1px; }
-.card .crowns svg { width: 1.7em; filter: drop-shadow(0 1.5px 0 var(--outline)); }
 .card .banner { position: absolute; left: 2%; right: 2%; top: 35.5%; padding: .35em .3em; border-radius: 7px; background: var(--aspect); border: 2px solid var(--outline);
   font: 400 1.3em/1.05 "Lilita One"; text-align: center; color: #fff; text-shadow: 0 1.5px 0 var(--outline); white-space: nowrap; overflow: hidden; }
 .card .banner small { display: block; font: italic 800 .82em/1.1 Nunito; text-shadow: none; color: rgba(255, 255, 255, .92); white-space: nowrap; overflow: hidden; }
@@ -55,13 +53,12 @@ function mushroom(name) {
     ${spots.join("")}</svg>`;
 }
 
-const CROWN = `<svg viewBox="0 0 20 16"><path d="M2 14 L1 4 L6 8 L10 1 L14 8 L19 4 L18 14 Z" fill="#FFC93C" stroke="#0E1733" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 const SWORD = `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#F08A24" stroke="#0E1733" stroke-width="3"/>
   <path d="M8 32 L30 10 L34 6 L33 11 L11 33 Z" fill="#FFE2C2" opacity=".55"/></svg>`;
 const HEART = `<svg viewBox="0 0 40 40"><path d="M20 35 C8 26 3 19 3 12.5 C3 7 7.5 3.5 12 3.5 C15.5 3.5 18.5 5.5 20 8.5 C21.5 5.5 24.5 3.5 28 3.5 C32.5 3.5 37 7 37 12.5 C37 19 32 26 20 35 Z" fill="#E8364F" stroke="#0E1733" stroke-width="3" stroke-linejoin="round"/></svg>`;
 
 function abilityHtml(a) {
-  // Bold the trigger ("When you play this unit,") or the cost ("⟳, 1 energy:"), like the client.
+  // Bold the trigger ("When you play this unit,") or the cost ("⟳, 1 mana:"), like the client.
   const t = esc(a.text);
   if (a.kind === "triggered") { const i = t.indexOf(", "); return `<b>${t.slice(0, i + 1)}</b>${t.slice(i + 1)}`; }
   if (a.kind === "activated") { const i = t.indexOf(":"); return `<b>${t.slice(0, i + 1)}</b>${t.slice(i + 1)}`; }
@@ -69,14 +66,13 @@ function abilityHtml(a) {
 }
 
 function cardHtml(a) {
-  const c = a.card || { name: "(no card)", type: a.card_type, cost: "?", power: "?", health: "?", score: 0, aspect: "aspect_1", keywords: [], traits: [], energy_source: true };
+  const c = a.card || { name: "(no card)", type: a.card_type, cost: "?", power: "?", health: "?", aspect: "aspect_1", keywords: [], traits: [] };
   const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
   const unit = c.type === "unit";
   return `<div class="card ${unit ? "" : "action"} ${a.stopped_at ? "stopped" : ""}" data-i="${a.index}"
-      style="--aspect:${ASPECT_COLOURS[c.aspect]};--rim:${c.energy_source ? "#FFC93C" : "#3A2558"}" title="${esc(c.subtitle ? c.name + " – " + c.subtitle : c.name)}">
+      style="--aspect:${ASPECT_COLOURS[c.aspect]};--rim:#FFC93C" title="${esc(c.subtitle ? c.name + " – " + c.subtitle : c.name)}">
     <div class="art">${mushroom(c.name)}</div>
     <div class="gem"><span>${c.cost}</span></div>
-    ${unit ? `<div class="crowns">${CROWN.repeat(c.score)}</div>` : ""}
     <div class="banner">${esc(c.name)}${c.subtitle ? `<small>${esc(c.subtitle)}</small>` : ""}</div>
     <div class="textbox"><div>${kw ? kw + "<br>" : ""}${abilityHtml(a)}</div></div>
     ${unit && c.traits.length ? `<div class="trait">${esc(c.traits[0])}</div>` : `<div class="trait">Action</div>`}

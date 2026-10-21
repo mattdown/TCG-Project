@@ -169,9 +169,8 @@ def generate_coverage_set(seed: int = 0, per_feature: int = 2, candidates: int =
             units += 1
         else:
             name, traits, subtitle = namer.action(aspect, c.abilities[0]), (), ""
-        card = Card(f"{prefix}-{n + 1:03d}", name, c.type, (aspect,), c.energy_source, c.cost,
-                    c.power, c.health, c.score, traits=traits, keywords=c.keywords, abilities=c.abilities,
-                    subtitle=subtitle)
+        card = Card(f"{prefix}-{n + 1:03d}", name, c.type, (aspect,), c.cost, c.power, c.health, traits=traits,
+                    keywords=c.keywords, abilities=c.abilities, subtitle=subtitle)
         namer.reserve(card)
         cards.append(card)
         covered_by[card.id] = sorted(features[i])
@@ -190,7 +189,7 @@ def card_lines(card_set: CardSet) -> list[str]:
     """A Markdown checklist entry per card: name, cost, stats, keywords and ability text."""
     lines = []
     for c in card_set.cards:
-        stats = "action" if c.type == "action" else f"{c.power} power · {c.health} health · {c.score} score"
+        stats = "action" if c.type == "action" else f"{c.power} power · {c.health} health"
         keywords = ", ".join(keyword_text(k, v) for k, v in c.keywords)
         lines.append(f"- [ ] **{c.id} {full_name(c)}** (cost {c.cost}, {stats}{', ' + keywords if keywords else ''})")
         for ability in c.abilities:

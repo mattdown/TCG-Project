@@ -7,132 +7,187 @@ from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game, GameConfig, Move
 from src.game.state import Phase, Zone
-from tests.helpers import filler_deck, fixture_set, give_energy, put_in_hand, put_in_play, started_game, unit
+from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit, filler_deck
 
 END = Action(ActionType.END_TURN)
 
 
-def test_new_game_deals_hands_and_starts_with_mulligan():
+def test_new_game_deals_three_and_four_and_starts_with_mulligan():
     game = Game(filler_deck(), filler_deck(), seed=0, first_player=1)
     assert game.state.phase == Phase.MULLIGAN
     assert game.state.decision_player == 1
-    assert [len(p.hand) for p in game.state.players] == [7, 7]
-    assert [len(p.deck) for p in game.state.players] == [53, 53]
+    assert [len(p.hand) for p in game.state.players] == [4, 3]
+    assert [len(p.deck) for p in game.state.players] == [26, 27]
+    assert [p.spare_spore for p in game.state.players] == [True, False]
+    assert [p.health for p in game.state.players] == [30, 30]
 
 
 def test_mulligan_replaces_marked_cards_without_redrawing_them():
     game = Game(filler_deck(), filler_deck(), seed=0, first_player=0)
-    marked = game.state.players[0].hand[:3]
+    marked = game.state.players[0].hand[:2]
     for uid in marked:
         game.step(Action(ActionType.MULLIGAN, uid))
     assert Action(ActionType.MULLIGAN, marked[0]) not in game.legal_actions()
     game.step(Action(ActionType.KEEP_HAND))
     hand = game.state.players[0].hand
-    assert len(hand) == 7 and not set(marked) & set(hand)
+    assert len(hand) == 3 and not set(marked) & set(hand)
     assert game.state.decision_player == 1  # now the second player's mulligan
     game.step(Action(ActionType.KEEP_HAND))
     assert game.state.phase == Phase.MAIN and game.state.turn == 1 and game.state.active_player == 0
 
 
-def test_first_player_skips_first_draw_only():
+def test_every_turn_draws_and_adds_a_mana_crystal():
     game = started_game()
-    assert len(game.state.players[0].hand) == 7
+    assert len(game.state.players[0].hand) == 4  # 3 + the first turn's draw
+    assert (game.state.players[0].crystals, game.mana(0)) == (1, 1)
     game.step(END)
-    assert len(game.state.players[1].hand) == 8
+    assert len(game.state.players[1].hand) == 5
+    assert (game.state.players[1].crystals, game.mana(1)) == (1, 1)
+    game.step(END)
+    assert (game.state.players[0].crystals, game.mana(0)) == (2, 2)
 
 
-def test_add_energy_once_per_turn():
+def test_mana_caps_at_ten_and_refills():
     game = started_game()
-    energy_actions = [a for a in game.legal_actions() if a.type == ActionType.ADD_ENERGY]
-    game.step(energy_actions[0])
-    assert game.ready_energy(0) == 1
-    assert not any(a.type == ActionType.ADD_ENERGY for a in game.legal_actions())
+    give_mana(game, 0, 10)
+    game.state.players[0].mana = 3
+    game.step(END)
+    game.step(END)
+    assert (game.state.players[0].crystals, game.mana(0)) == (10, 10)
 
 
-def test_non_energy_source_cannot_be_added():
-    game = started_game()
-    uid = put_in_hand(game, 0, unit(energy_source=False, name="No energy"))
-    assert Action(ActionType.ADD_ENERGY, uid) not in game.legal_actions()
-
-
-def test_play_costs_energy_and_unit_is_fresh():
+def test_play_costs_mana_and_unit_is_fresh():
     game = started_game()
     uid = put_in_hand(game, 0, unit(cost=3, name="Three"))
-    give_energy(game, 0, 2)
+    give_mana(game, 0, 2)
     assert Action(ActionType.PLAY, uid) not in game.legal_actions()
-    give_energy(game, 0, 1)
+    give_mana(game, 0, 3)
     game.step(Action(ActionType.PLAY, uid))
     assert game.card(uid).zone == Zone.PLAY and game.card(uid).fresh
-    assert game.ready_energy(0) == 0
-    assert Action(ActionType.SCORE, uid) not in game.legal_actions()
+    assert game.mana(0) == 0
+    assert not any(a.card == uid and a.type in (ActionType.ATTACK, ActionType.ATTACK_HERO)
+                   for a in game.legal_actions())
 
 
-def test_units_and_energy_ready_at_start_of_owners_turn():
+def test_board_holds_seven_units():
+    game = started_game()
+    for _ in range(7):
+        put_in_play(game, 0, unit())
+    uid = put_in_hand(game, 0, unit(cost=0, name="Zero"))
+    assert Action(ActionType.PLAY, uid) not in game.legal_actions()
+
+
+def test_spare_spore_gives_one_mana_once():
+    game = started_game()
+    game.step(END)
+    assert Action(ActionType.SPARE_SPORE) in game.legal_actions()
+    game.step(Action(ActionType.SPARE_SPORE))
+    assert game.mana(1) == 2 and not game.state.players[1].spare_spore
+    assert Action(ActionType.SPARE_SPORE) not in game.legal_actions()
+
+
+def test_units_can_attack_again_at_start_of_owners_turn():
     game = started_game()
     uid = put_in_play(game, 0, unit(), exhausted=True, fresh=True)
-    give_energy(game, 0, 2)
-    for e in game.state.players[0].energy:
-        game.card(e).exhausted = True
     game.step(END)
     assert game.card(uid).exhausted  # still the opponent's turn
     game.step(END)
     assert not game.card(uid).exhausted and not game.card(uid).fresh
-    assert game.ready_energy(0) == 2
-    assert Action(ActionType.SCORE, uid) in game.legal_actions()
+    assert Action(ActionType.ATTACK_HERO, uid) in game.legal_actions()
 
 
-def test_score_exhausts_and_gains_vp():
-    game = started_game()
-    uid = put_in_play(game, 0, unit(score=3))
-    game.step(Action(ActionType.SCORE, uid))
-    assert game.state.players[0].vp == 3 and game.card(uid).exhausted
-    assert Action(ActionType.SCORE, uid) not in game.legal_actions()
-
-
-def test_reaching_vp_target_wins_immediately():
-    game = started_game(config=GameConfig(vp_to_win=5))
-    game.state.players[0].vp = 3
-    uid = put_in_play(game, 0, unit(score=2))
-    game.step(Action(ActionType.SCORE, uid))
-    assert game.is_over and game.state.winner == 0
-    assert game.legal_actions() == []
-
-
-def test_duel_only_targets_exhausted_opposing_units():
+def test_attack_any_enemy_unit_or_the_hero():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=2, health=3))
-    ready_target = put_in_play(game, 1, unit())
-    exhausted_target = put_in_play(game, 1, unit(), exhausted=True)
-    duels = [a for a in game.legal_actions() if a.type == ActionType.DUEL]
-    assert duels == [Action(ActionType.DUEL, attacker, exhausted_target)]
-    assert ready_target not in [a.target for a in duels]
+    ready = put_in_play(game, 1, unit())
+    exhausted = put_in_play(game, 1, unit(), exhausted=True)
+    attacks = {(a.type, a.target) for a in game.legal_actions() if a.card == attacker}
+    assert attacks == {(ActionType.ATTACK, ready), (ActionType.ATTACK, exhausted), (ActionType.ATTACK_HERO, None)}
 
 
-def test_duel_deals_damage_both_ways_and_defeats():
+def test_guard_must_be_attacked_first():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=2, health=3))
+    put_in_play(game, 1, unit())
+    guard = put_in_play(game, 1, unit(guard=1))
+    attacks = [(a.type, a.target) for a in game.legal_actions() if a.card == attacker]
+    assert attacks == [(ActionType.ATTACK, guard)]
+
+
+def test_elusive_hides_until_it_attacks():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=2, health=3))
+    sneaky = put_in_play(game, 1, unit(power=1, health=3, elusive=1))
+    assert not any(a.target == sneaky for a in game.legal_actions())
+    game.step(END)
+    game.step(Action(ActionType.ATTACK, sneaky, attacker))
+    game.step(END)
+    assert Action(ActionType.ATTACK, attacker, sneaky) in game.legal_actions()
+
+
+def test_hidden_guard_doesnt_force_attacks():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=2, health=3))
+    put_in_play(game, 1, unit(guard=1, elusive=1))
+    assert Action(ActionType.ATTACK_HERO, attacker) in game.legal_actions()
+
+
+def test_attack_deals_damage_both_ways_and_defeats():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=3, health=4))
-    defender = put_in_play(game, 1, unit(power=2, health=3), exhausted=True)
-    game.step(Action(ActionType.DUEL, attacker, defender))
+    defender = put_in_play(game, 1, unit(power=2, health=3))
+    game.step(Action(ActionType.ATTACK, attacker, defender))
     assert game.card(attacker).damage == 2 and game.card(attacker).exhausted
     assert game.card(defender).zone == Zone.DISCARD and game.card(defender).damage == 0
     assert defender in game.state.players[1].discard
 
 
+def test_attacking_the_hero_and_winning():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=4, health=1, duelist=1))
+    game.step(Action(ActionType.ATTACK_HERO, attacker))
+    assert game.state.players[1].health == 25 and game.card(attacker).damage == 0
+    game.state.players[1].health = 3
+    game.card(attacker).exhausted = False
+    game.step(Action(ActionType.ATTACK_HERO, attacker))
+    assert game.is_over and game.state.winner == 0 and game.legal_actions() == []
+
+
+def test_charge_attacks_the_turn_its_played_and_zero_power_cant_attack():
+    game = started_game()
+    rusher = put_in_play(game, 0, unit(power=2, charge=1), fresh=True)
+    wall = put_in_play(game, 0, unit(power=0, health=5))
+    assert Action(ActionType.ATTACK_HERO, rusher) in game.legal_actions()
+    assert not any(a.card == wall for a in game.legal_actions())
+
+
 def test_damage_persists_between_turns():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=1, health=5))
-    defender = put_in_play(game, 1, unit(power=1, health=5), exhausted=True)
-    game.step(Action(ActionType.DUEL, attacker, defender))
+    defender = put_in_play(game, 1, unit(power=1, health=5))
+    game.step(Action(ActionType.ATTACK, attacker, defender))
     game.step(END)
     game.step(END)
     assert game.card(attacker).damage == 1 and game.card(defender).damage == 1
 
 
-def test_drawing_from_empty_deck_loses():
+def test_empty_deck_deals_growing_damage():
     game = started_game()
     game.state.players[1].deck.clear()
     game.step(END)
-    assert game.is_over and game.state.winner == 0
+    assert game.state.players[1].health == 29
+    game.step(END)
+    game.step(END)
+    assert game.state.players[1].health == 27
+
+
+def test_full_hand_burns_the_drawn_card():
+    game = started_game()
+    while len(game.state.players[1].hand) < 10:
+        put_in_hand(game, 1, unit())
+    top = game.state.players[1].deck[-1]
+    game.step(END)
+    assert game.card(top).zone == Zone.DISCARD and len(game.state.players[1].hand) == 10
 
 
 def test_turn_cap_is_a_draw():
@@ -145,7 +200,7 @@ def test_turn_cap_is_a_draw():
 def test_illegal_action_raises():
     game = started_game()
     with pytest.raises(ValueError):
-        game.step(Action(ActionType.SCORE, 0))
+        game.step(Action(ActionType.ATTACK_HERO, 0))
 
 
 def test_clone_is_independent_and_shares_card_definitions():
@@ -166,9 +221,10 @@ def test_random_games_finish_and_conserve_cards(seed):
         assert actions
         game.step(rng.choice(actions))
         for p, ps in enumerate(game.state.players):
-            zones = ps.deck + ps.hand + ps.play + ps.energy + ps.discard
-            assert len(zones) == 60 and all(game.card(u).owner == p for u in zones)
+            zones = ps.deck + ps.hand + ps.play + ps.discard
+            assert len(zones) == 30 and all(game.card(u).owner == p for u in zones)
             assert all(game.card(u).zone == Zone.PLAY for u in ps.play)
+            assert len(ps.play) <= 7 and len(ps.hand) <= 10
     assert game.state.winner in (0, 1, None)
 
 
@@ -179,28 +235,25 @@ def test_step_records_nothing_unless_asked():
     assert game.step(END) is None
 
 
-def test_duel_result_has_damage_defeat_and_moves():
+def test_attack_result_has_damage_defeat_and_moves():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=3, health=4))
-    defender = put_in_play(game, 1, unit(power=2, health=3), exhausted=True)
-    result = game.step(Action(ActionType.DUEL, attacker, defender), record=True)
+    defender = put_in_play(game, 1, unit(power=2, health=3))
+    result = game.step(Action(ActionType.ATTACK, attacker, defender), record=True)
     assert result.damage == {attacker: 2, defender: 3}
     assert result.defeated == [defender] and result.exhausted == [attacker]
     assert result.moves == [Move(defender, 1, Zone.PLAY, Zone.DISCARD)]
 
 
-def test_play_score_and_energy_results():
+def test_play_and_hero_attack_results():
     game = started_game()
     card = put_in_hand(game, 0, unit(cost=2))
-    source = put_in_hand(game, 0, unit())
-    scorer = put_in_play(game, 0, unit(score=3))
-    give_energy(game, 0, 3)
+    attacker = put_in_play(game, 0, unit(power=3))
+    give_mana(game, 0, 3)
     played = game.step(Action(ActionType.PLAY, card), record=True)
-    assert played.energy_spent == {0: 2} and played.moves == [Move(card, 0, Zone.HAND, Zone.PLAY)]
-    added = game.step(Action(ActionType.ADD_ENERGY, source), record=True)
-    assert added.moves == [Move(source, 0, Zone.HAND, Zone.ENERGY)]
-    scored = game.step(Action(ActionType.SCORE, scorer), record=True)
-    assert scored.vp == {0: 3} and scored.exhausted == [scorer]
+    assert played.mana_spent == {0: 2} and played.moves == [Move(card, 0, Zone.HAND, Zone.PLAY)]
+    hit = game.step(Action(ActionType.ATTACK_HERO, attacker), record=True)
+    assert hit.hero_damage == {1: 3} and hit.exhausted == [attacker]
 
 
 def test_end_turn_result_has_ready_and_draw():
@@ -224,10 +277,10 @@ def test_keep_hand_result_has_mulligan_moves():
 def test_recorded_step_matches_unrecorded_step():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=2, health=2))
-    defender = put_in_play(game, 1, unit(power=2, health=2), exhausted=True)
+    defender = put_in_play(game, 1, unit(power=2, health=2))
     plain = game.clone()
-    game.step(Action(ActionType.DUEL, attacker, defender), record=True)
-    plain.step(Action(ActionType.DUEL, attacker, defender))
+    game.step(Action(ActionType.ATTACK, attacker, defender), record=True)
+    plain.step(Action(ActionType.ATTACK, attacker, defender))
     assert game.state == plain.state
 
 

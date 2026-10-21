@@ -201,8 +201,8 @@ function renderDetail(i) {
   const costing = c ? `<dl class="kv">
       <dt>Card type</dt><dd>${c.type}${c.archetype ? ` (${c.archetype})` : ""}</dd>
       <dt>Ability value</dt><dd>${a.value} budget points (rough, from costing.py)</dd>
-      <dt>Cost</dt><dd>${c.cost} energy${c.energy_source ? "" : " · not an energy source"}</dd>
-      ${c.type === "unit" ? `<dt>Stats</dt><dd>${c.power} power · ${c.health} health · ${c.score} VP</dd>` : ""}
+      <dt>Cost</dt><dd>${c.cost} mana</dd>
+      ${c.type === "unit" ? `<dt>Stats</dt><dd>${c.power} power · ${c.health} health</dd>` : ""}
       ${c.keywords.length ? `<dt>Keywords</dt><dd>${c.keywords.map(esc).join(", ")}</dd>` : ""}
       <dt>Aspect</dt><dd>${c.aspect_name}</dd></dl>` : `<p class="meta">Not reached: the card is only built once the ability passes the tests.</p>`;
   $("detail").innerHTML = `

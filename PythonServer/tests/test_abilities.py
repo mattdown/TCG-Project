@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from src.cards.abilities import AbilitySampler, card_problems, render, validate
+from src.cards.abilities import AbilitySampler, _effects_in, card_problems, render, validate
 
 OPPOSING = {"owner": "opponent"}
 
@@ -28,7 +28,7 @@ def test_plan_example_renders():
         {"effect": "deal_damage", "amount": 2, "target": {"ref": "it"}},
         {"if": {"defeated": "it"}, "then": [{"effect": "draw", "amount": 1, "target": "you"}]}]}
     assert validate(ability) == []
-    assert render(ability) == ("When you play this unit, deal 2 damage to chosen opposing unit. "
+    assert render(ability) == ("When you play this unit, deal 2 damage to chosen enemy unit. "
                                "If it was defeated, draw a card.")
 
 
@@ -55,7 +55,7 @@ def test_validation_catches_problems(steps, problem):
 
 
 def test_self_harm_is_allowed_only_as_a_may_cost():
-    hurt_yourself = [{"effect": "lose_vp", "amount": 1, "target": "you"}]
+    hurt_yourself = [{"effect": "damage_hero", "amount": 2, "target": "you"}]
     assert validate({"kind": "on_resolve", "steps": hurt_yourself}, "action")
     as_cost = [{"may": hurt_yourself, "if_you_do": [{"effect": "draw", "amount": 2, "target": "you"}]}]
     assert validate({"kind": "on_resolve", "steps": as_cost}, "action") == []
@@ -67,7 +67,7 @@ def test_activated_abilities_must_cost_exhaust_this():
     assert any("must cost ⟳" in p for p in validate(ability))
     ability["cost"] = [{"exhaust_this": True}, {"pay": 2}]
     assert validate(ability) == []
-    assert render(ability) == "⟳, 2 energy: Draw a card."
+    assert render(ability) == "⟳, 2 mana: Draw a card."
 
 
 def test_activated_abilities_have_no_may():
@@ -77,38 +77,29 @@ def test_activated_abilities_have_no_may():
     assert any("before the colon" in p for p in validate(ability))
 
 
-def test_ready_bars_scoring_and_activating():
-    steps = [{"choose": {"count": 1, "filter": {"owner": "you", "not_this": True}}, "as": "it"},
-             {"effect": "ready", "target": {"ref": "it"}}]
-    ability = {"kind": "activated", "cost": [{"exhaust_this": True}], "steps": steps}
-    assert any("barred" in p for p in validate(ability))
-    steps[1]["no_score_or_activate"] = True
-    assert validate(ability) == []
-    assert render(ability) == ("⟳: Ready another chosen unit of yours. "
-                               "It can’t score or use ⟳ abilities this turn.")
-
-
 def test_defensive_keywords_last_until_your_next_turn():
-    grant = {"effect": "grant_keyword", "keyword": "elusive", "value": 1, "target": "this"}
-    ability = {"kind": "triggered", "trigger": {"event": "on_score"}, "condition": None, "steps": [grant]}
+    grant = {"effect": "grant_keyword", "keyword": "guard", "value": 1, "target": "this"}
+    ability = {"kind": "triggered", "trigger": {"event": "on_attack_hero"}, "condition": None, "steps": [grant]}
     assert any("until the start of your next turn" in p for p in validate({**ability, "steps": [
         {**grant, "duration": "this_turn"}]}))
     good = {**ability, "steps": [{**grant, "duration": "until_your_next_turn"}]}
     assert validate(good) == []
-    assert render(good) == "Whenever this unit scores, this unit gains Elusive until the start of your next turn."
+    assert render(good) == ("Whenever this unit attacks the enemy hero, this unit gains Guard until the start of "
+                            "your next turn.")
 
 
-def test_charge_is_never_granted():
-    grant = {"effect": "grant_keyword", "keyword": "charge", "value": 1, "duration": "this_turn", "target": "this"}
+@pytest.mark.parametrize("keyword", ["charge", "elusive"])
+def test_charge_and_elusive_are_never_granted(keyword):
+    grant = {"effect": "grant_keyword", "keyword": keyword, "value": 1, "duration": "this_turn", "target": "this"}
     ability = {"kind": "triggered", "trigger": {"event": "on_play"}, "condition": None, "steps": [grant]}
-    assert any("Charge" in p for p in validate(ability))
+    assert any("can't be granted" in p for p in validate(ability))
 
 
 def test_sampler_grants_keywords_for_the_right_time():
     for ability, card_type in sample(3000, seed=9):
         for step in ability.get("steps", []):
             if step.get("effect") == "grant_keyword":
-                assert step["keyword"] != "charge"
+                assert step["keyword"] not in ("charge", "elusive")
                 assert step["duration"] == ("this_turn" if step["keyword"] == "duelist" else "until_your_next_turn")
 
 
@@ -117,10 +108,8 @@ def test_card_level_checks():
         {"subject": "this", "stat": "power", "amount": 1}]}
     assert card_problems("unit", 1, {}, [damaged])
     assert card_problems("unit", 2, {}, [damaged]) == []
-    score_now = {"kind": "triggered", "trigger": {"event": "on_play"}, "condition": None, "steps": [
-        {"effect": "modify_stat", "stat": "score", "delta": 1, "duration": "this_turn", "target": "this"}]}
-    assert card_problems("unit", 3, {}, [score_now])
-    power_now = {**score_now, "steps": [{**score_now["steps"][0], "stat": "power"}]}
+    power_now = {"kind": "triggered", "trigger": {"event": "on_play"}, "condition": None, "steps": [
+        {"effect": "modify_stat", "stat": "power", "delta": 1, "duration": "this_turn", "target": "this"}]}
     assert card_problems("unit", 3, {}, [power_now])
     assert card_problems("unit", 3, {"charge": 1}, [power_now]) == []
 
@@ -142,3 +131,11 @@ def test_on_play_self_healing_is_rejected():
     heal = {"kind": "triggered", "trigger": {"event": "on_play"}, "condition": None, "steps": [
         {"effect": "remove_damage", "amount": 2, "target": "this"}]}
     assert any("just played" in p for p in card_problems("unit", 3, {}, [heal]))
+
+
+def test_sampler_follows_rules_v2():
+    """Units only attack (no ⟳ abilities), and nothing refers to the v1 rules."""
+    for ability, _ in sample(3000, seed=12):
+        assert ability["kind"] != "activated"
+        effects = {e["effect"] for e in _effects_in(ability.get("steps", []))}
+        assert not effects & {"ready", "exhaust", "gain_vp", "lose_vp", "add_energy", "cant_ready"}

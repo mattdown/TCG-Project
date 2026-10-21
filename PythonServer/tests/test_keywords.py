@@ -1,80 +1,64 @@
 import pytest
 
-from src.cards.coverage import generate_coverage_set
 from src.cards.schema import Card
 from src.cards.vanilla import generate_keyword_set, keyword_value, stat_budget, stat_value
 from src.game.actions import Action, ActionType
 from src.game.state import Zone
-from tests.helpers import fixture_set, give_energy, put_in_hand, put_in_play, started_game, unit
+from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit
 
 
-def duels(game):
-    return {(a.card, a.target) for a in game.legal_actions() if a.type == ActionType.DUEL}
+def attacks(game):
+    return {(a.card, a.target) for a in game.legal_actions() if a.type in (ActionType.ATTACK, ActionType.ATTACK_HERO)}
 
 
-def test_guard_can_be_dueled_while_ready_and_must_be_dueled_first():
+def test_guard_must_be_attacked_first_and_blocks_the_hero():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=2, health=3))
-    exhausted = put_in_play(game, 1, unit(name="Tired"), exhausted=True)
+    other = put_in_play(game, 1, unit(name="Other"))
     guard = put_in_play(game, 1, unit(name="Guard", guard=1))
-    assert duels(game) == {(attacker, guard)}
-    game.step(Action(ActionType.DUEL, attacker, guard))
+    assert attacks(game) == {(attacker, guard)}
+    game.step(Action(ActionType.ATTACK, attacker, guard))
     assert game.card(guard).zone == Zone.DISCARD
-    assert duels(game) == set()  # the attacker is exhausted now
-    assert game.card(exhausted).zone == Zone.PLAY
+    assert attacks(game) == set()  # the attacker has attacked
+    assert game.card(other).zone == Zone.PLAY
 
 
-def test_without_a_guard_only_exhausted_units_are_targets():
+def test_elusive_attacker_is_revealed_and_can_then_be_chosen():
     game = started_game()
-    attacker = put_in_play(game, 0, unit())
-    put_in_play(game, 1, unit(name="Ready"))
-    tired = put_in_play(game, 1, unit(name="Tired"), exhausted=True)
-    assert duels(game) == {(attacker, tired)}
+    sneaky = put_in_play(game, 0, unit(power=1, health=3, name="Sneaky", elusive=1))
+    assert game.hidden(sneaky)
+    game.step(Action(ActionType.ATTACK_HERO, sneaky))
+    assert not game.hidden(sneaky) and game.keyword(sneaky, "elusive")
 
 
-def test_elusive_can_only_be_dueled_by_elusive():
-    game = started_game()
-    plain = put_in_play(game, 0, unit(name="Plain"))
-    flier = put_in_play(game, 0, unit(name="Flier", elusive=1))
-    target = put_in_play(game, 1, unit(name="Target", elusive=1), exhausted=True)
-    assert duels(game) == {(flier, target)}
-    assert plain not in {a for a, _ in duels(game)}
-
-
-def test_elusive_guard_doesnt_force_non_elusive_attackers():
-    game = started_game()
-    attacker = put_in_play(game, 0, unit())
-    put_in_play(game, 1, unit(name="Elusive guard", guard=1, elusive=1))
-    tired = put_in_play(game, 1, unit(name="Tired"), exhausted=True)
-    assert duels(game) == {(attacker, tired)}
-
-
-def test_charge_can_duel_but_not_score_while_fresh():
+def test_charge_attacks_the_turn_its_played():
     game = started_game()
     rusher = put_in_hand(game, 0, unit(cost=1, name="Rusher", charge=1))
-    target = put_in_play(game, 1, unit(name="Tired"), exhausted=True)
-    give_energy(game, 0, 1)
+    plain = put_in_hand(game, 0, unit(cost=1, name="Plain"))
+    give_mana(game, 0, 2)
     game.step(Action(ActionType.PLAY, rusher))
-    assert (rusher, target) in duels(game)
-    assert Action(ActionType.SCORE, rusher) not in game.legal_actions()
+    game.step(Action(ActionType.PLAY, plain))
+    assert (rusher, None) in attacks(game)
+    assert not any(a == plain for a, _ in attacks(game))
 
 
 def test_duelist_adds_power_only_when_attacking():
     game = started_game()
     duelist = put_in_play(game, 0, unit(power=1, health=5, name="Duelist", duelist=2))
-    target = put_in_play(game, 1, unit(power=1, health=5, name="Target"), exhausted=True)
-    assert game.duel_damage(duelist, target) == (1, 3)
-    assert game.duel_damage(target, duelist) == (1, 1)
+    target = put_in_play(game, 1, unit(power=1, health=5, name="Target"))
+    assert game.attack_damage(duelist, target) == (1, 3)
+    assert game.attack_damage(target, duelist) == (1, 1)
+    assert game.attack_damage(duelist, None) == (0, 3)
 
 
 def test_armor_reduces_damage_but_not_below_zero():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=3, health=5))
-    armored = put_in_play(game, 1, unit(power=1, health=5, name="Armored", armor=2), exhausted=True)
-    assert game.duel_damage(attacker, armored) == (1, 1)
+    armored = put_in_play(game, 1, unit(power=1, health=5, name="Armored", armor=2))
+    assert game.attack_damage(attacker, armored) == (1, 1)
     weak = put_in_play(game, 0, unit(power=1, health=5, name="Weak"))
-    assert game.duel_damage(weak, armored) == (1, 0)
-    result = game.step(Action(ActionType.DUEL, attacker, armored), record=True)
+    assert game.attack_damage(weak, armored) == (1, 0)
+    result = game.step(Action(ActionType.ATTACK, attacker, armored), record=True)
     assert game.card(armored).damage == 1 and result.damage == {attacker: 1, armored: 1}
 
 
@@ -94,24 +78,17 @@ def test_keyword_set_spends_budget_on_keywords():
     with_keywords = [c for c in card_set.cards if c.keywords]
     assert 60 <= len(with_keywords) <= 130
     for card in card_set.cards:
-        value = stat_value(card.power, card.health, card.score) + keyword_value(dict(card.keywords))
-        assert abs(value - stat_budget(card.cost, card.energy_source)) <= 1
+        value = stat_value(card.power, card.health) + keyword_value(dict(card.keywords))
+        assert abs(value - stat_budget(card.cost)) <= 1
         assert card.traits and card.power >= 1 and card.health >= 1
 
 
-def test_units_always_score():
-    with pytest.raises(ValueError):
-        unit(score=0)
-    for card in generate_keyword_set().cards + generate_coverage_set(seed=1).cards:
-        assert card.type == "action" or card.score >= 1
-
-
-def test_granted_elusive_lasts_through_the_opponents_turn():
+def test_granted_armor_lasts_through_the_opponents_turn():
     game = started_game()
     slippery = put_in_play(game, 0, fixture_set()["SLIPPERY"])
-    game.step(Action(ActionType.SCORE, slippery))
-    assert game.keyword(slippery, "elusive")
-    game.step(Action(ActionType.END_TURN))  # the opponent's turn: still Elusive
-    assert game.keyword(slippery, "elusive")
+    game.step(Action(ActionType.ATTACK_HERO, slippery))
+    assert game.keyword(slippery, "armor") == 1
+    game.step(Action(ActionType.END_TURN))  # the opponent's turn: still armored
+    assert game.keyword(slippery, "armor") == 1
     game.step(Action(ActionType.END_TURN))  # back to us: it's gone
-    assert not game.keyword(slippery, "elusive")
+    assert not game.keyword(slippery, "armor")

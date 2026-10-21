@@ -21,11 +21,9 @@ class Card:
     name: str
     type: str
     aspects: tuple[str, ...]
-    energy_source: bool
     cost: int
     power: int
     health: int
-    score: int
     traits: tuple[str, ...] = ()
     keywords: tuple[tuple[str, int], ...] = ()  # sorted (name, value); value is 1 for keywords without a number
     # Ability trees (dicts). Compared but not hashed, so cards stay usable as dict keys.
@@ -37,11 +35,9 @@ class Card:
             raise ValueError(f"{self.id}: unknown card type {self.type!r}")
         if not self.aspects or any(a not in ASPECTS for a in self.aspects):
             raise ValueError(f"{self.id}: invalid aspects {self.aspects}")
-        if self.cost < 0 or self.power < 0 or self.score < 0 or (self.type == "unit" and self.health < 1):
+        if self.cost < 0 or self.power < 0 or (self.type == "unit" and self.health < 1):
             raise ValueError(f"{self.id}: invalid stats")
-        if self.type == "unit" and self.score < 1:
-            raise ValueError(f"{self.id}: every unit scores at least 1 VP")
-        if self.type == "action" and (self.power or self.health or self.score or self.keywords):
+        if self.type == "action" and (self.power or self.health or self.keywords):
             raise ValueError(f"{self.id}: action cards have no stats or keywords")
         for ability in self.abilities:
             problems = validate(ability, self.type)

@@ -47,35 +47,37 @@ uv sync
 
 ## Current rules
 
-Two players, 60-card decks of one or two aspects, 7-card opening hand with one mulligan.
-Each turn: ready your cards, draw (the first player skips their first draw), then any
+Rules v2, Hearthstone-style ([docs/technical-plan.md](docs/technical-plan.md) section 2).
+Two players, each with a hero on 30 health and a 30-card deck of one or two aspects (up to 2
+copies of a card). The first player starts with 3 cards, the second with 4 and the **Spare
+Spore** (once per game: +1 mana that turn); both may mulligan once. Each turn: gain a mana
+crystal (up to 10) and refill them all, your units can attack again, draw a card, then any
 number of actions:
 
-- **Add energy:** once per turn, put an energy-source card from hand into your energy zone.
-- **Play** a unit by exhausting energy equal to its cost. It is *fresh* until your next turn.
-  Every unit scores at least 1 VP.
-- **Score:** exhaust a ready, non-fresh unit to gain its score in VP.
-- **Duel:** exhaust a ready, non-fresh unit to fight an *exhausted* opposing unit. Both deal
-  damage equal to their power; a unit is defeated when its damage reaches its health.
-  Damage stays between turns.
+- **Play** a card by paying its cost in mana. A unit is *fresh* until your next turn and
+  can't attack yet. At most 7 units in play.
+- **Attack** with each unit once per turn: an enemy unit (both deal their power as damage) or
+  the enemy hero (who takes the unit's power as damage). Damage on units stays between turns;
+  a unit is defeated when its damage reaches its health.
 
-The first player to 20 VP wins; drawing from an empty deck loses; turn 100 is a draw.
+A hero at 0 health loses. Drawing from an empty deck deals 1 damage, then 2, then 3…; a card
+drawn into a full hand (10) is discarded. Turn 100 is a draw.
 
 Keywords:
 
-- **Guard:** can be dueled even while ready, and opponents must duel a Guard unit if they can.
-- **Elusive:** only Elusive units can duel it.
-- **Charge:** can duel the turn it's played (but can't score that turn).
-- **Duelist +N:** +N power when it starts a duel.
-- **Armor +N:** takes N less damage in a duel.
+- **Guard:** enemy units must attack a Guard unit if they can.
+- **Elusive:** can't be attacked or chosen by enemy abilities until it attacks.
+- **Charge:** can attack the turn it's played.
+- **Duelist +N:** +N power while attacking.
+- **Armor +N:** takes N less damage from attacks.
 
 **Abilities** follow the grammar in [docs/technical-plan.md](docs/technical-plan.md)
-section 3: triggered (when played, scores, attacks, is defeated, start or end of turn, …),
-activated (⟳, once per turn), on-resolve (action cards) and static. The engine compiles each
-ability to a decision graph and resolves it on a stack; choices inside abilities (choose a
-target, "you may", "choose one") are ordinary decisions. The default card set has no abilities
-yet; the coverage set, the tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`)
-use generated ones.
+section 3: triggered (when played, attacks, attacks the enemy hero, is defeated, start or end
+of turn, …), on-resolve (action cards) and static. Units have no activated abilities in v2:
+they only attack. The engine compiles each ability to a decision graph and resolves it on a
+stack; choices inside abilities (choose a target, "you may", "choose one") are ordinary
+decisions. The default card set has no abilities yet; `abilities_200`, the coverage set, the
+tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`) use generated ones.
 
 ## Unity client protocol
 

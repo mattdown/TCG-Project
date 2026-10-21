@@ -2,22 +2,22 @@
 
 This is a hand-written first guess, not data: it's a prior about how much things are worth,
 and the learned cost model replaces it later (docs/technical-plan.md section 8). One budget
-point is one point of power or health; a point of score is worth 2 (see vanilla.py).
+point is one point of power or health (see vanilla.py).
 """
 from src.cards.vanilla import KEYWORD_VALUE
 
 # Value of one use of each effect on one target, per point of its amount where it has one.
 EFFECT_VALUE = {
-    "deal_damage": 1.0, "remove_damage": 0.5, "defeat": 4.0, "return_to_hand": 3.0, "exhaust": 1.5, "ready": 1.0,
-    "cant_ready": 1.5, "draw": 2.0, "discard": 1.5, "gain_vp": 2.0, "lose_vp": 2.0, "add_energy": 2.0,
+    "deal_damage": 1.0, "remove_damage": 0.5, "defeat": 4.0, "return_to_hand": 3.0, "exhaust": 1.5, "freeze": 1.5,
+    "draw": 2.0, "discard": 1.5, "heal_hero": 0.5, "damage_hero": 1.0, "gain_crystal": 2.5,
     "grant_keyword": 1.0, "discard_card": 1.0,
 }
-STAT_VALUE = {"power": 0.5, "health": 0.5, "score": 1.5}  # per point, for one turn
+STAT_VALUE = {"power": 0.5, "health": 0.5}  # per point, for one turn
 ALL_TARGETS = 2.0  # hitting everything that matches, instead of one chosen card
 REMOVE_ALL_DAMAGE = 3  # treated as removing this much
 
 # How often an ability gets used, roughly.
-TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.7, "on_score": 2.0, "on_attack": 1.5, "start_of_turn": 2.5,
+TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.7, "on_attack_hero": 1.5, "on_attack": 1.5, "start_of_turn": 2.5,
                 "end_of_turn": 2.5, "another_played": 1.5, "opposing_defeated": 1.5}
 ACTIVATED_USES = 2.0
 CONDITION_FACTOR = 0.6  # an ability that only works sometimes

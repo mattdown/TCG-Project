@@ -10,20 +10,36 @@ index of the one the player picks. It never applies rules itself.
   and each gets exactly one JSON string back. REQ sockets must strictly alternate send /
   receive.
 - Implementation: [src/server/session.py](../PythonServer/src/server/session.py). Every
-  example below was captured from a real game with seed 7.
-- All game terms (VP, energy, unit, score, duel, aspect…) are placeholders. Show the `text`
+  example below was captured from a real game with seed 7 on `keywords_200`.
+- **Protocol v2 (2026-10-21)** follows rules v2 (Hearthstone-style, docs/technical-plan.md
+  section 2): heroes with health, mana crystals, attacks on units or the hero. v1's energy,
+  VP, scoring and duels are gone.
+- All game terms (hero, mana, unit, attack, aspect…) are placeholders. Show the `text`
   fields to players rather than building strings from the raw values where possible.
 
 ## Status and checking cards
 
-Client milestones 1–3 are done: the board, playing a full game, and abilities (card text,
-action cards, the choice prompt, ⟳ buttons, ability feedback, the dev scenario panel). The
-protocol below is complete for everything the server does today.
+Client milestones 1–3 are done for protocol v1: the board, playing a full game, and
+abilities (card text, action cards, the choice prompt, ⟳ buttons, ability feedback, the dev
+scenario panel). The protocol below is complete for everything the server does today.
 
-**Next for the client: card subtitles.** Cards now have a `subtitle` (see `card_set`). Show it
-under the name in the name banner, smaller and in italics: "Porcini Baker" / "Up Before Dawn".
-Action cards have event names ("Ember Volley") and an empty subtitle. The card lab's card
-(`PythonServer/scripts/card_kit.html`) shows one way to lay it out.
+**Next for the client: milestone 4, rules v2.** The current client speaks v1 and won't work
+with this server until it's updated:
+- **Heroes:** a portrait for each player with `health` out of `hero_health` (30), in place of
+  the VP bars. The enemy hero is a drop target for `attack_hero`.
+- **Mana:** crystals (`mana` full of `crystals`, up to `max_mana` = 10) in place of the energy
+  zone. There's no energy zone and no "add energy" action any more.
+- **Attacks:** drag a unit onto an enemy unit (`attack`) or the enemy hero (`attack_hero`).
+  Any enemy unit can be attacked, not only exhausted ones. A unit that has attacked is
+  `exhausted` (show it dimmed, as before); `can_attack` says whether it can still attack.
+- **The Spare Spore:** the second player's one-off +1 mana, a button while `spare_spore` is true.
+- **No ⟳ buttons:** units only attack (rules v2 generates no activated abilities).
+- **Card:** no score crowns and no energy-source rim. Cards have a `subtitle`: show it under
+  the name in the name banner, smaller and in italics ("Porcini Baker" / "Up Before Dawn").
+  Action cards have event names ("Ember Volley") and an empty subtitle. The card lab's card
+  (`PythonServer/scripts/card_kit.html`) shows one way to lay it out.
+- **Unit states:** `frozen` (can't attack on its next turn: show ice), `hidden` (Elusive and
+  hasn't attacked yet: enemies can't target it).
 
 **Checking cards by hand.**
 1. Generate the coverage set: from `PythonServer/`, run `uv run python -m scripts.generate_cards --kind coverage`.
@@ -33,9 +49,9 @@ Action cards have event names ("Ember Volley") and an empty subtitle. The card l
 2. Run the server on it: `uv run python -m scripts.server --cards cardsets/coverage.json`.
 3. Use the checklist. It lists every card with its text, then every building block (e.g.
    `decision: may`, `trigger: on_attack`) with the cards that use it. Start a `scenario` with the
-   card and whatever it needs: opposing units to target, units of the jobs it mentions, energy,
-   VP. Card IDs change whenever the set is regenerated, so always take them from the current
-   checklist.
+   card and whatever it needs: enemy units to target, units of the jobs it mentions, mana,
+   hero health. Card IDs change whenever the set is regenerated, so always take them from the
+   current checklist.
 4. Anything that doesn't match its text is a server bug: note the card and the scenario.
 
 ## Responses and errors
@@ -61,8 +77,8 @@ stats and names here.
 → {"type": "card_set"}
 ← {"status": "ok", "name": "keywords_200", "cards": [
      {"id": "K1-004", "name": "Puffball Scholar", "type": "unit", "aspects": ["aspect_4"],
-      "energy_source": true, "cost": 5, "power": 3, "health": 3, "score": 2, "traits": ["Scholar"],
-      "keywords": {"elusive": true}},
+      "cost": 1, "power": 2, "health": 1, "traits": ["Scholar"], "keywords": {}, "subtitle": "",
+      "abilities": [], "ability_text": []},
      …200 cards…]}
 ```
 
@@ -72,8 +88,7 @@ stats and names here.
 | `name`, `subtitle` | units: `"Porcini Baker"` and `"Up Before Dawn"`, the version of the character (show it under the name, smaller); action cards: an event name such as `"Ember Volley"` and an empty `subtitle`. Sets made before subtitles existed have `""` everywhere |
 | `type` | `"unit"` or `"action"` (played from hand, its ability resolves, then it goes to the discard pile; no stats) |
 | `aspects` | one of `aspect_1` … `aspect_6`: Ember, Bog, Moss, Meadow, Glow, Frost ([theme.md](theme.md)) |
-| `energy_source` | can be added to the energy zone |
-| `cost`, `power`, `health`, `score` | stats; `score` is the VP gained when the unit scores |
+| `cost`, `power`, `health` | mana cost and stats (actions have 0 power and health) |
 | `traits` | the unit's job, e.g. `["Scholar"]` |
 | `keywords` | `{"guard": true, "duelist": 2}`: flags are `true`, Duelist and Armor carry a number. Show them as `Guard.`, `Duelist +2.` (see the keyword rules below) |
 | `abilities` | ability trees (the grammar in [technical-plan.md](technical-plan.md) section 3); the client doesn't need to read them |
@@ -81,19 +96,19 @@ stats and names here.
 
 The response also has `keywords`: each keyword's player-facing name, whether it carries a
 number, and its reminder text, for inspect panels (`N` is the number):
-`"keywords": {"duelist": {"name": "Duelist", "numbered": true, "rule": "+N power when it starts a duel."}, …}`.
+`"keywords": {"duelist": {"name": "Duelist", "numbered": true, "rule": "+N power while attacking."}, …}`.
 
 **Keyword rules** (the server already applies them; the client only shows them):
 
 | Keyword | Rule |
 |---|---|
-| Guard | can be dueled even while ready, and opponents must duel a Guard unit if they can |
-| Elusive | only Elusive units can duel it |
-| Charge | can duel the turn it's played (it still can't score that turn) |
-| Duelist +N | +N power when it starts a duel |
-| Armor +N | takes N less damage in a duel, never below 0 |
+| Guard | enemy units must attack a Guard unit if they can (so the hero can't be attacked) |
+| Elusive | can't be attacked or chosen by enemy abilities until it attacks |
+| Charge | can attack the turn it's played |
+| Duelist +N | +N power while attacking |
+| Armor +N | takes N less damage from attacks, never below 0 |
 
-Legal duel actions and their previews already account for all of these.
+Legal attack actions and their previews already account for all of these.
 
 ### `new_game`: start a game on random decks
 
@@ -112,12 +127,12 @@ Legal duel actions and their previews already account for all of these.
 
   ```json
   "scenario": {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
-               "opponent_play": ["C1-002"], "opponent_hand": [], "energy": 5, "opponent_energy": 0,
-               "vp": 3, "opponent_vp": 0}
+               "opponent_play": ["C1-002"], "opponent_hand": [], "mana": 5, "opponent_mana": 0,
+               "health": 30, "opponent_health": 12}
   ```
 
-  Units placed in play can act straight away, and energy is ready. Every key is optional. An
-  unknown card ID is an error.
+  Units placed in play can attack straight away. `mana` sets the mana crystals, all full.
+  Every key is optional. An unknown card ID is an error.
 
 See [Status and checking cards](#status-and-checking-cards) for using scenarios with the coverage set.
 
@@ -134,13 +149,16 @@ Only valid when `state.decision_player == state.human_seat`. `action_index` is t
 of one of `state.legal_actions`.
 
 ```json
-→ {"type": "act", "action_index": 8}
+→ {"type": "act", "action_index": 2}
 ← {"status": "ok",
-   "action": {"type": "duel", "card": 4, "target": 104, "player": 0, "text": "Duel: Tidal Trickster → Tidal Vagabond",
-              "result": {"damage": [{"uid": 4, "amount": 1}, {"uid": 104, "amount": 1}], "defeated": [4, 104],
-                         "vp": [], "energy_spent": [], "exhausted": [4], "readied": [],
-                         "moves": [{"uid": 4, "card_id": "V1-010", "player": 0, "from": "play", "to": "discard"},
-                                   {"uid": 104, "card_id": "V1-059", "player": 1, "from": "play", "to": "discard"}]}},
+   "action": {"type": "attack", "card": 12, "target": 53, "option": null, "player": 0,
+              "text": "Attack: Porcini Chef → Enoki Postman",
+              "result": {"damage": [{"uid": 12, "amount": 4}, {"uid": 53, "amount": 3}], "defeated": [12, 53],
+                         "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [],
+                         "exhausted": [12], "readied": [],
+                         "moves": [{"uid": 12, "card_id": "K1-022", "player": 0, "from": "play", "to": "discard"},
+                                   {"uid": 53, "card_id": "K1-133", "player": 1, "from": "play", "to": "discard"}],
+                         "abilities": [], "healed": [], "effects": []}},
    "state": {…}}
 ```
 
@@ -153,13 +171,17 @@ at a time.
 
 ```json
 → {"type": "ai_move"}
-← {"status": "ok", "action": {"type": "end_turn", "card": null, "target": null, "player": 1, "text": "End turn",
-     "result": {"damage": [], "defeated": [], "vp": [], "energy_spent": [], "exhausted": [], "readied": [37],
-                "moves": [{"uid": 53, "card_id": "V1-098", "player": 0, "from": "deck", "to": "hand"}]}},
+← {"status": "ok", "action": {"type": "end_turn", "card": null, "target": null, "option": null, "player": 1,
+     "text": "End turn",
+     "result": {"damage": [], "defeated": [], "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [],
+                "exhausted": [], "readied": [],
+                "moves": [{"uid": 3, "card_id": "K1-070", "player": 0, "from": "deck", "to": "hand"}],
+                "abilities": [], "healed": [], "effects": []}},
    "state": {…}}
 ```
 
-Ending the AI's turn starts yours: it readies your exhausted cards and you draw.
+Ending the AI's turn starts yours: you gain a mana crystal, they all refill, your units can
+attack again (`readied` lists the ones that had attacked) and you draw.
 
 ### `ai_turn`: the AI decides until it's the human's decision or the game ends
 
@@ -168,11 +190,11 @@ The quick option when no step-by-step animation is needed.
 ```json
 → {"type": "ai_turn"}
 ← {"status": "ok", "actions": [
-     {"type": "add_energy", "card": 108, "target": null, "player": 1, "text": "Add Quiet Piper as energy"},
-     {"type": "duel", "card": 78, "target": 11, "player": 1, "text": "Duel: Humble Squire → Quiet Weaver"},
-     {"type": "score", "card": 99, "target": null, "player": 1, "text": "Score with Ashen Gardener"},
-     {"type": "play", "card": 79, "target": null, "player": 1, "text": "Play Bright Warden"},
-     {"type": "end_turn", "card": null, "target": null, "player": 1, "text": "End turn"}],
+     {"type": "play", "card": 32, "target": null, "option": null, "player": 1, "text": "Play Shiitake Sailor"},
+     {"type": "attack", "card": 43, "target": 26, "option": null, "player": 1, "text": "Attack: Porcini Beekeeper → Shiitake Baker"},
+     {"type": "attack_hero", "card": 54, "target": null, "option": null, "player": 1, "text": "Attack: Fly-agaric Burglar → the enemy hero"},
+     {"type": "attack_hero", "card": 32, "target": null, "option": null, "player": 1, "text": "Attack: Shiitake Sailor → the enemy hero"},
+     {"type": "end_turn", "card": null, "target": null, "option": null, "player": 1, "text": "End turn"}],
    "state": {…}}
 ```
 
@@ -181,7 +203,7 @@ The quick option when no step-by-step animation is needed.
 ## The state
 
 Always from the human's point of view: the AI's hand and both decks' contents are never
-sent. A mid-game example (turn 7, the human's turn; most of the hand trimmed):
+sent. A mid-game example (turn 7, the human's turn; most of the hand and the previews trimmed):
 
 ```json
 {
@@ -193,26 +215,34 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand trimmed):
   "game_over": false,
   "winner": null,
   "players": [
-    {"vp": 1, "energy_ready": 3, "energy_total": 3, "deck_count": 50, "hand_count": 4,
-     "hand": [{"uid": 12, "card_id": "V1-022", "exhausted": false, "fresh": false, "damage": 0}, …],
-     "play": [{"uid": 5, "card_id": "V1-100", "exhausted": false, "fresh": false, "damage": 0}],
-     "discard": [ …2 cards… ],
-     "mulligan_marked": []},
-    {"vp": 2, "energy_ready": 0, "energy_total": 3, "deck_count": 50, "hand_count": 4,
-     "hand": null,
-     "play": [{"uid": 99, "card_id": "V1-034", "exhausted": true, "fresh": false, "damage": 0},
-              {"uid": 79, "card_id": "V1-143", "exhausted": false, "fresh": true, "damage": 0}],
+    {"health": 22, "mana": 4, "crystals": 4, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 5,
+     "hand": [{"uid": 29, "card_id": "K1-070", "exhausted": false, "fresh": false, "damage": 0, "cost": 4,
+               "power": 3, "health": 5, "keywords": {"charge": true}, "can_attack": false, "frozen": false,
+               "hidden": false}, …],
+     "play": [{"uid": 12, "card_id": "K1-022", "exhausted": false, "fresh": false, "damage": 0, "cost": 1,
+               "power": 1, "health": 1, "keywords": {"duelist": 2}, "can_attack": true, "frozen": false,
+               "hidden": false}],
      "discard": [ …1 card… ],
+     "mulligan_marked": []},
+    {"health": 21, "mana": 0, "crystals": 3, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 4,
+     "hand": null,
+     "play": [{"uid": 53, "card_id": "K1-133", "exhausted": true, "fresh": false, "damage": 0, …},
+              {"uid": 54, "card_id": "K1-151", "exhausted": true, "fresh": false, "damage": 1, …},
+              {"uid": 43, "card_id": "K1-173", "exhausted": false, "fresh": true, "damage": 0, …}],
+     "discard": [],
      "mulligan_marked": null}
   ],
+  "hero_health": 30,
+  "max_mana": 10,
+  "pending": null,
   "legal_actions": [
-    {"index": 0, "type": "add_energy", "card": 12, "target": null, "text": "Add Golden Scholar as energy"},
-    {"index": 1, "type": "add_energy", "card": 39, "target": null, "text": "Add Rusty Scholar as energy"},
-    {"index": 2, "type": "play", "card": 39, "target": null, "text": "Play Rusty Scholar"},
-    {"index": 3, "type": "add_energy", "card": 47, "target": null, "text": "Add Rusty Lantern as energy"},
-    {"index": 4, "type": "score", "card": 5, "target": null, "text": "Score with Velvet Rider"},
-    {"index": 5, "type": "duel", "card": 5, "target": 99, "text": "Duel: Velvet Rider → Ashen Gardener"},
-    {"index": 6, "type": "end_turn", "card": null, "target": null, "text": "End turn"}
+    {"index": 0, "type": "play", "card": 29, "target": null, "option": null, "text": "Play Snowcap Gardener", "preview": {…}},
+    {"index": 1, "type": "play", "card": 26, "target": null, "option": null, "text": "Play Shiitake Baker", "preview": {…}},
+    {"index": 2, "type": "attack", "card": 12, "target": 53, "option": null, "text": "Attack: Porcini Chef → Enoki Postman", "preview": {…}},
+    {"index": 3, "type": "attack", "card": 12, "target": 54, "option": null, "text": "Attack: Porcini Chef → Fly-agaric Burglar", "preview": {…}},
+    {"index": 4, "type": "attack", "card": 12, "target": 43, "option": null, "text": "Attack: Porcini Chef → Porcini Beekeeper", "preview": {…}},
+    {"index": 5, "type": "attack_hero", "card": 12, "target": null, "option": null, "text": "Attack: Porcini Chef → the enemy hero", "preview": {…}},
+    {"index": 6, "type": "end_turn", "card": null, "target": null, "option": null, "text": "End turn", "preview": null}
   ]
 }
 ```
@@ -225,49 +255,53 @@ sent. A mid-game example (turn 7, the human's turn; most of the hand trimmed):
 | `decision_player` | who must choose next. If it's `human_seat`, show `legal_actions`; otherwise ask the AI |
 | `winner` | seat number, or `null` for a draw (turn 100) when `game_over` is true |
 | `players[i]` | indexed by seat, not "you / them": use `human_seat` to tell which is the human |
-| `vp` | victory points; 20 wins |
-| `energy_ready` / `energy_total` | ready energy / cards in the energy zone |
-| `hand` | the human's hand, or `null` for the AI (use `hand_count`) |
-| `play` | units in play, in the order they were played |
+| `health` | the hero's health left; 0 loses |
+| `mana` / `crystals` | unspent mana this turn / mana crystals (one more each turn, up to `max_mana`; all refill at the start of your turn) |
+| `spare_spore` | the second player's one-off +1 mana is still available |
+| `fatigue` | damage the hero took from the last draw from an empty deck (the next one deals 1 more) |
+| `hand` | the human's hand, or `null` for the AI (use `hand_count`); at most 10 cards (a card drawn into a full hand is discarded) |
+| `play` | units in play, in the order they were played; at most 7 |
 | `mulligan_marked` | uids the human has marked to put back during the mulligan |
-| `vp_to_win` | VP needed to win (20) |
+| `hero_health`, `max_mana` | 30 and 10: a full hero and the most crystals |
 | `legal_actions` | empty unless it's the human's decision |
 | `pending` | `null`, or the ability waiting for a choice: `source` (uid), `card_id`, `kind` (`choose`, `may`, `choose_one`), `chooser` (seat), `ability_text`. Show it as a prompt ("Oyster Fisher: choose a unit") with the legal actions as the answers |
 
 **Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
 whole game, so use it to track a card's GameObject as it moves between zones. `card_id`
-points into the card set. `exhausted` (turned sideways), `fresh` (played this turn, can't
-act), `damage` (current damage; defeated at `damage >= health`).
+points into the card set. `exhausted` (has attacked this turn, or is frozen: show it dimmed),
+`fresh` (played this turn: can't attack unless it has Charge), `damage` (current damage;
+defeated at `damage >= health`).
 
 They also carry current values, with every ability's changes applied, so the client can show
 raised stats in green and lowered ones in red without working anything out:
 
 ```json
-{"uid": 121, "card_id": "C1-017", "exhausted": false, "fresh": false, "damage": 0, "cost": 5,
- "power": 5, "health": 2, "score": 1, "keywords": {}, "cant_ready": false, "barred": false}
+{"uid": 12, "card_id": "K1-022", "exhausted": false, "fresh": false, "damage": 0, "cost": 1,
+ "power": 1, "health": 1, "keywords": {"duelist": 2}, "can_attack": true, "frozen": false, "hidden": false}
 ```
 
 | Field | Meaning |
 |---|---|
 | `cost` | current cost to play (hand cards include cost reductions) |
-| `power`, `health`, `score` | current stats; health before damage (units only) |
-| `keywords` | current keywords, including granted ones (`{"elusive": true}`; units only) |
-| `cant_ready` | won't ready at the start of its owner's next turn |
-| `barred` | can't score or use ⟳ abilities this turn |
+| `power`, `health` | current stats; health before damage (units only) |
+| `keywords` | current keywords, including granted ones (`{"guard": true}`; units only) |
+| `can_attack` | it's its owner's turn and it can attack now (has attack actions in `legal_actions` when it's yours) |
+| `frozen` | can't attack on its owner's next turn |
+| `hidden` | Elusive and hasn't attacked yet: enemies can't attack it or choose it |
 
-**Actions**: `card` is the uid of the acting or played card, `target` the uid of the duel
-target or chosen card, `option` the ability or option index. Action types:
+**Actions**: `card` is the uid of the acting or played card, `target` the uid of the attacked
+unit or chosen card, `option` the ability or option index. Action types:
 
 | Type | Meaning | `card` | `target` |
 |---|---|---|---|
 | `mulligan` | mark a hand card to put back | hand card | — |
 | `keep_hand` | finish the mulligan (marked cards are replaced) | — | — |
-| `add_energy` | put an energy-source card from hand into the energy zone (once per turn) | hand card | — |
-| `play` | play a unit, exhausting energy equal to its cost | hand card | — |
-| `score` | exhaust a ready, non-fresh unit to gain its score in VP | unit | — |
-| `duel` | exhaust a ready, non-fresh unit to fight an exhausted opposing unit | unit | opposing unit |
+| `play` | play a card, paying its cost in mana | hand card | — |
+| `attack` | a unit attacks an enemy unit: both deal their power as damage | unit | enemy unit |
+| `attack_hero` | a unit attacks the enemy hero, who takes its power as damage | unit | — |
+| `spare_spore` | the second player's one-off +1 mana for this turn | — | — |
 | `end_turn` | pass the turn | — | — |
-| `activate` | use a ⟳ ability: exhausts the unit and pays its other costs; `option` = which of the card's abilities | unit | — |
+| `activate` | use a ⟳ ability instead of attacking (not generated in rules v2; kept for a later mechanic) | unit | — |
 | `choose_target` | while an ability resolves: pick a card for it | the ability's source | the chosen card |
 | `accept` / `decline` | answer a "you may …" | the ability's source | — |
 | `choose_option` | pick one option of a "choose one"; `option` = which, `text` describes it | the ability's source | — |
@@ -281,42 +315,46 @@ The server reports every change an action makes, so the client never works one o
 The engine records them while it applies the rules (`StepResult` in `src/game/engine.py`).
 
 - **`result`** on every action record (`act`, `ai_move`, `ai_turn`): what the action did.
-- **`preview`** on legal `play`, `score` and `duel` actions: the same shape, from trying the
-  action on a copy of the game, up to the first choice an ability asks for. Use it while
-  dragging ("Drop to score · +2 VP", "Defeated"). Only moves of cards that were in play (and the
+- **`preview`** on legal `play`, `attack` and `attack_hero` actions: the same shape, from
+  trying the action on a copy of the game, up to the first choice an ability asks for. Use it
+  while dragging ("−3", "Defeated"). Only moves of cards that were in play (and the
   played card itself) are kept, so a preview never reveals what an ability would draw. It's
   `null` for other actions.
 
 ```json
-"preview": {"damage": [{"uid": 4, "amount": 1}, {"uid": 104, "amount": 1}], "defeated": [4, 104],
-            "vp": [], "energy_spent": [], "exhausted": [4], "readied": [],
-            "moves": [{"uid": 4, "card_id": "V1-010", "player": 0, "from": "play", "to": "discard"},
-                      {"uid": 104, "card_id": "V1-059", "player": 1, "from": "play", "to": "discard"}]}
+"preview": {"damage": [{"uid": 12, "amount": 4}, {"uid": 53, "amount": 3}], "defeated": [12, 53],
+            "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [], "exhausted": [12], "readied": [],
+            "moves": [{"uid": 12, "card_id": "K1-022", "player": 0, "from": "play", "to": "discard"},
+                      {"uid": 53, "card_id": "K1-133", "player": 1, "from": "play", "to": "discard"}],
+            "abilities": [], "healed": [], "effects": []}
 ```
 
 | Field | Meaning |
 |---|---|
 | `damage` | damage dealt to each unit (uid, amount) |
 | `defeated` | uids of units defeated (they also move from `play` to `discard`) |
-| `vp` | VP gained per player |
-| `energy_spent` | ready energy exhausted per player to pay a cost |
-| `exhausted` | units exhausted by acting (scoring, dueling) |
-| `readied` | cards readied at the start of a turn (units and energy) or by an ability |
-| `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `energy`, `discard` |
+| `hero_damage` | damage to each player's hero (player, amount): attacks, abilities, fatigue |
+| `hero_healed` | health each hero got back (player, amount) |
+| `mana_spent` | mana paid per player |
+| `crystals` | mana crystals gained from abilities per player (empty: they fill next turn) |
+| `exhausted` | units that attacked |
+| `readied` | units that can attack again at the start of their owner's turn (only ones that had attacked) |
+| `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `discard` |
 | `abilities` | uids of the cards whose abilities started resolving, in order (to highlight the card as its ability happens) |
 | `healed` | damage removed from each unit (uid, amount) |
-| `effects` | lasting changes abilities made: `{"uid", "kind", "stat", "keyword", "value", "this_turn", "lasts"}`; `lasts` is `this_turn`, `until_your_next_turn` (e.g. a granted Guard or Elusive, which lasts through the opponent's turn), `until_its_next_turn` (can't ready), `while_in_play` or `permanent`; `this_turn` is true only for `this_turn`; `kind` is `stat` (e.g. `power` −1), `keyword` (granted), `cant_ready` or `barred` |
+| `effects` | lasting changes abilities made: `{"uid", "kind", "stat", "keyword", "value", "this_turn", "lasts"}`; `lasts` is `this_turn`, `until_your_next_turn` (e.g. a granted Guard or Armor, which lasts through the opponent's turn), `until_its_next_turn` (freeze), `while_in_play` or `permanent`; `this_turn` is true only for `this_turn`; `kind` is `stat` (e.g. `power` −1), `keyword` (granted) or `freeze` |
 
 **Hidden moves.** The AI's draws and mulligan put-backs keep only who and where:
 `{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}`. Every other move
-names the card: your own cards, and anything going into or out of play, energy or discard.
+names the card: your own cards, and anything going into or out of play or the discard pile
+(including a card the AI draws into a full hand, which is discarded face up).
 
 Examples, from the game above (seed 7):
 
 ```json
-play:   "preview": {…, "energy_spent": [{"player": 0, "amount": 1}],
-                    "moves": [{"uid": 4, "card_id": "V1-010", "player": 0, "from": "hand", "to": "play"}]}
-score:  "preview": {…, "vp": [{"player": 0, "amount": 1}], "exhausted": [4]}
+play:        "preview": {…, "mana_spent": [{"player": 0, "amount": 4}],
+                         "moves": [{"uid": 29, "card_id": "K1-070", "player": 0, "from": "hand", "to": "play"}]}
+attack_hero: "preview": {…, "hero_damage": [{"player": 1, "amount": 3}], "exhausted": [12]}
 your end_turn: "result": {…, "moves": [{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}]}
 ```
 
@@ -334,7 +372,8 @@ loop:
   animate the action's result, then render the returned state
 ```
 
-- **Mulligan:** both players mulligan before turn 1, the first player first. The human picks
+- **Mulligan:** the first player starts with 3 cards, the second with 4. Both mulligan before
+  turn 1, the first player first. The human picks
   `mulligan` actions (each marks one card, shown in `mulligan_marked`) and then `keep_hand`.
   The AI's mulligan happens through `ai_move` / `ai_turn` like any other AI decision.
 - **One request at a time:** REQ/REP can't have two requests in flight. Run the socket on a

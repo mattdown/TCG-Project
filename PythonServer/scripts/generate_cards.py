@@ -36,7 +36,6 @@ def main():
     curve = Counter(c.cost for c in card_set.cards)
     print(f"Wrote {len(card_set)} cards to {out}")
     print("Cost curve: " + ", ".join(f"{cost}: {curve[cost]}" for cost in sorted(curve)))
-    print(f"Energy sources: {sum(c.energy_source for c in card_set.cards)}")
     print(f"With keywords: {sum(bool(c.keywords) for c in card_set.cards)}")
 
 

@@ -24,24 +24,21 @@ class HeuristicAgent(Agent):
             expensive = [a for a in by_type.get(ActionType.MULLIGAN, []) if game.card(a.card).card.cost >= 6]
             return expensive[0] if cheap < 3 and expensive else by_type[ActionType.KEEP_HAND][0]
 
-        # Add an energy source every turn, keeping the cheaper cards to play.
-        if ActionType.ADD_ENERGY in by_type:
-            return max(by_type[ActionType.ADD_ENERGY], key=lambda a: game.card(a.card).card.cost)
-
-        # Play the most expensive affordable unit.
+        # Play the most expensive affordable card, using the Spare Spore if it makes one affordable.
         if ActionType.PLAY in by_type:
             return max(by_type[ActionType.PLAY], key=lambda a: game.card(a.card).card.cost)
+        if ActionType.SPARE_SPORE in by_type and self._spore_helps(game):
+            return by_type[ActionType.SPARE_SPORE][0]
 
-        # Duel when the attacker defeats the target and survives, preferring high-score targets.
-        good_duels = [a for a in by_type.get(ActionType.DUEL, []) if self._wins_duel(game, a)]
-        if good_duels:
-            return max(good_duels, key=lambda a: game.card(a.target).card.score)
-
-        if ActionType.ACTIVATE in by_type:
-            return by_type[ActionType.ACTIVATE][0]
-
-        if ActionType.SCORE in by_type:
-            return max(by_type[ActionType.SCORE], key=lambda a: game.card(a.card).card.score)
+        # Trade when the attacker defeats the target and survives, preferring expensive targets;
+        # otherwise go for the hero.
+        good_trades = [a for a in by_type.get(ActionType.ATTACK, []) if self._wins_trade(game, a)]
+        if good_trades:
+            return max(good_trades, key=lambda a: game.card(a.target).card.cost)
+        if ActionType.ATTACK_HERO in by_type:
+            return by_type[ActionType.ATTACK_HERO][0]
+        if ActionType.ATTACK in by_type:  # Guard is in the way: attack it anyway
+            return by_type[ActionType.ATTACK][0]
 
         return by_type[ActionType.END_TURN][0]
 
@@ -58,9 +55,15 @@ class HeuristicAgent(Agent):
         return by_cost[0] if mine else by_cost[-1]
 
     @staticmethod
-    def _wins_duel(game: Game, action: Action) -> bool:
+    def _spore_helps(game: Game) -> bool:
+        p = game.state.decision_player
+        hand = [game.card(u) for u in game.state.players[p].hand]
+        return any(game.play_cost(c.uid) == game.mana(p) + 1 for c in hand)
+
+    @staticmethod
+    def _wins_trade(game: Game, action: Action) -> bool:
         attacker, defender = game.card(action.card), game.card(action.target)
-        to_attacker, to_defender = game.duel_damage(action.card, action.target)
+        to_attacker, to_defender = game.attack_damage(action.card, action.target)
         defeats = to_defender >= defender.card.health - defender.damage
         survives = to_attacker < attacker.card.health - attacker.damage
         return defeats and survives

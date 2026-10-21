@@ -38,31 +38,30 @@ EFFECTS = {
     "remove_damage": ("unit", HELPS, (1, 5)),
     "defeat": ("unit", HURTS, None),
     "return_to_hand": ("unit", HURTS, None),
-    "exhaust": ("unit", HURTS, None),
-    "ready": ("unit", HELPS, None),
-    "cant_ready": ("unit", HURTS, None),
+    "freeze": ("unit", HURTS, None),
     "modify_stat": ("unit", None, (1, 3)),  # polarity follows the sign
     "grant_keyword": ("unit", HELPS, None),
     "draw": ("player", HELPS, (1, 3)),
     "discard": ("player", HURTS, (1, 2)),
-    "gain_vp": ("player", HELPS, (1, 3)),
-    "lose_vp": ("player", HURTS, (1, 2)),
-    "add_energy": ("player", HELPS, None),
+    "heal_hero": ("player", HELPS, (2, 5)),
+    "damage_hero": ("player", HURTS, (1, 3)),
+    "gain_crystal": ("player", HELPS, None),
 }
-EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "exhaust": 4, "ready": 3,
-                  "cant_ready": 3, "modify_stat": 8, "grant_keyword": 4, "draw": 8, "discard": 3, "gain_vp": 6,
-                  "lose_vp": 3, "add_energy": 2}
-GRANTABLE_KEYWORDS = (("guard", 1), ("elusive", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
-# Guard, Elusive and Armor protect a unit during the opponent's turn, so a grant lasts until the
-# start of your next turn; Duelist only matters when you attack, so it lasts this turn. Charge is
-# never granted: it only matters on the turn a unit is played.
+EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "freeze": 4,
+                  "modify_stat": 8, "grant_keyword": 4, "draw": 8, "discard": 3, "heal_hero": 5, "damage_hero": 5,
+                  "gain_crystal": 2}
+GRANTABLE_KEYWORDS = (("guard", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
+# Guard and Armor protect a unit during the opponent's turn, so a grant lasts until the start of
+# your next turn; Duelist only matters when you attack, so it lasts this turn. Charge is never
+# granted: it only matters on the turn a unit is played. Elusive isn't either: a unit that has
+# attacked can't hide again.
 GRANT_DURATION = {"guard": "until_your_next_turn", "elusive": "until_your_next_turn",
                   "armor": "until_your_next_turn", "duelist": "this_turn"}
 DURATION_TEXT = {"this_turn": "this turn", "until_your_next_turn": "until the start of your next turn"}
-TRIGGERS = {"on_play": 10, "on_score": 4, "on_attack": 3, "on_defeated": 3, "start_of_turn": 3, "end_of_turn": 2,
+TRIGGERS = {"on_play": 10, "on_attack_hero": 3, "on_attack": 3, "on_defeated": 3, "start_of_turn": 3, "end_of_turn": 2,
             "another_played": 2, "opposing_defeated": 2}
 SITUATIONS = ("attacking", "defending", "exhausted", "damaged")
-RESTRICTING = {"cost_max", "damaged", "exhausted"}  # filter fields that limit how strong a defeat target can be
+RESTRICTING = {"cost_max", "damaged"}  # filter fields that limit how strong a defeat target can be
 
 
 def polarity(step: dict) -> str:
@@ -101,7 +100,8 @@ class AbilitySampler:
             t.fixed("Ability kind", "on_resolve", "action cards only have on-resolve abilities")
             kind = "on_resolve"
         else:
-            kind = t.weighted("Ability kind", {"triggered": 5, "activated": 2, "static": 3})
+            kind = t.weighted("Ability kind", {"triggered": 5, "activated": 0, "static": 3},
+                              "units only attack: no ⟳ abilities in rules v2")
         self.card_type = card_type
         self.names = []  # (name, side) of choices made so far
         if kind == "static":
@@ -150,11 +150,11 @@ class AbilitySampler:
 
     def _condition(self) -> dict:
         t = self.trace
-        kind = t.weighted("Condition", {"count": 3, "behind": 1})
+        kind = t.weighted("Condition", {"count": 3, "behind_on_health": 1})
         if kind == "count":
             return {"count": {"owner": "you", "trait": t.choice("Count which job", self.traits), "not_this": True},
                     "at_least": t.choice("At least", (2, 3))}
-        return {"behind_on_vp": True}
+        return {"behind_on_health": True}
 
     def _filter(self, owner: str, extra_chance: float = 0.35) -> dict:
         t = self.trace
@@ -168,7 +168,7 @@ class AbilitySampler:
             if restrict:
                 t.fixed("Restrict the target?", "yes", "defeat always needs a restricted target")
         if restrict:
-            extra = t.weighted("Restriction", {"damaged": 2, "exhausted": 2, "cost_max": 2, "trait": 2})
+            extra = t.weighted("Restriction", {"damaged": 2, "cost_max": 2, "trait": 2})
             if extra == "cost_max":
                 f["cost_max"] = t.choice("Cost at most", (2, 3, 4))
             elif extra == "trait":
@@ -202,7 +202,7 @@ class AbilitySampler:
             with t.section("you may (cost)"):
                 cost = self._self_cost()
             self.names = [n for n in self.names if n[0] != "that"]  # the reward doesn't target what was paid
-            same_resource = "gain_vp" if cost[-1]["effect"] == "lose_vp" else None  # "lose 1, gain 2" is just "gain 1"
+            same_resource = "heal_hero" if cost[-1]["effect"] == "damage_hero" else None  # "lose 2, heal 3" is just "heal 1"
             with t.section("if you do (reward)"):
                 reward = self._effect(ability, helps_only=True, strong=True, exclude=same_resource)
             return [{"may": cost, "if_you_do": reward}]
@@ -213,16 +213,13 @@ class AbilitySampler:
 
     def _self_cost(self) -> list:
         t = self.trace
-        kind = t.weighted("Cost to pay", {"discard": 3, "exhaust_own": 2, "damage_own": 1, "lose_vp": 1})
+        kind = t.weighted("Cost to pay", {"discard": 3, "damage_own": 1, "damage_hero": 2})
         if kind == "discard":
             return [{"effect": "discard", "target": "you", "amount": 1, "chosen": True}]
-        if kind == "lose_vp":
-            return [{"effect": "lose_vp", "target": "you", "amount": 1}]
+        if kind == "damage_hero":
+            return [{"effect": "damage_hero", "target": "you", "amount": t.choice("Damage", (2, 3))}]
         self.names.append(("that", "you"))
         choose = {"choose": {"count": 1, "filter": self._filter("you", extra_chance=0)}, "as": "that"}
-        if kind == "exhaust_own":
-            choose["choose"]["filter"]["exhausted"] = False
-            return [choose, {"effect": "exhaust", "target": {"ref": "that"}}]
         return [choose, {"effect": "deal_damage", "target": {"ref": "that"}, "amount": t.choice("Damage", (1, 2))}]
 
     def _effect(self, ability: dict, op: str | None = None, player_only=False, helps_only=False, choose=False,
@@ -240,7 +237,7 @@ class AbilitySampler:
         kind, pol, rng_ = EFFECTS[op]
         step = {"effect": op}
         if op == "modify_stat":
-            stat = t.weighted("Stat", {"power": 6, "health": 3, "score": 1})
+            stat = t.weighted("Stat", {"power": 6, "health": 3})
             sign = 1 if helps_only or t.chance("Raise it? (else lower)", 0.7) else -1
             if sign < 0:
                 stat = "power"
@@ -250,10 +247,6 @@ class AbilitySampler:
         elif op == "grant_keyword":
             keyword, value = t.choice("Keyword", GRANTABLE_KEYWORDS)
             step.update(keyword=keyword, value=value, duration=GRANT_DURATION[keyword])
-        elif op == "cant_ready":
-            step["duration"] = "until_their_next_turn"
-        elif op == "ready":
-            step["no_score_or_activate"] = True  # stops ready loops (see validate)
         elif op == "discard":
             step["random"] = True
 
@@ -262,7 +255,7 @@ class AbilitySampler:
             step["amount"] = t.small("Amount", lo + (1 if strong else 0), hi, "a reward is at least 2" if strong else "")
             if op == "remove_damage" and t.chance("Remove all damage instead?", 0.3):
                 step["amount"] = "all"
-            elif op in ("deal_damage", "draw", "gain_vp") and t.chance("Scale with a count instead?", 0.15):
+            elif op in ("deal_damage", "draw", "heal_hero") and t.chance("Scale with a count instead?", 0.15):
                 step["amount"] = {"per": {"owner": t.choice("Count whose units", ("you", "any")),
                                           "trait": t.choice("Count which job", self.traits)},
                                   "k": 1, "cap": t.choice("Up to", (3, 4, 5))}
@@ -277,7 +270,7 @@ class AbilitySampler:
         with t.section("target"):
             earlier = [name for name, s in self.names if s == side]
             can_use_this = (side == "you" and ability.get("kind") in ("triggered", "static")
-                            and ability.get("trigger", {}).get("event") != "on_defeated" and op != "ready")
+                            and ability.get("trigger", {}).get("event") != "on_defeated")
             choose = choose or op == "defeat"  # defeat always goes through a restricted choice
             if earlier and not choose and t.chance(f"Reuse '{earlier[-1]}'?", 0.6):
                 step["target"] = {"ref": earlier[-1]}
@@ -395,11 +388,9 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
         op = step["effect"]
         kind, _, rng_ = EFFECTS[op]
         target = step["target"]
-        if op == "ready" and not step.get("no_score_or_activate"):
-            problems.append("readied units must be barred from scoring and ⟳ that turn")
         if op == "grant_keyword":
-            if step["keyword"] == "charge":
-                problems.append("Charge can't be granted: it only matters on the turn a unit is played")
+            if step["keyword"] in ("charge", "elusive"):
+                problems.append(f"{step['keyword']} can't be granted (it only matters before a unit first acts)")
             elif step.get("duration") != GRANT_DURATION[step["keyword"]]:
                 problems.append(f"{step['keyword']} must last {DURATION_TEXT[GRANT_DURATION[step['keyword']]]}")
         if isinstance(target, dict) and "ref" in target:
@@ -408,7 +399,7 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
                 return
             side, target_kind = scope[target["ref"]]["owner"], "unit"
             if op == "defeat" and not RESTRICTING & set(scope[target["ref"]]):
-                problems.append("defeat needs a restricted target (low cost, damaged or exhausted)")
+                problems.append("defeat needs a restricted target (low cost or damaged)")
         elif isinstance(target, dict) and "all" in target:
             side, target_kind = target["all"]["owner"], "unit"
             if op == "defeat":
@@ -468,14 +459,14 @@ def card_problems(card_type: str, health: int, keywords: dict, abilities) -> lis
         given += [e for e in on_this if e["effect"] == "grant_keyword"]
         if any(not KEYWORDS[g["keyword"]] and keywords.get(g["keyword"]) for g in given):
             problems.append("gives this unit a keyword it already has")
-        # A unit is fresh the turn it's played: it can't score, and can only duel with Charge.
+        # A unit is fresh the turn it's played: it can only attack with Charge.
         # It also has no damage yet.
         if ability["kind"] == "triggered" and ability["trigger"]["event"] == "on_play":
             if any(e["effect"] == "remove_damage" for e in on_this):
                 problems.append("removes damage from a unit that was just played and has none")
             for e in on_this:
                 if e["effect"] == "modify_stat" and e.get("duration", "this_turn") == "this_turn" and (
-                        e["stat"] == "score" or (e["stat"] == "power" and not keywords.get("charge"))):
+                        e["stat"] == "power" and not keywords.get("charge")):
                     problems.append(f"+{e['stat']} this turn on a unit that was just played and can't use it")
     return problems
 
@@ -511,8 +502,8 @@ def _adjectives(f: dict) -> str:
 
 
 def _opposing(f: dict) -> str:
-    """"damaged opposing Chef": the job goes next to the noun, like on your own units."""
-    words = [_adjectives({k: v for k, v in f.items() if k not in ("trait", "not_this")}), "opposing", f.get("trait", "")]
+    """"damaged enemy Chef": the job goes next to the noun, like on your own units."""
+    words = [_adjectives({k: v for k, v in f.items() if k not in ("trait", "not_this")}), "enemy", f.get("trait", "")]
     return " ".join(w for w in words if w)
 
 
@@ -576,7 +567,7 @@ class Renderer:
 
     def effect(self, s: dict) -> str:
         op, amount = s["effect"], s.get("amount")
-        if op in ("draw", "discard", "gain_vp", "lose_vp", "add_energy"):
+        if op in ("draw", "discard", "heal_hero", "damage_hero", "gain_crystal"):
             you = s["target"] == "you"
             n = amount if isinstance(amount, int) else 1
             if op == "draw":
@@ -587,11 +578,11 @@ class Renderer:
             if op == "discard":
                 cards = "a card" if n == 1 else f"{n} cards"
                 return f"Discard {cards}." if you else f"Your opponent discards {cards} at random."
-            if op == "gain_vp":
-                return f"Gain {n if isinstance(amount, int) else 1} VP{_amount_suffix(amount)}."
-            if op == "lose_vp":
-                return f"Lose {n} VP." if you else f"Your opponent loses {n} VP."
-            return "Put the top card of your deck into your energy zone, exhausted."
+            if op == "heal_hero":
+                return f"Heal your hero for {n if isinstance(amount, int) else 1}{_amount_suffix(amount)}."
+            if op == "damage_hero":
+                return f"Deal {n} damage to {'your' if you else 'the enemy'} hero."
+            return "Gain an empty mana crystal."
 
         t, plural = self.target(s["target"])
         s_ = "" if plural else "s"
@@ -605,13 +596,10 @@ class Renderer:
             return f"Defeat {t}."
         if op == "return_to_hand":
             return f"Return {t} to their owners’ hands." if plural else f"Return {t} to its owner’s hand."
-        if op == "ready":
-            pronoun = "They" if plural else "It"
-            return f"Ready {t}. {pronoun} can’t score or use ⟳ abilities this turn."
+        if op == "freeze":
+            return f"Freeze {t}: {'they' if plural else 'it'} can’t attack on {its} next turn."
         if op == "exhaust":
             return f"Exhaust {t}."
-        if op == "cant_ready":
-            return f"{_cap(t)} can’t ready at the start of {its} next turn."
         if op == "modify_stat":
             sign = "+" if s["delta"] > 0 else "−"
             duration = DURATION_TEXT[s.get("duration", "this_turn")]
@@ -644,21 +632,21 @@ def _condition_text(c: dict, card_type: str) -> str:
     if "count" in c:
         f = c["count"]
         return f"you have {c['at_least']} or more {_adjectives(f)} units in play"
-    if "behind_on_vp" in c:
-        return "you have fewer VP than your opponent"
+    if "behind_on_health" in c:
+        return "your hero has less health than the enemy hero"
     return f"this {card_type} is {c['this_is']}"
 
 
 def _trigger_text(t: dict) -> str:
     return {
         "on_play": "When you play this unit",
-        "on_score": "Whenever this unit scores",
-        "on_attack": "Whenever this unit attacks in a duel",
+        "on_attack_hero": "Whenever this unit attacks the enemy hero",
+        "on_attack": "Whenever this unit attacks",
         "on_defeated": "When this unit is defeated",
         "start_of_turn": "At the start of your turn",
         "end_of_turn": "At the end of your turn",
         "another_played": f"Whenever you play another {t.get('filter', {}).get('trait', '')} unit",
-        "opposing_defeated": "Whenever an opposing unit is defeated",
+        "opposing_defeated": "Whenever an enemy unit is defeated",
     }[t["event"]]
 
 
@@ -698,7 +686,7 @@ def render(ability: dict, card_type: str = "unit") -> str:
             if c.get("exhaust_this"):
                 costs.append("⟳")
             if "pay" in c:
-                costs.append(f"{c['pay']} energy")
+                costs.append(f"{c['pay']} mana")
             if "discard" in c:
                 costs.append("discard a card")
             if "exhaust_another" in c:

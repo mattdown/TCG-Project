@@ -1,404 +1,404 @@
 # abilities_200: checklist
 
-200 cards with abilities (seed 0, jobs: Scholar, Miner, Baker, Lamplighter, Chef, Postman). 1037 draws from the grammar; stopped at: variety 600, quality 218, card 18, grammar 1. Costs are rough (src/cards/costing.py).
+200 cards with abilities (seed 0, jobs: Scholar, Miner, Baker, Lamplighter, Chef, Postman). 975 draws from the grammar; stopped at: variety 600, quality 154, card 20, grammar 1. Costs are rough (src/cards/costing.py).
 
-- [ ] **A1-001 Puffball Chef – Jeering Crowd** (cost 5, 2 power · 2 health · 3 score, Guard)
-  - All damaged opposing units get −1 power.
-- [ ] **A1-002 Truffle Miner – Just Sprouted** (cost 4, 2 power · 1 health · 1 score)
-  - When you play this unit, choose one: • Draw 2 cards. • Return chosen opposing unit to its owner’s hand.
-- [ ] **A1-003 Inkcap Postman – Last Act** (cost 3, 3 power · 2 health · 1 score)
-  - When this unit is defeated, another chosen unit of yours gets +2 power this turn.
-- [ ] **A1-004 Bog Drowsiness** (cost 2, action)
-  - Exhaust all opposing Lamplighter units.
-- [ ] **A1-005 Ghost Postman – Rainmaker** (cost 2, 1 power · 1 health · 1 score)
-  - When you play this unit, if you have 3 or more other Chef units in play, choose one: • Put the top card of your deck into your energy zone, exhausted. • Gain 1 VP.
-- [ ] **A1-006 Button Baker – Head of the Guild** (cost 5, 2 power · 6 health · 1 score)
-  - Your other Miner units get +1 power.
-- [ ] **A1-007 Snowcap Lamplighter – Mean Streak** (cost 2, 1 power · 2 health · 1 score)
-  - While this unit is attacking, it gets +1 power for each of your Baker units (up to +3).
-- [ ] **A1-008 Portobello Baker – Hard Cap** (cost 4, 1 power · 2 health · 1 score, Armor +2)
-  - While this unit is attacking, it gets +2 power.
-- [ ] **A1-009 Murk Harvest Fair** (cost 2, action)
-  - You may discard a card. If you do, gain 2 VP.
-- [ ] **A1-010 Lion's-mane Scholar – Ahead of Quota** (cost 4, 3 power · 1 health · 1 score)
-  - Whenever this unit scores, deal 1 damage to chosen exhausted opposing unit. If it was defeated, gain 1 VP.
-- [ ] **A1-011 Snowcap Scholar – Dew Collector** (cost 6, 1 power · 1 health · 1 score, Charge)
-  - At the start of your turn, choose one: • Your opponent discards 2 cards at random. • Your other exhausted units get +2 power this turn.
-- [ ] **A1-012 Bog Harvest Fair** (cost 1, action)
-  - Gain 1 VP.
-- [ ] **A1-013 Chanterelle Scholar – Soothing Spores** (cost 4, 1 power · 2 health · 1 score, Armor +2)
-  - ⟳, 1 energy: Remove 1 damage from another chosen unit of yours.
-- [ ] **A1-014 Puffball Chef – Curious Cap** (cost 5, 1 power · 2 health · 1 score, Armor +2)
-  - When you play this unit, draw 2 cards.
-- [ ] **A1-015 Rime Almanac** (cost 2, action)
-  - Choose one: • Draw a card for each of your Baker units (up to 3). • Your opponent discards a card at random.
-- [ ] **A1-016 Hayfield Insight** (cost 2, action)
-  - Choose one: • Draw a card. • A chosen exhausted unit of yours gains Guard until the start of your next turn.
-- [ ] **A1-017 Portobello Miner – Back to the Soil** (cost 5, 4 power · 1 health · 3 score)
-  - When this unit is defeated, choose one: • Draw a card. • Another chosen exhausted unit of yours gains Duelist +2 this turn.
-- [ ] **A1-018 Morel Lamplighter – Leaves Something Behind** (cost 4, 2 power · 2 health · 2 score, Charge)
-  - When this unit is defeated, you may discard a card. If you do, ready another chosen exhausted unit of yours. It can’t score or use ⟳ abilities this turn.
-- [ ] **A1-019 Snowcap Lamplighter – New in Town** (cost 3, 1 power · 1 health · 1 score, Elusive)
-  - When you play this unit, choose one: • Your opponent loses 1 VP. • Gain 1 VP.
-- [ ] **A1-020 Oyster Scholar – Big Break** (cost 6, 1 power · 1 health · 1 score, Charge)
-  - Whenever this unit scores, you may discard a card. If you do, gain 3 VP.
-- [ ] **A1-021 Bog Second Wind** (cost 1, action)
-  - Ready a chosen unit of yours. It can’t score or use ⟳ abilities this turn.
-- [ ] **A1-022 Murk Boost** (cost 1, action)
-  - You may discard a card. If you do, a chosen exhausted unit of yours gets +1 health this turn.
-- [ ] **A1-023 Moss Pelting** (cost 4, action)
-  - Deal 4 damage to chosen opposing unit. If it was defeated, gain 3 VP.
-- [ ] **A1-024 Smoulder Thump** (cost 3, action)
-  - Deal 2 damage to chosen opposing unit. If it was defeated, draw 3 cards.
-- [ ] **A1-025 Ghost Scholar – Big Break** (cost 5, 2 power · 2 health · 1 score, Duelist +3)
-  - When you play this unit, you may discard a card. If you do, gain 2 VP.
-- [ ] **A1-026 Clover Volley** (cost 2, action)
-  - Deal 1 damage to chosen opposing Chef unit. If it was defeated, draw 2 cards.
-- [ ] **A1-027 Waxcap Miner – Hot off the Cart** (cost 3, 1 power · 4 health · 1 score)
-  - When you play this unit, deal 1 damage to chosen opposing unit.
-- [ ] **A1-028 Shiitake Chef – Straight from the Spore** (cost 5, 2 power · 3 health · 1 score)
-  - When you play this unit, choose one: • Draw 2 cards. • Your other units get +2 health this turn.
-- [ ] **A1-029 Chanterelle Postman – Knows a Guy** (cost 3, 1 power · 4 health · 1 score)
-  - Scholar cards you play cost 1 less.
-- [ ] **A1-030 Mire Insight** (cost 2, action)
-  - Draw 2 cards.
-- [ ] **A1-031 Button Miner – Rumour Mill** (cost 4, 1 power · 1 health · 1 score, Elusive)
-  - ⟳: Draw a card.
-- [ ] **A1-032 Ghost Chef – Knows the Ropes** (cost 5, 1 power · 1 health · 4 score)
-  - While you have 2 or more other Lamplighter units in play, this unit has Elusive.
-- [ ] **A1-033 Button Miner – Second Nature** (cost 3, 1 power · 1 health · 1 score, Armor +2)
-  - While you have 2 or more other Postman units in play, this unit has Guard.
-- [ ] **A1-034 Cinder Poultice** (cost 1, action)
-  - Remove all damage from a chosen unit of yours.
-- [ ] **A1-035 Glow Pelting** (cost 1, action)
-  - Deal 1 damage to chosen opposing Scholar unit for each of your Chef units (up to 3).
-- [ ] **A1-036 Turkey-tail Miner – New in Town** (cost 5, 1 power · 1 health · 1 score, Armor +2)
-  - When you play this unit, deal 3 damage to chosen damaged opposing unit. If it was defeated, draw 2 cards.
-- [ ] **A1-037 Glow Training** (cost 1, action)
-  - Your units gain Elusive until the start of your next turn.
-- [ ] **A1-038 Shiitake Baker – Growth Spurt** (cost 2, 1 power · 1 health · 1 score, Guard)
-  - ⟳: Another chosen unit of yours gets +1 power this turn.
-- [ ] **A1-039 Inkcap Miner – Training Day** (cost 5, 5 power · 1 health · 2 score)
-  - At the start of your turn, another chosen unit of yours gains Guard until the start of your next turn.
-- [ ] **A1-040 Truffle Lamplighter – Hard Knocks** (cost 5, 2 power · 1 health · 2 score)
-  - Whenever an opposing unit is defeated, deal 2 damage to chosen opposing unit with cost 3 or less. If it was defeated, put the top card of your deck into your energy zone, exhausted.
-- [ ] **A1-041 Porcini Lamplighter – Hard Cap** (cost 2, 1 power · 2 health · 1 score)
-  - While this unit is defending, it gets +1 health for each of your Scholar units (up to +3).
-- [ ] **A1-042 Portobello Baker – Fresh Out of the Ground** (cost 4, 1 power · 2 health · 1 score)
-  - When you play this unit, deal 4 damage to chosen opposing unit with cost 2 or less. If it was defeated, draw 2 cards.
-- [ ] **A1-043 Fly-agaric Lamplighter – Inspiring Boss** (cost 5, 3 power · 6 health · 1 score)
-  - Your other Scholar units get +1 health.
-- [ ] **A1-044 Inkcap Chef – Clocking In** (cost 3, 1 power · 1 health · 1 score, Charge)
-  - At the start of your turn, if you have 3 or more other Baker units in play, draw a card.
-- [ ] **A1-045 Waxcap Postman – Stretching Out** (cost 3, 1 power · 1 health · 2 score, Charge)
-  - ⟳: Another chosen unit of yours gets +1 health this turn.
-- [ ] **A1-046 Truffle Lamplighter – Stuck in the Mud** (cost 4, 2 power · 1 health · 1 score)
-  - Whenever this unit attacks in a duel, all opposing units with cost 2 or less can’t ready at the start of their next turn.
-- [ ] **A1-047 Glow Barrage** (cost 2, action)
-  - Deal 1 damage to chosen opposing unit. If it was defeated, draw a card for each Lamplighter unit in play (up to 3).
-- [ ] **A1-048 Clover Boost** (cost 1, action)
-  - Chosen opposing unit gets −1 power this turn.
-- [ ] **A1-049 Enoki Chef – Fashionably Early** (cost 5, 1 power · 4 health · 1 score)
-  - When you play this unit, choose one: • Your opponent loses 2 VP. • Deal 2 damage to all opposing units.
-- [ ] **A1-050 Portobello Scholar – First Light** (cost 5, 1 power · 1 health · 2 score)
-  - At the start of your turn, choose one: • Your opponent loses 1 VP. • Chosen opposing Miner unit gets −1 power this turn.
-- [ ] **A1-051 Glow Fanfare** (cost 4, action)
-  - Choose one: • Gain 3 VP. • Ready your units. They can’t score or use ⟳ abilities this turn.
-- [ ] **A1-052 Waxcap Scholar – Opening Shift** (cost 2, 1 power · 1 health · 1 score)
-  - At the start of your turn, this unit gains Duelist +2 this turn.
-- [ ] **A1-053 Fly-agaric Lamplighter – Puts Feet Up** (cost 2, 1 power · 1 health · 1 score)
-  - When you play this unit, exhaust chosen opposing unit.
-- [ ] **A1-054 Honey Scholar – New in Town** (cost 4, 1 power · 1 health · 1 score, Duelist +2)
-  - When you play this unit, deal 1 damage to chosen opposing unit for each of your Chef units (up to 5). If it was defeated, put the top card of your deck into your energy zone, exhausted.
-- [ ] **A1-055 Turkey-tail Chef – Patches Things Up** (cost 3, 3 power · 2 health · 1 score)
-  - When you play this unit, remove 1 damage from another chosen damaged unit of yours.
-- [ ] **A1-056 Shiitake Miner – Union Rep** (cost 5, 4 power · 4 health · 1 score)
-  - Whenever you play another Baker unit, deal 2 damage to chosen opposing unit.
-- [ ] **A1-057 Inkcap Scholar – Just Sprouted** (cost 3, 2 power · 1 health · 1 score)
-  - When you play this unit, return chosen damaged opposing unit to its owner’s hand.
-- [ ] **A1-058 Rime Slumber** (cost 2, action)
-  - Exhaust all opposing units.
-- [ ] **A1-059 Root Ambush** (cost 2, action)
-  - Deal 2 damage to chosen opposing Miner unit. If it was defeated, gain 1 VP.
-- [ ] **A1-060 Waxcap Lamplighter – Rains on Parades** (cost 3, 1 power · 1 health · 1 score, Charge)
-  - ⟳, 2 energy: Your opponent loses 1 VP.
-- [ ] **A1-061 Lantern Slumber** (cost 1, action)
-  - Exhaust chosen opposing unit.
-- [ ] **A1-062 Chanterelle Baker – Avid Reader** (cost 4, 2 power · 1 health · 1 score, Duelist +2)
-  - Whenever an opposing unit is defeated, if you have fewer VP than your opponent, choose one: • Draw a card for each of your Chef units (up to 3). • This unit gains Armor +1 until the start of your next turn.
-- [ ] **A1-063 Chanterelle Miner – Spiky Temper** (cost 6, 1 power · 1 health · 1 score, Elusive)
-  - Whenever you play another Scholar unit, deal 5 damage to chosen opposing Miner unit.
-- [ ] **A1-064 Lantern Ambush** (cost 3, action)
-  - Deal 3 damage to chosen opposing unit. If it was defeated, draw a card for each of your Scholar units (up to 5).
-- [ ] **A1-065 Shiitake Scholar – New in Town** (cost 4, 1 power · 2 health · 1 score, Elusive)
-  - When you play this unit, all opposing Lamplighter units can’t ready at the start of their next turn.
-- [ ] **A1-066 Meadow Eviction** (cost 2, action)
-  - Defeat chosen opposing unit with cost 2 or less.
-- [ ] **A1-067 Morel Baker – Pointy End** (cost 3, 1 power · 1 health · 1 score)
-  - When you play this unit, deal 3 damage to chosen opposing unit. If it was defeated, draw a card.
-- [ ] **A1-068 Chanterelle Baker – Heavy Handed** (cost 5, 3 power · 3 health · 1 score)
-  - Whenever this unit scores, deal 1 damage to chosen opposing unit. If it was defeated, gain 1 VP.
-- [ ] **A1-069 Puffball Miner – Rough and Tumble** (cost 3, 2 power · 1 health · 1 score)
-  - ⟳, discard a card: Deal 2 damage to chosen opposing unit.
-- [ ] **A1-070 Truffle Baker – Heads Up** (cost 4, 1 power · 1 health · 2 score, Elusive)
-  - When you play this unit, your other damaged units get +2 power this turn.
-- [ ] **A1-071 Porcini Chef – Spoiling for Trouble** (cost 5, 1 power · 3 health · 2 score, Guard)
-  - Whenever this unit attacks in a duel, deal 1 damage to chosen opposing unit. If it was defeated, draw a card.
-- [ ] **A1-072 Waxcap Lamplighter – Bad Review** (cost 4, 2 power · 1 health · 1 score)
-  - ⟳: Choose one: • Your opponent loses 1 VP. • Another chosen unit of yours gets +1 health this turn.
-- [ ] **A1-073 Ember Pelting** (cost 1, action)
-  - Deal 1 damage to all opposing units.
-- [ ] **A1-074 Ghost Lamplighter – Loose Pages** (cost 2, 1 power · 1 health · 1 score)
-  - Whenever you play another Baker unit, if you have 3 or more other Chef units in play, draw a card.
-- [ ] **A1-075 Portobello Baker – Heavy Handed** (cost 4, 1 power · 1 health · 1 score)
-  - ⟳: Deal 3 damage to chosen opposing unit.
-- [ ] **A1-076 Waxcap Lamplighter – Heckler** (cost 4, 1 power · 1 health · 1 score)
-  - Whenever you play another Scholar unit, your opponent loses 2 VP.
-- [ ] **A1-077 Turkey-tail Lamplighter – Puffed Up** (cost 4, 2 power · 5 health · 1 score)
-  - When you play this unit, another chosen unit of yours gets +1 power this turn.
-- [ ] **A1-078 Button Scholar – Lost Property** (cost 4, 1 power · 2 health · 2 score)
-  - At the start of your turn, if you have 2 or more other Miner units in play, your opponent discards a card at random.
-- [ ] **A1-079 Button Scholar – Proud Mentor** (cost 5, 6 power · 1 health · 2 score)
-  - Whenever you play another Baker unit, you may lose 1 VP. If you do, your other units gain Guard until the start of your next turn.
-- [ ] **A1-080 Honey Postman – Buddy System** (cost 3, 1 power · 1 health · 1 score, Charge)
-  - ⟳: Your other exhausted units gain Elusive until the start of your next turn.
-- [ ] **A1-081 Honey Chef – On a Roll** (cost 5, 2 power · 8 health · 1 score)
-  - When you play this unit, chosen opposing unit gets −1 power this turn.
-- [ ] **A1-082 Truffle Miner – Endless Paperwork** (cost 4, 1 power · 2 health · 1 score, Elusive)
-  - Whenever an opposing unit is defeated, exhaust chosen opposing unit.
-- [ ] **A1-083 Truffle Postman – Prickly Customer** (cost 3, 2 power · 1 health · 1 score)
-  - When you play this unit, deal 1 damage to chosen opposing unit. If it was defeated, draw a card for each Lamplighter unit in play (up to 4).
-- [ ] **A1-084 Bonfire Scatter** (cost 1, action)
-  - Your opponent discards a card at random.
-- [ ] **A1-085 Chanterelle Scholar – Full Satchel** (cost 3, 1 power · 2 health · 1 score)
-  - ⟳, 1 energy: Draw a card.
-- [ ] **A1-086 Oyster Scholar – Proud Mentor** (cost 6, 1 power · 1 health · 1 score)
-  - Whenever you play another Postman unit, choose one: • Draw 3 cards. • Deal 3 damage to chosen damaged opposing unit.
-- [ ] **A1-087 Oyster Postman – Sticky Situation** (cost 3, 1 power · 2 health · 1 score)
-  - ⟳: Chosen opposing unit can’t ready at the start of its next turn.
-- [ ] **A1-088 Portobello Chef – Off the Boat** (cost 3, 1 power · 2 health · 1 score, Elusive)
-  - When you play this unit, deal 1 damage to chosen opposing Chef unit.
-- [ ] **A1-089 Button Lamplighter – Heckler** (cost 3, 1 power · 1 health · 1 score)
-  - ⟳: Choose one: • Your opponent loses 1 VP. • Another chosen unit of yours with cost 2 or less gets +1 health this turn.
-- [ ] **A1-090 Chanterelle Scholar – Rough and Tumble** (cost 5, 1 power · 1 health · 3 score)
-  - ⟳, 1 energy: Deal 2 damage to chosen opposing unit with cost 2 or less.
-- [ ] **A1-091 Snowcap Miner – Light on Feet** (cost 3, 1 power · 2 health · 1 score, Elusive)
+- [ ] **A1-001 Puffball Chef – Jeering Crowd** (cost 5, 2 power · 5 health, Elusive)
+  - All damaged enemy units get −1 power.
+- [ ] **A1-002 Lichen Harvest** (cost 1, action)
+  - You may discard a card. If you do, gain an empty mana crystal.
+- [ ] **A1-003 Morel Scholar – Over the Wall** (cost 5, 5 power · 5 health)
+  - Whenever this unit attacks the enemy hero, if your hero has less health than the enemy hero, you may discard a card. If you do, heal your hero for 4.
+- [ ] **A1-004 Turkey-tail Scholar – Loose Pages** (cost 1, 1 power · 1 health)
+  - When this unit is defeated, if you have 2 or more other Baker units in play, draw a card.
+- [ ] **A1-005 Bonfire Collapse** (cost 2, action)
+  - Defeat chosen enemy unit with cost 4 or less.
+- [ ] **A1-006 Lion's-mane Postman – First Day on the Job** (cost 3, 2 power · 1 health, Elusive)
+  - When you play this unit, freeze chosen damaged enemy unit: it can’t attack on its next turn.
+- [ ] **A1-007 Lantern Fumble** (cost 2, action)
+  - Your opponent discards 2 cards at random.
+- [ ] **A1-008 Morel Lamplighter – Warm Blanket** (cost 4, 1 power · 1 health)
+  - Whenever an enemy unit is defeated, choose one: • Heal your hero for 2. • Deal 4 damage to chosen enemy unit.
+- [ ] **A1-009 Morel Scholar – Lends a Hand** (cost 2, 2 power · 2 health)
+  - At the end of your turn, you may deal 3 damage to your hero. If you do, another chosen unit of yours gains Guard until the start of your next turn.
+- [ ] **A1-010 Honey Lamplighter – Knows the Ropes** (cost 2, 2 power · 2 health)
   - While this unit is damaged, it has Duelist +1.
-- [ ] **A1-092 Truffle Lamplighter – Steady Under Pressure** (cost 5, 3 power · 2 health · 3 score)
-  - While this unit is attacking, it gets +1 power for each Baker unit in play (up to +3).
-- [ ] **A1-093 Turkey-tail Postman – Opening Shift** (cost 3, 1 power · 1 health · 1 score, Duelist +2)
-  - At the start of your turn, another chosen unit of yours with cost 3 or less gets +1 power this turn.
-- [ ] **A1-094 Lichen Mockery** (cost 2, action)
-  - Your opponent loses 2 VP.
-- [ ] **A1-095 Porcini Miner – Heavy Eyelids** (cost 5, 2 power · 2 health · 3 score)
-  - Whenever this unit scores, if you have 2 or more other Lamplighter units in play, exhaust chosen opposing unit.
-- [ ] **A1-096 Fly-agaric Lamplighter – Clocking In** (cost 8, 1 power · 1 health · 1 score, Charge)
-  - At the start of your turn, deal 4 damage to chosen opposing unit. If it was defeated, gain 1 VP.
-- [ ] **A1-097 Puffball Scholar – Tough Critic** (cost 6, 2 power · 1 health · 1 score)
-  - ⟳: Choose one: • Your opponent loses 2 VP. • Draw a card.
-- [ ] **A1-098 Enoki Lamplighter – Heavy Handed** (cost 6, 1 power · 1 health · 1 score)
-  - ⟳: Deal 2 damage to chosen damaged opposing unit. If it was defeated, draw 3 cards.
-- [ ] **A1-099 Lion's-mane Chef – Reporting for Duty** (cost 4, 1 power · 5 health · 2 score)
-  - When you play this unit, if you have 3 or more other Postman units in play, another chosen damaged unit of yours gets +1 power this turn.
-- [ ] **A1-100 Porcini Scholar – Battle Scarred** (cost 3, 2 power · 2 health · 2 score)
-  - While this unit is damaged, it has Guard.
-- [ ] **A1-101 Morel Scholar – Twilight Watch** (cost 6, 2 power · 1 health · 1 score)
-  - At the end of your turn, if you have 2 or more other Lamplighter units in play, choose one: • Gain 1 VP. • Draw a card for each Miner unit in play (up to 5).
-- [ ] **A1-102 Shiitake Scholar – Spoiling for Trouble** (cost 4, 1 power · 1 health · 1 score, Duelist +1)
-  - Whenever this unit attacks in a duel, draw a card for each of your Baker units (up to 3).
-- [ ] **A1-103 Inkcap Scholar – Yawn Spreader** (cost 3, 2 power · 1 health · 1 score, Guard)
-  - ⟳, exhaust another of your ready units: Exhaust chosen opposing unit.
-- [ ] **A1-104 Icicle Blessing** (cost 1, action)
-  - You may discard a card. If you do, a chosen damaged unit of yours gains Elusive until the start of your next turn.
-- [ ] **A1-105 Button Miner – Gentle Touch** (cost 2, 1 power · 1 health · 1 score, Guard)
-  - ⟳, discard a card: Remove 1 damage from another chosen unit of yours.
-- [ ] **A1-106 Lion's-mane Miner – Local Legend** (cost 3, 1 power · 2 health · 1 score)
-  - Whenever this unit scores, you may discard a card. If you do, remove 3 damage from your other units.
-- [ ] **A1-107 Porcini Miner – Stretching Out** (cost 3, 1 power · 1 health · 1 score, Elusive)
-  - ⟳: Your other units get +1 health this turn.
-- [ ] **A1-108 Turkey-tail Scholar – Slow Talker** (cost 5, 1 power · 2 health · 1 score, Armor +1)
-  - Whenever this unit attacks in a duel, exhaust all damaged opposing units.
-- [ ] **A1-109 Enoki Miner – Straight from the Spore** (cost 3, 1 power · 2 health · 1 score)
-  - When you play this unit, deal 2 damage to chosen opposing unit with cost 2 or less. If it was defeated, gain 1 VP.
-- [ ] **A1-110 Turkey-tail Baker – Hall of Fame** (cost 4, 1 power · 2 health · 1 score)
-  - Whenever this unit scores, choose one: • Gain 1 VP. • Deal 1 damage to all opposing units.
-- [ ] **A1-111 Ghost Lamplighter – First into the Fray** (cost 3, 2 power · 1 health · 1 score, Charge)
-  - Whenever this unit attacks in a duel, deal 1 damage to chosen opposing unit.
-- [ ] **A1-112 Marsh Scouting** (cost 3, action)
-  - You may discard a card. If you do, draw 3 cards.
-- [ ] **A1-113 Smoulder Letters** (cost 2, action)
-  - You may exhaust a chosen ready unit of yours. If you do, draw 2 cards.
-- [ ] **A1-114 Morel Postman – Stretching Out** (cost 2, 2 power · 1 health · 1 score)
-  - When you play this unit, all opposing units get −1 power this turn.
-- [ ] **A1-115 Honey Baker – Safety First** (cost 1, 1 power · 1 health · 1 score)
-  - Whenever an opposing unit is defeated, you may deal 2 damage to another chosen unit of yours. If you do, this unit gains Elusive until the start of your next turn.
-- [ ] **A1-116 Truffle Baker – Steady Hands** (cost 4, 1 power · 1 health · 1 score, Charge)
-  - Whenever this unit scores, if you have 3 or more other Chef units in play, remove 4 damage from your other units.
-- [ ] **A1-117 Starlit Bloom** (cost 1, action)
-  - A chosen Scholar unit of yours gets +2 power this turn.
-- [ ] **A1-118 Porcini Postman – Dreaded Visitor** (cost 4, 1 power · 1 health · 1 score)
-  - ⟳, discard a card: Defeat chosen exhausted opposing unit.
-- [ ] **A1-119 Fly-agaric Scholar – Spoiling for Trouble** (cost 4, 2 power · 1 health · 1 score)
-  - Whenever this unit attacks in a duel, you may discard a card. If you do, another chosen unit of yours gets +3 score this turn.
-- [ ] **A1-120 Honey Chef – Never Backs Down** (cost 4, 1 power · 2 health · 1 score, Armor +2)
-  - Whenever this unit attacks in a duel, if you have 3 or more other Baker units in play, another chosen damaged unit of yours gains Guard until the start of your next turn.
-- [ ] **A1-121 Ghost Chef – Hard Knocks** (cost 4, 1 power · 2 health · 1 score)
-  - Whenever an opposing unit is defeated, deal 1 damage to chosen opposing unit. If it was defeated, gain 2 VP.
-- [ ] **A1-122 Lion's-mane Miner – Watchful Friend** (cost 2, 1 power · 1 health · 1 score)
-  - When you play this unit, your other units gain Armor +1 until the start of your next turn.
-- [ ] **A1-123 Oyster Scholar – Grim Gardener** (cost 5, 1 power · 1 health · 1 score)
-  - ⟳: Defeat chosen damaged opposing unit.
-- [ ] **A1-124 Glow Volley** (cost 2, action)
-  - Deal 2 damage to all opposing units with cost 2 or less.
-- [ ] **A1-125 Snowdrift Volley** (cost 2, action)
-  - Deal 1 damage to chosen opposing unit with cost 4 or less. If it was defeated, gain 1 VP for each of your Chef units (up to 5).
-- [ ] **A1-126 Enoki Baker – Crowd Favourite** (cost 4, 2 power · 3 health · 1 score, Armor +1)
-  - Whenever this unit scores, you may discard a card. If you do, another chosen unit of yours gets +1 power this turn.
-- [ ] **A1-127 Porcini Chef – Heavy Handed** (cost 2, 1 power · 2 health · 1 score)
-  - When you play this unit, deal 1 damage to chosen opposing unit for each Lamplighter unit in play (up to 3).
-- [ ] **A1-128 Mire Wake-Up** (cost 1, action)
-  - Ready your units. They can’t score or use ⟳ abilities this turn.
-- [ ] **A1-129 Snowcap Scholar – Hard Cap** (cost 4, 2 power · 3 health · 2 score)
-  - While this unit is defending, it gets +1 health.
-- [ ] **A1-130 Snowcap Lamplighter – Parting Gift** (cost 3, 1 power · 2 health · 1 score)
-  - When this unit is defeated, draw 2 cards.
-- [ ] **A1-131 Honey Baker – Sour Grapes** (cost 6, 2 power · 1 health · 1 score, Elusive)
-  - Whenever this unit scores, choose one: • Your opponent loses 1 VP. • Exhaust all exhausted opposing units.
-- [ ] **A1-132 Chanterelle Lamplighter – Morning Whistle** (cost 3, 1 power · 1 health · 1 score, Elusive)
-  - ⟳, 1 energy: Ready another chosen unit of yours. It can’t score or use ⟳ abilities this turn.
-- [ ] **A1-133 Porcini Scholar – Big Day** (cost 2, 3 power · 1 health · 1 score)
-  - Whenever this unit scores, you may lose 1 VP. If you do, another chosen damaged unit of yours gets +2 power this turn.
-- [ ] **A1-134 Turkey-tail Lamplighter – Seasoned Pro** (cost 2, 2 power · 1 health · 1 score)
-  - While you have 2 or more other Lamplighter units in play, this unit has Duelist +1.
-- [ ] **A1-135 Bonfire Pummel** (cost 2, action)
-  - Deal 2 damage to chosen opposing unit. If it was defeated, draw a card for each Chef unit in play (up to 4).
-- [ ] **A1-136 Honey Postman – Pointy End** (cost 3, 1 power · 1 health · 1 score, Elusive)
-  - ⟳: Deal 1 damage to chosen opposing unit with cost 4 or less.
-- [ ] **A1-137 Fly-agaric Baker – Butterfingers** (cost 4, 3 power · 2 health · 1 score)
-  - ⟳: Your opponent discards a card at random.
-- [ ] **A1-138 Snowcap Chef – Rise and Shine** (cost 8, 2 power · 1 health · 1 score)
-  - At the start of your turn, deal 1 damage to chosen opposing unit for each of your Postman units (up to 5). If it was defeated, draw 3 cards.
-- [ ] **A1-139 Fly-agaric Miner – Night Shift** (cost 7, 1 power · 1 health · 1 score)
-  - At the end of your turn, deal 1 damage to chosen opposing Postman unit for each of your Miner units (up to 5). If it was defeated, gain 1 VP for each Baker unit in play (up to 5).
-- [ ] **A1-140 Turkey-tail Postman – Second Wind** (cost 4, 2 power · 2 health · 1 score)
-  - At the start of your turn, ready your other units. They can’t score or use ⟳ abilities this turn.
-- [ ] **A1-141 Glow Pummel** (cost 2, action)
-  - Deal 4 damage to chosen opposing unit.
-- [ ] **A1-142 Porcini Lamplighter – Morning Rounds** (cost 4, 1 power · 2 health · 1 score, Elusive)
-  - At the start of your turn, your other units gain Guard until the start of your next turn.
-- [ ] **A1-143 Waxcap Baker – Bookworm** (cost 4, 1 power · 2 health · 1 score, Elusive)
-  - Whenever this unit attacks in a duel, draw a card.
-- [ ] **A1-144 Inkcap Lamplighter – Shows the Door** (cost 5, 1 power · 1 health · 1 score, Duelist +3)
-  - ⟳, 2 energy: Return chosen opposing unit with cost 3 or less to its owner’s hand.
-- [ ] **A1-145 Inkcap Chef – Thorn in the Side** (cost 5, 1 power · 1 health · 1 score)
-  - ⟳: Deal 2 damage to all opposing units.
-- [ ] **A1-146 Inkcap Miner – Afternoon Nap** (cost 3, 1 power · 2 health · 1 score)
-  - ⟳: Exhaust chosen damaged opposing unit.
-- [ ] **A1-147 Honey Chef – Stormcloud** (cost 3, 2 power · 2 health · 1 score)
-  - All damaged opposing units get −1 power.
-- [ ] **A1-148 Fly-agaric Miner – Captain of the Crew** (cost 5, 3 power · 2 health · 1 score, Duelist +3)
-  - Your other Chef units get +1 power.
-- [ ] **A1-149 Lichen Flourish** (cost 1, action)
-  - A chosen unit of yours gets +1 power this turn.
-- [ ] **A1-150 Shiitake Postman – Taking Notes** (cost 3, 2 power · 1 health · 1 score)
-  - Whenever an opposing unit is defeated, choose one: • Draw a card. • Deal 1 damage to chosen exhausted opposing unit.
-- [ ] **A1-151 Ghost Baker – Burning the Midnight Oil** (cost 3, 1 power · 1 health · 1 score)
-  - At the end of your turn, put the top card of your deck into your energy zone, exhausted.
-- [ ] **A1-152 Oyster Lamplighter – Old Hand** (cost 2, 1 power · 1 health · 1 score)
-  - Your other Lamplighter units get +1 health.
-- [ ] **A1-153 Murk Volley** (cost 1, action)
-  - Deal 1 damage to chosen opposing unit with cost 2 or less.
-- [ ] **A1-154 Truffle Postman – Prize Winner** (cost 4, 2 power · 1 health · 1 score, Guard)
-  - Whenever this unit scores, put the top card of your deck into your energy zone, exhausted.
-- [ ] **A1-155 Chanterelle Miner – Gossip** (cost 3, 1 power · 1 health · 2 score)
-  - When you play this unit, your opponent discards a card at random.
-- [ ] **A1-156 Clover Sting** (cost 4, action)
-  - Deal 5 damage to chosen opposing Baker unit. If it was defeated, draw a card for each Lamplighter unit in play (up to 4).
-- [ ] **A1-157 Portobello Lamplighter – Medal Count** (cost 3, 1 power · 1 health · 1 score, Charge)
-  - ⟳, 2 energy: Gain 1 VP.
-- [ ] **A1-158 Rime Volley** (cost 2, action)
-  - Deal 3 damage to chosen exhausted opposing unit. If it was defeated, gain 1 VP.
-- [ ] **A1-159 Oyster Baker – Stretching Out** (cost 2, 1 power · 2 health · 1 score)
-  - Whenever this unit attacks in a duel, chosen opposing Scholar unit gets −1 power this turn.
-- [ ] **A1-160 Button Postman – Lost the Key** (cost 5, 4 power · 1 health · 2 score)
-  - ⟳, 1 energy: Chosen opposing unit can’t ready at the start of its next turn.
-- [ ] **A1-161 Murk Almanac** (cost 2, action)
-  - Choose one: • Draw a card. • Deal 1 damage to all exhausted opposing units.
-- [ ] **A1-162 Truffle Baker – Rumour Mill** (cost 6, 1 power · 1 health · 1 score, Duelist +1)
-  - ⟳: Choose one: • Draw a card. • Draw a card for each Baker unit in play (up to 4).
-- [ ] **A1-163 Morel Chef – Off the Boat** (cost 3, 2 power · 1 health · 1 score, Elusive)
-  - When you play this unit, ready another chosen unit of yours. It can’t score or use ⟳ abilities this turn.
-- [ ] **A1-164 Ghost Postman – Big Break** (cost 5, 2 power · 2 health · 1 score, Elusive)
-  - ⟳: Gain 1 VP.
-- [ ] **A1-165 Chanterelle Postman – Hot off the Cart** (cost 3, 1 power · 1 health · 1 score, Guard)
-  - When you play this unit, choose one: • Gain 1 VP. • Ready your other units. They can’t score or use ⟳ abilities this turn.
-- [ ] **A1-166 Fly-agaric Postman – Rallying Cry** (cost 3, 1 power · 1 health · 2 score)
-  - Whenever this unit scores, you may deal 1 damage to another chosen unit of yours. If you do, ready your other units. They can’t score or use ⟳ abilities this turn.
-- [ ] **A1-167 Snowcap Baker – Top of the Class** (cost 7, 2 power · 1 health · 1 score)
-  - Whenever this unit scores, choose one: • Your opponent loses 2 VP. • Deal 5 damage to chosen opposing unit.
-- [ ] **A1-168 Bog Drill** (cost 1, action)
-  - You may discard a card. If you do, a chosen unit of yours gains Armor +1 until the start of your next turn.
-- [ ] **A1-169 Lion's-mane Baker – Lost Property** (cost 5, 2 power · 4 health · 1 score)
-  - ⟳: Choose one: • Your opponent discards a card at random. • Exhaust chosen opposing unit.
-- [ ] **A1-170 Moss Letters** (cost 3, action)
-  - Choose one: • Draw 2 cards. • Your Baker units gain Elusive until the start of your next turn.
-- [ ] **A1-171 Chanterelle Scholar – Spores on the Wind** (cost 3, 2 power · 3 health · 1 score)
-  - When this unit is defeated, if you have 3 or more other Baker units in play, ready another chosen unit of yours. It can’t score or use ⟳ abilities this turn.
-- [ ] **A1-172 Lantern Barrage** (cost 2, action)
-  - Deal 1 damage to chosen opposing unit with cost 3 or less for each Chef unit in play (up to 3). If it was defeated, draw a card.
-- [ ] **A1-173 Moss Barrage** (cost 2, action)
-  - Deal 1 damage to chosen exhausted opposing unit for each of your Scholar units (up to 3). If it was defeated, draw 2 cards.
-- [ ] **A1-174 Snowcap Miner – Web Spinner** (cost 4, 1 power · 3 health · 2 score)
-  - Whenever this unit attacks in a duel, if you have 2 or more other Chef units in play, chosen opposing unit can’t ready at the start of its next turn.
-- [ ] **A1-175 Enoki Miner – Union Rep** (cost 5, 1 power · 1 health · 1 score, Elusive)
-  - Whenever you play another Baker unit, deal 1 damage to chosen opposing unit. If it was defeated, draw 3 cards.
-- [ ] **A1-176 Murk Tea Break** (cost 1, action)
-  - Remove 2 damage from your exhausted units.
-- [ ] **A1-177 Truffle Scholar – Straight from the Spore** (cost 4, 5 power · 3 health · 1 score)
-  - When you play this unit, you may discard a card. If you do, ready another chosen unit of yours. It can’t score or use ⟳ abilities this turn.
-- [ ] **A1-178 Smoulder Swell** (cost 1, action)
-  - Chosen opposing unit with cost 3 or less gets −1 power this turn.
-- [ ] **A1-179 Snowcap Scholar – Tough Critic** (cost 5, 1 power · 1 health · 1 score)
-  - ⟳: Your opponent loses 2 VP.
-- [ ] **A1-180 Puffball Postman – Lost Property** (cost 5, 1 power · 2 health · 1 score)
-  - When you play this unit, choose one: • Your opponent discards a card at random. • Draw 3 cards.
-- [ ] **A1-181 Puffball Postman – Never Works Alone** (cost 3, 1 power · 2 health · 2 score)
-  - Whenever you play another Scholar unit, if you have fewer VP than your opponent, another chosen damaged unit of yours gains Armor +1 until the start of your next turn.
-- [ ] **A1-182 Rime Triumph** (cost 1, action)
-  - You may deal 1 damage to a chosen unit of yours. If you do, gain 1 VP for each Chef unit in play (up to 3).
-- [ ] **A1-183 Enoki Miner – Prickly Customer** (cost 4, 1 power · 1 health · 1 score, Elusive)
-  - Whenever this unit scores, deal 1 damage to chosen opposing unit. If it was defeated, draw a card.
-- [ ] **A1-184 Murk Training** (cost 1, action)
-  - A chosen unit of yours with cost 3 or less gains Armor +1 until the start of your next turn.
-- [ ] **A1-185 Morel Scholar – Green Thumb** (cost 4, 2 power · 1 health · 1 score, Guard)
-  - ⟳: Put the top card of your deck into your energy zone, exhausted.
-- [ ] **A1-186 Snowcap Chef – Pointy End** (cost 9, 1 power · 1 health · 1 score)
-  - ⟳: Deal 5 damage to chosen opposing unit. If it was defeated, draw 3 cards.
-- [ ] **A1-187 Fly-agaric Scholar – Turning Up** (cost 6, 2 power · 1 health · 1 score, Armor +1)
-  - When you play this unit, choose one: • Draw 3 cards. • Gain 2 VP.
-- [ ] **A1-188 Waxcap Lamplighter – Stubborn Streak** (cost 3, 1 power · 2 health · 1 score, Guard)
+- [ ] **A1-011 Turkey-tail Postman – Thick Stalk** (cost 2, 1 power · 2 health)
   - While this unit is attacking, it gets +2 power.
-- [ ] **A1-189 Waxcap Chef – Rich Soil** (cost 4, 2 power · 2 health · 1 score)
-  - Whenever you play another Scholar unit, choose one: • Put the top card of your deck into your energy zone, exhausted. • Draw a card.
-- [ ] **A1-190 Lichen Barrage** (cost 2, action)
-  - Deal 1 damage to chosen damaged opposing unit for each of your Lamplighter units (up to 4). If it was defeated, draw a card.
-- [ ] **A1-191 Honey Chef – Mulch Master** (cost 3, 1 power · 2 health · 1 score)
-  - ⟳, discard a card: Put the top card of your deck into your energy zone, exhausted.
-- [ ] **A1-192 Root Thump** (cost 1, action)
-  - Deal 1 damage to chosen opposing Miner unit.
-- [ ] **A1-193 Inkcap Baker – Spiky Temper** (cost 5, 3 power · 1 health · 2 score, Duelist +3)
-  - When this unit is defeated, if you have fewer VP than your opponent, deal 1 damage to chosen opposing unit with cost 2 or less.
-- [ ] **A1-194 Enoki Scholar – Crowd Favourite** (cost 4, 1 power · 1 health · 2 score)
-  - Whenever this unit scores, your opponent loses 1 VP.
-- [ ] **A1-195 Frost Volley** (cost 4, action)
-  - Deal 5 damage to chosen opposing unit. If it was defeated, gain 1 VP for each Lamplighter unit in play (up to 5).
-- [ ] **A1-196 Fly-agaric Scholar – Heavy Handed** (cost 5, 1 power · 6 health · 1 score)
-  - ⟳, 1 energy: Deal 1 damage to all opposing units.
-- [ ] **A1-197 Portobello Scholar – Award Season** (cost 3, 1 power · 2 health · 1 score)
-  - Whenever an opposing unit is defeated, if you have 3 or more other Scholar units in play, you may discard a card. If you do, gain 2 VP.
-- [ ] **A1-198 Chanterelle Lamplighter – Thorn in the Side** (cost 5, 1 power · 1 health · 1 score, Duelist +3)
-  - At the end of your turn, deal 1 damage to all opposing units.
-- [ ] **A1-199 Portobello Baker – Party Pooper** (cost 3, 1 power · 1 health · 1 score, Charge)
-  - Whenever this unit scores, if you have fewer VP than your opponent, choose one: • Your opponent loses 1 VP. • Gain 1 VP.
-- [ ] **A1-200 Honey Miner – Letter Opener** (cost 5, 2 power · 4 health · 2 score)
-  - When you play this unit, draw a card for each Scholar unit in play (up to 3).
+- [ ] **A1-012 Truffle Baker – Hard Knocks** (cost 3, 2 power · 2 health, Duelist +1)
+  - Whenever this unit attacks the enemy hero, deal 1 damage to chosen damaged enemy unit.
+- [ ] **A1-013 Inkcap Chef – Just Sprouted** (cost 4, 2 power · 3 health)
+  - When you play this unit, draw 2 cards.
+- [ ] **A1-014 Ember Insight** (cost 2, action)
+  - Draw a card for each of your Postman units (up to 4).
+- [ ] **A1-015 Inkcap Postman – Shortcut Taker** (cost 5, 3 power · 4 health)
+  - Whenever this unit attacks the enemy hero, if you have 2 or more other Postman units in play, defeat chosen damaged enemy unit.
+- [ ] **A1-016 Oyster Baker – Shortcut Taker** (cost 3, 2 power · 2 health)
+  - Whenever this unit attacks the enemy hero, your opponent discards a card at random.
+- [ ] **A1-017 Cinder Pelting** (cost 3, action)
+  - Deal 4 damage to chosen enemy unit. If it was defeated, draw a card.
+- [ ] **A1-018 Frost Picnic** (cost 1, action)
+  - You may deal 1 damage to a chosen unit of yours. If you do, heal your hero for 4.
+- [ ] **A1-019 Rime Wither** (cost 1, action)
+  - You may deal 2 damage to your hero. If you do, your units get +2 health this turn.
+- [ ] **A1-020 Morel Scholar – Warm Blanket** (cost 2, 1 power · 2 health)
+  - When you play this unit, if you have 2 or more other Postman units in play, heal your hero for 4.
+- [ ] **A1-021 Oyster Postman – Spoilsport** (cost 3, 2 power · 3 health)
+  - When you play this unit, if you have 2 or more other Scholar units in play, deal 2 damage to the enemy hero.
+- [ ] **A1-022 Oyster Miner – Knows the Ropes** (cost 3, 2 power · 3 health, Guard)
+  - While you have 2 or more other Scholar units in play, this unit has Duelist +1.
+- [ ] **A1-023 Lion's-mane Baker – Bigger Than Looks** (cost 5, 3 power · 6 health, Guard)
+  - While this unit is attacking, it gets +1 power for each Postman unit in play (up to +3).
+- [ ] **A1-024 Lion's-mane Lamplighter – Last Call** (cost 5, 3 power · 2 health)
+  - Whenever you play another Scholar unit, defeat chosen enemy unit with cost 2 or less.
+- [ ] **A1-025 Puffball Chef – Full Satchel** (cost 4, 2 power · 1 health)
+  - Whenever an enemy unit is defeated, draw 2 cards.
+- [ ] **A1-026 Puffball Lamplighter – Training Day** (cost 2, 1 power · 3 health)
+  - Whenever an enemy unit is defeated, if you have 3 or more other Lamplighter units in play, your other units gain Guard until the start of your next turn.
+- [ ] **A1-027 Enoki Postman – Knows a Thing** (cost 2, 1 power · 1 health, Guard)
+  - When you play this unit, you may discard a card. If you do, draw a card for each Baker unit in play (up to 3).
+- [ ] **A1-028 Lion's-mane Lamplighter – Hard Cap** (cost 1, 1 power · 1 health)
+  - While this unit is attacking, it gets +1 power for each of your Baker units (up to +3).
+- [ ] **A1-029 Hayfield Ambush** (cost 2, action)
+  - Deal 4 damage to chosen enemy unit.
+- [ ] **A1-030 Puffball Baker – Foreman** (cost 5, 3 power · 6 health)
+  - Your other Miner units get +1 power.
+- [ ] **A1-031 Chanterelle Baker – Not Forgotten** (cost 4, 3 power · 5 health)
+  - When this unit is defeated, deal 1 damage to chosen enemy unit.
+- [ ] **A1-032 Hayfield Blessing** (cost 1, action)
+  - You may deal 3 damage to your hero. If you do, a chosen unit of yours with cost 4 or less gains Guard until the start of your next turn.
+- [ ] **A1-033 Portobello Postman – First into the Fray** (cost 2, 1 power · 3 health)
+  - Whenever this unit attacks, you may discard a card. If you do, heal your hero for 4.
+- [ ] **A1-034 Mire Tea Break** (cost 1, action)
+  - Remove 4 damage from a chosen damaged unit of yours.
+- [ ] **A1-035 Truffle Miner – Puffed Up** (cost 3, 1 power · 1 health, Armor +2)
+  - Whenever you play another Chef unit, you may discard a card. If you do, another chosen damaged unit of yours gets +2 health this turn.
+- [ ] **A1-036 Chanterelle Baker – Bramble Brawler** (cost 3, 1 power · 1 health, Armor +1)
+  - When you play this unit, deal 1 damage to chosen enemy Miner unit for each Miner unit in play (up to 4). If it was defeated, heal your hero for 1 for each Baker unit in play (up to 4).
+- [ ] **A1-037 Oyster Scholar – Foreman** (cost 3, 2 power · 1 health, Duelist +2)
+  - Your other Miner units get +1 health.
+- [ ] **A1-038 Fly-agaric Lamplighter – Second Helping** (cost 2, 2 power · 2 health)
+  - Whenever this unit attacks, another chosen unit of yours gets +1 health this turn.
+- [ ] **A1-039 Buttercup Pelting** (cost 1, action)
+  - Deal 1 damage to chosen enemy Postman unit.
+- [ ] **A1-040 Lichen Thump** (cost 2, action)
+  - Deal 3 damage to chosen enemy unit. If it was defeated, heal your hero for 2.
+- [ ] **A1-041 Honey Baker – Dew Collector** (cost 3, 1 power · 2 health)
+  - At the start of your turn, your opponent discards a card at random.
+- [ ] **A1-042 Enoki Postman – Fresh Out of the Ground** (cost 4, 4 power · 4 health)
+  - When you play this unit, if your hero has less health than the enemy hero, you may deal 2 damage to your hero. If you do, gain an empty mana crystal.
+- [ ] **A1-043 Shiitake Scholar – Light Fingers** (cost 3, 1 power · 1 health)
+  - When you play this unit, choose one: • Your opponent discards a card at random. • Draw a card for each Chef unit in play (up to 4).
+- [ ] **A1-044 Lion's-mane Chef – Over the Wall** (cost 6, 2 power · 1 health)
+  - Whenever this unit attacks the enemy hero, choose one: • Deal 2 damage to the enemy hero. • Draw 3 cards.
+- [ ] **A1-045 Morel Lamplighter – Sneaky Swipe** (cost 4, 4 power · 3 health)
+  - When you play this unit, if you have 3 or more other Baker units in play, choose one: • Your opponent discards 2 cards at random. • Draw a card.
+- [ ] **A1-046 Honey Chef – Bramble Brawler** (cost 3, 4 power · 1 health)
+  - When you play this unit, deal 1 damage to chosen enemy unit. If it was defeated, heal your hero for 2.
+- [ ] **A1-047 Snowcap Lamplighter – Old Habits** (cost 5, 6 power · 3 health)
+  - While you have 2 or more other Baker units in play, this unit has Armor +1.
+- [ ] **A1-048 Enoki Baker – Rough and Tumble** (cost 3, 2 power · 1 health, Charge)
+  - Whenever you play another Baker unit, deal 1 damage to chosen damaged enemy unit. If it was defeated, draw a card.
+- [ ] **A1-049 Ghost Scholar – Two for One** (cost 3, 2 power · 3 health)
+  - Postman cards you play cost 1 less.
+- [ ] **A1-050 Waxcap Scholar – First into the Fray** (cost 3, 3 power · 2 health)
+  - Whenever this unit attacks, deal 1 damage to chosen enemy unit.
+- [ ] **A1-051 Inkcap Chef – Overslept** (cost 3, 2 power · 4 health)
+  - When you play this unit, if your hero has less health than the enemy hero, freeze chosen enemy unit: it can’t attack on its next turn.
+- [ ] **A1-052 Truffle Miner – Warm Blanket** (cost 5, 5 power · 4 health)
+  - Whenever this unit attacks the enemy hero, heal your hero for 2.
+- [ ] **A1-053 Puffball Scholar – Molasses Trap** (cost 5, 4 power · 3 health, Armor +1)
+  - When you play this unit, freeze chosen enemy unit: it can’t attack on its next turn.
+- [ ] **A1-054 Puffball Miner – Proud Teacher** (cost 5, 3 power · 5 health, Duelist +1)
+  - Your other Scholar units get +1 power.
+- [ ] **A1-055 Lantern Swell** (cost 1, action)
+  - Chosen enemy unit gets −1 power this turn.
+- [ ] **A1-056 Inkcap Miner – Distraction** (cost 2, 2 power · 1 health)
+  - When this unit is defeated, choose one: • Your opponent discards a card at random. • Another chosen unit of yours gets +1 power this turn.
+- [ ] **A1-057 Lichen Ward** (cost 1, action)
+  - A chosen unit of yours gains Duelist +2 this turn.
+- [ ] **A1-058 Enoki Scholar – Prickly Customer** (cost 5, 1 power · 2 health)
+  - Whenever this unit attacks the enemy hero, deal 5 damage to chosen enemy unit.
+- [ ] **A1-059 Enoki Scholar – Pointy End** (cost 5, 1 power · 4 health, Armor +2)
+  - When this unit is defeated, deal 2 damage to chosen enemy unit with cost 3 or less.
+- [ ] **A1-060 Lichen Picnic** (cost 1, action)
+  - Heal your hero for 4.
+- [ ] **A1-061 Snowcap Miner – Hard Cap** (cost 3, 2 power · 2 health, Guard)
+  - While this unit is defending, it gets +2 health.
+- [ ] **A1-062 Truffle Lamplighter – Seasoned Pro** (cost 4, 3 power · 3 health, Armor +1)
+  - While this unit is damaged, it has Guard.
+- [ ] **A1-063 Waxcap Miner – Rise and Shine** (cost 3, 2 power · 4 health)
+  - At the start of your turn, you may discard a card. If you do, another chosen unit of yours gets +2 power this turn.
+- [ ] **A1-064 Lion's-mane Baker – Reporting for Duty** (cost 4, 3 power · 5 health)
+  - When you play this unit, if you have 3 or more other Lamplighter units in play, chosen enemy unit with cost 2 or less gets −2 power this turn.
+- [ ] **A1-065 Frost Snare** (cost 1, action)
+  - Freeze chosen enemy unit: it can’t attack on its next turn.
+- [ ] **A1-066 Morel Baker – Off the Boat** (cost 4, 2 power · 5 health)
+  - When you play this unit, deal 1 damage to chosen enemy unit with cost 3 or less. If it was defeated, heal your hero for 3.
+- [ ] **A1-067 Ghost Baker – Root Network** (cost 5, 5 power · 3 health)
+  - At the end of your turn, you may discard a card. If you do, gain an empty mana crystal.
+- [ ] **A1-068 Fly-agaric Miner – Glued to the Spot** (cost 3, 2 power · 1 health, Charge)
+  - Whenever this unit attacks the enemy hero, freeze chosen enemy Baker unit: it can’t attack on its next turn.
+- [ ] **A1-069 Button Chef – Reporting for Duty** (cost 4, 1 power · 3 health)
+  - When you play this unit, deal 3 damage to chosen enemy unit. If it was defeated, draw 2 cards.
+- [ ] **A1-070 Button Miner – Rises to the Occasion** (cost 2, 2 power · 2 health)
+  - While this unit is attacking, it gets +1 power.
+- [ ] **A1-071 Button Baker – Just Sprouted** (cost 3, 5 power · 1 health)
+  - When you play this unit, you may discard a card. If you do, gain an empty mana crystal.
+- [ ] **A1-072 Root Sowing** (cost 2, action)
+  - Choose one: • Gain an empty mana crystal. • Your opponent discards 2 cards at random.
+- [ ] **A1-073 Snowcap Baker – Seasoned Pro** (cost 4, 4 power · 2 health, Duelist +2)
+  - While you have 2 or more other Miner units in play, this unit has Guard.
+- [ ] **A1-074 Button Chef – Puffed Up** (cost 5, 6 power · 3 health)
+  - When you play this unit, your other units get +2 power this turn.
+- [ ] **A1-075 Bog Pelting** (cost 1, action)
+  - Deal 1 damage to chosen enemy unit. If it was defeated, heal your hero for 1 for each of your Lamplighter units (up to 3).
+- [ ] **A1-076 Ember Compost** (cost 2, action)
+  - Choose one: • Gain an empty mana crystal. • Deal 1 damage to all damaged enemy units.
+- [ ] **A1-077 Glow Tea Break** (cost 1, action)
+  - Remove 4 damage from a chosen unit of yours.
+- [ ] **A1-078 Fern Ambush** (cost 2, action)
+  - Deal 2 damage to chosen damaged enemy unit. If it was defeated, draw a card.
+- [ ] **A1-079 Ghost Scholar – Here to Help** (cost 5, 1 power · 2 health)
+  - When you play this unit, deal 5 damage to chosen enemy Baker unit. If it was defeated, draw 3 cards.
+- [ ] **A1-080 Oyster Postman – Sharp Tongue** (cost 3, 4 power · 2 health)
+  - When you play this unit, deal 1 damage to chosen enemy Baker unit.
+- [ ] **A1-081 Chanterelle Postman – Rough and Tumble** (cost 5, 3 power · 4 health)
+  - When you play this unit, deal 1 damage to chosen enemy unit for each Lamplighter unit in play (up to 4). If it was defeated, draw 2 cards.
+- [ ] **A1-082 Firefly Scouting** (cost 2, action)
+  - Choose one: • Draw a card. • Heal your hero for 4.
+- [ ] **A1-083 Puffball Miner – Unflappable** (cost 2, 2 power · 1 health)
+  - While this unit is defending, it gets +1 health for each of your Baker units (up to +4).
+- [ ] **A1-084 Snowcap Miner – Night Shift** (cost 8, 2 power · 1 health, Armor +1)
+  - At the end of your turn, deal 2 damage to chosen enemy Scholar unit. If it was defeated, draw a card for each of your Postman units (up to 5).
+- [ ] **A1-085 Morel Chef – First Day on the Job** (cost 2, 1 power · 2 health, Guard)
+  - When you play this unit, another chosen Miner unit of yours gets +1 power this turn.
+- [ ] **A1-086 Puffball Chef – Puffed Up** (cost 5, 4 power · 6 health)
+  - When you play this unit, you may deal 3 damage to your hero. If you do, another chosen unit of yours with cost 2 or less gets +1 power this turn.
+- [ ] **A1-087 Inkcap Postman – Fresh Bandages** (cost 3, 1 power · 3 health)
+  - Whenever this unit attacks the enemy hero, choose one: • Heal your hero for 1 for each Baker unit in play (up to 3). • Heal your hero for 3.
+- [ ] **A1-088 Cinder Letters** (cost 4, action)
+  - Choose one: • Draw a card. • Return all enemy units to their owners’ hands.
+- [ ] **A1-089 Button Chef – Bounty Hunter** (cost 4, 3 power · 3 health)
+  - Whenever an enemy unit is defeated, freeze chosen enemy unit: it can’t attack on its next turn.
+- [ ] **A1-090 Meadow Barrage** (cost 1, action)
+  - Deal 1 damage to chosen enemy unit with cost 2 or less. If it was defeated, draw a card.
+- [ ] **A1-091 Starlit Surge** (cost 1, action)
+  - You may discard a card. If you do, a chosen damaged unit of yours gets +1 health this turn.
+- [ ] **A1-092 Snowdrift Thump** (cost 3, action)
+  - Deal 5 damage to chosen enemy Miner unit. If it was defeated, draw a card.
+- [ ] **A1-093 Chanterelle Baker – Old Hand** (cost 2, 1 power · 2 health)
+  - Your other Scholar units get +1 health.
+- [ ] **A1-094 Starlit Siege** (cost 1, action)
+  - Deal 1 damage to the enemy hero.
+- [ ] **A1-095 Rime Almanac** (cost 2, action)
+  - Choose one: • Draw a card. • A chosen unit of yours gets +1 power this turn.
+- [ ] **A1-096 Lantern Bloom** (cost 1, action)
+  - You may discard a card. If you do, a chosen unit of yours with cost 2 or less gets +1 power this turn.
+- [ ] **A1-097 Button Chef – New in Town** (cost 3, 1 power · 1 health, Armor +2)
+  - When you play this unit, deal 1 damage to the enemy hero.
+- [ ] **A1-098 Portobello Miner – Brave to a Fault** (cost 3, 2 power · 1 health)
+  - Whenever this unit attacks, choose one: • Draw a card. • Deal 2 damage to chosen damaged enemy unit.
+- [ ] **A1-099 Glow Swell** (cost 1, action)
+  - You may discard a card. If you do, your units get +1 power this turn.
+- [ ] **A1-100 Enoki Baker – Over the Wall** (cost 3, 3 power · 3 health)
+  - Whenever this unit attacks the enemy hero, you may deal 3 damage to your hero. If you do, another chosen Chef unit of yours gets +2 health this turn.
+- [ ] **A1-101 Snowcap Lamplighter – Opening Shift** (cost 6, 1 power · 1 health)
+  - At the start of your turn, choose one: • Deal 1 damage to the enemy hero. • Draw 2 cards.
+- [ ] **A1-102 Glow Ambush** (cost 2, action)
+  - Deal 2 damage to all enemy Scholar units.
+- [ ] **A1-103 Portobello Lamplighter – Party Pooper** (cost 1, 1 power · 1 health)
+  - When you play this unit, deal 1 damage to the enemy hero.
+- [ ] **A1-104 Shiitake Postman – Here to Help** (cost 3, 3 power · 3 health)
+  - When you play this unit, if your hero has less health than the enemy hero, you may deal 3 damage to your hero. If you do, your other Lamplighter units get +2 health this turn.
+- [ ] **A1-105 Portobello Chef – Note Taker** (cost 3, 1 power · 1 health)
+  - At the end of your turn, draw a card.
+- [ ] **A1-106 Snowcap Postman – Old Habits** (cost 5, 5 power · 5 health)
+  - While this unit is damaged, it has Duelist +1.
+- [ ] **A1-107 Porcini Lamplighter – Spiky Temper** (cost 5, 6 power · 3 health)
+  - When you play this unit, deal 1 damage to chosen damaged enemy unit. If it was defeated, heal your hero for 3.
+- [ ] **A1-108 Inkcap Lamplighter – Avid Reader** (cost 3, 1 power · 1 health)
+  - When you play this unit, you may discard a card. If you do, draw 3 cards.
+- [ ] **A1-109 Puffball Chef – Rolling Up Sleeves** (cost 2, 2 power · 2 health)
+  - Whenever this unit attacks, if you have 3 or more other Postman units in play, you may discard a card. If you do, remove 3 damage from this unit.
+- [ ] **A1-110 Chanterelle Lamplighter – Lights Out** (cost 3, 2 power · 1 health)
+  - At the end of your turn, if you have 3 or more other Scholar units in play, deal 1 damage to chosen damaged enemy unit for each Chef unit in play (up to 5).
+- [ ] **A1-111 Button Chef – Opportunist** (cost 1, 1 power · 1 health)
+  - Whenever an enemy unit is defeated, you may discard a card. If you do, another chosen unit of yours gets +1 power this turn.
+- [ ] **A1-112 Inkcap Miner – Showing Off** (cost 4, 3 power · 4 health, Guard)
+  - When you play this unit, another chosen unit of yours gets +2 power this turn.
+- [ ] **A1-113 Fly-agaric Miner – Shortcut Taker** (cost 2, 2 power · 1 health)
+  - Whenever this unit attacks the enemy hero, if you have 3 or more other Scholar units in play, remove 4 damage from another chosen unit of yours.
+- [ ] **A1-114 Bog Raid** (cost 2, action)
+  - Choose one: • Deal 3 damage to the enemy hero. • Gain an empty mana crystal.
+- [ ] **A1-115 Morel Chef – Soothing Spores** (cost 4, 1 power · 7 health)
+  - When you play this unit, you may deal 2 damage to your hero. If you do, remove all damage from another chosen damaged unit of yours.
+- [ ] **A1-116 Puffball Miner – Spoiling for Trouble** (cost 5, 2 power · 4 health)
+  - Whenever this unit attacks, deal 3 damage to the enemy hero.
+- [ ] **A1-117 Honey Postman – Brave to a Fault** (cost 4, 5 power · 1 health, Elusive)
+  - Whenever this unit attacks, you may deal 1 damage to another chosen unit of yours. If you do, this unit gets +3 health this turn.
+- [ ] **A1-118 Button Lamplighter – Heads for Home** (cost 4, 2 power · 1 health, Guard)
+  - Whenever this unit attacks the enemy hero, choose one: • Heal your hero for 2. • Deal 1 damage to chosen damaged enemy unit for each of your Baker units (up to 5).
+- [ ] **A1-119 Lion's-mane Scholar – Victory Lap** (cost 2, 1 power · 2 health, Guard)
+  - Whenever an enemy unit is defeated, if you have 3 or more other Miner units in play, another chosen unit of yours gets +2 power this turn.
+- [ ] **A1-120 Waxcap Scholar – Here to Help** (cost 3, 1 power · 1 health, Charge)
+  - When you play this unit, choose one: • Draw a card for each of your Chef units (up to 3). • Another chosen unit of yours gains Armor +1 until the start of your next turn.
+- [ ] **A1-121 Bonfire Scouting** (cost 2, action)
+  - Choose one: • Draw a card. • Gain an empty mana crystal.
+- [ ] **A1-122 Turkey-tail Baker – Going Out in Style** (cost 2, 1 power · 1 health)
+  - When this unit is defeated, you may deal 3 damage to your hero. If you do, draw 3 cards.
+- [ ] **A1-123 Shiitake Chef – Rough and Tumble** (cost 4, 3 power · 4 health)
+  - When you play this unit, deal 1 damage to chosen enemy unit. If it was defeated, draw a card.
+- [ ] **A1-124 Buttercup Tea Break** (cost 2, action)
+  - Remove 3 damage from your Baker units.
+- [ ] **A1-125 Bonfire Gossip** (cost 1, action)
+  - You may deal 3 damage to your hero. If you do, draw 2 cards.
+- [ ] **A1-126 Bog Ward** (cost 1, action)
+  - Your units gain Armor +1 until the start of your next turn.
+- [ ] **A1-127 Turkey-tail Scholar – Heavy Handed** (cost 3, 2 power · 1 health)
+  - When you play this unit, deal 4 damage to chosen enemy unit.
+- [ ] **A1-128 Truffle Lamplighter – Spiky Temper** (cost 2, 1 power · 1 health)
+  - When this unit is defeated, deal 1 damage to chosen enemy Lamplighter unit. If it was defeated, draw a card for each of your Lamplighter units (up to 4).
+- [ ] **A1-129 Turkey-tail Chef – Tough Critic** (cost 5, 3 power · 3 health)
+  - When you play this unit, choose one: • Deal 3 damage to the enemy hero. • Draw 2 cards.
+- [ ] **A1-130 Inkcap Baker – Fresh Out of the Ground** (cost 2, 1 power · 1 health)
+  - When you play this unit, choose one: • Draw a card. • Chosen enemy unit gets −2 power this turn.
+- [ ] **A1-131 Inkcap Postman – Flexing** (cost 4, 4 power · 4 health)
+  - When you play this unit, you may deal 2 damage to your hero. If you do, another chosen unit of yours gets +1 power this turn.
+- [ ] **A1-132 Morel Scholar – Last Batch** (cost 2, 1 power · 1 health)
+  - When this unit is defeated, defeat chosen damaged enemy unit.
+- [ ] **A1-133 Bog Letters** (cost 1, action)
+  - Draw a card.
+- [ ] **A1-134 Enoki Chef – Charging Ahead** (cost 5, 3 power · 4 health)
+  - Whenever this unit attacks, deal 1 damage to chosen enemy Lamplighter unit. If it was defeated, gain an empty mana crystal.
+- [ ] **A1-135 Button Miner – Spiky Temper** (cost 5, 4 power · 1 health)
+  - Whenever you play another Chef unit, deal 2 damage to chosen enemy Miner unit. If it was defeated, draw 2 cards.
+- [ ] **A1-136 Enoki Miner – Puffed Up** (cost 5, 9 power · 1 health)
+  - Whenever this unit attacks the enemy hero, another chosen unit of yours gets +1 health this turn.
+- [ ] **A1-137 Frost Sting** (cost 1, action)
+  - Deal 1 damage to chosen enemy unit with cost 4 or less for each Scholar unit in play (up to 4).
+- [ ] **A1-138 Enoki Scholar – Flexing** (cost 5, 4 power · 6 health)
+  - When this unit is defeated, another chosen unit of yours gets +2 power this turn.
+- [ ] **A1-139 Buttercup Feast** (cost 1, action)
+  - You may discard a card. If you do, heal your hero for 3.
+- [ ] **A1-140 Morel Postman – Thorn in the Side** (cost 5, 1 power · 3 health, Guard)
+  - Whenever this unit attacks, deal 1 damage to chosen damaged enemy unit. If it was defeated, draw 3 cards.
+- [ ] **A1-141 Puffball Lamplighter – Chicken Soup** (cost 5, 1 power · 1 health, Duelist +3)
+  - At the end of your turn, choose one: • Heal your hero for 3. • Deal 1 damage to chosen enemy unit with cost 2 or less for each Baker unit in play (up to 4).
+- [ ] **A1-142 Lion's-mane Scholar – Reporting for Duty** (cost 3, 2 power · 3 health)
+  - When you play this unit, remove all damage from another chosen unit of yours.
+- [ ] **A1-143 Hayfield Lesson** (cost 1, action)
+  - You may deal 2 damage to your hero. If you do, a chosen damaged unit of yours gains Duelist +1 this turn.
+- [ ] **A1-144 Chanterelle Lamplighter – Rival** (cost 5, 4 power · 3 health)
+  - At the start of your turn, if you have 3 or more other Lamplighter units in play, choose one: • Deal 2 damage to the enemy hero. • Heal your hero for 2.
+- [ ] **A1-145 Starlit Sting** (cost 1, action)
+  - Deal 1 damage to chosen enemy Chef unit for each of your Lamplighter units (up to 3). If it was defeated, heal your hero for 2.
+- [ ] **A1-146 Morel Lamplighter – Pumped Up** (cost 5, 5 power · 4 health, Charge)
+  - Whenever this unit attacks, you may deal 3 damage to your hero. If you do, this unit gets +2 power this turn.
+- [ ] **A1-147 Waxcap Postman – Second Helping** (cost 3, 2 power · 3 health)
+  - Whenever this unit attacks, another chosen unit of yours gets +2 power this turn.
+- [ ] **A1-148 Cinder Almanac** (cost 3, action)
+  - You may discard a card. If you do, draw 3 cards.
+- [ ] **A1-149 Hayfield Thump** (cost 2, action)
+  - Deal 1 damage to chosen damaged enemy unit for each Postman unit in play (up to 5).
+- [ ] **A1-150 Moss Onslaught** (cost 2, action)
+  - Choose one: • Deal 1 damage to the enemy hero. • Deal 3 damage to chosen enemy Chef unit.
+- [ ] **A1-151 Lion's-mane Miner – Bold Visitor** (cost 5, 1 power · 4 health)
+  - Whenever this unit attacks the enemy hero, defeat chosen enemy unit with cost 2 or less.
+- [ ] **A1-152 Bonfire Surge** (cost 1, action)
+  - A chosen Miner unit of yours gets +1 power this turn.
+- [ ] **A1-153 Truffle Chef – Pours Cold Water** (cost 2, 2 power · 1 health)
+  - All damaged enemy units get −1 power.
+- [ ] **A1-154 Truffle Miner – Comfort Food** (cost 5, 4 power · 6 health)
+  - When you play this unit, you may deal 1 damage to another chosen unit of yours. If you do, heal your hero for 3.
+- [ ] **A1-155 Button Postman – Second Helping** (cost 3, 4 power · 1 health)
+  - Whenever this unit attacks the enemy hero, your other units get +1 power this turn.
+- [ ] **A1-156 Chanterelle Postman – Rewinding** (cost 5, 4 power · 2 health)
+  - Whenever an enemy unit is defeated, return chosen damaged enemy unit to its owner’s hand.
+- [ ] **A1-157 Porcini Lamplighter – Grand Master** (cost 5, 2 power · 7 health)
+  - Your other Miner units get +1 health.
+- [ ] **A1-158 Button Scholar – Map Maker** (cost 3, 2 power · 2 health, Guard)
+  - Whenever this unit attacks, you may deal 3 damage to your hero. If you do, draw 2 cards.
+- [ ] **A1-159 Enoki Chef – Knows a Thing** (cost 5, 1 power · 1 health)
+  - At the start of your turn, if your hero has less health than the enemy hero, draw 3 cards.
+- [ ] **A1-160 Lion's-mane Lamplighter – Gossip** (cost 5, 6 power · 3 health)
+  - When this unit is defeated, your opponent discards a card at random.
+- [ ] **A1-161 Shiitake Baker – Prickly Customer** (cost 5, 2 power · 3 health)
+  - At the end of your turn, deal 1 damage to chosen enemy Scholar unit. If it was defeated, gain an empty mana crystal.
+- [ ] **A1-162 Porcini Chef – Sharp Tongue** (cost 7, 1 power · 1 health)
+  - At the start of your turn, deal 3 damage to chosen damaged enemy unit. If it was defeated, draw a card for each Miner unit in play (up to 4).
+- [ ] **A1-163 Fern Siege** (cost 2, action)
+  - Choose one: • Deal 2 damage to the enemy hero. • Freeze all enemy units: they can’t attack on their next turn.
+- [ ] **A1-164 Chanterelle Scholar – Sunrise Watch** (cost 4, 2 power · 1 health)
+  - At the start of your turn, choose one: • Heal your hero for 2. • Deal 1 damage to all damaged enemy units.
+- [ ] **A1-165 Morel Lamplighter – Famous Last Words** (cost 4, 3 power · 4 health)
+  - When this unit is defeated, deal 2 damage to the enemy hero.
+- [ ] **A1-166 Moss Snare** (cost 2, action)
+  - Freeze all enemy units: they can’t attack on their next turn.
+- [ ] **A1-167 Morel Chef – Map Maker** (cost 3, 2 power · 2 health)
+  - When you play this unit, choose one: • Draw a card. • Another chosen unit of yours gains Duelist +2 this turn.
+- [ ] **A1-168 Shiitake Baker – Buddy System** (cost 3, 3 power · 3 health)
+  - When you play this unit, your other Chef units gain Guard until the start of your next turn.
+- [ ] **A1-169 Waxcap Scholar – Hard Knocks** (cost 3, 1 power · 1 health)
+  - Whenever an enemy unit is defeated, deal 3 damage to chosen enemy unit.
+- [ ] **A1-170 Fly-agaric Baker – Buddy System** (cost 1, 1 power · 1 health)
+  - When you play this unit, if you have 3 or more other Baker units in play, you may discard a card. If you do, this unit gains Duelist +2 this turn.
+- [ ] **A1-171 Chanterelle Baker – Leading the Charge** (cost 5, 4 power · 5 health)
+  - Whenever this unit attacks, heal your hero for 2.
+- [ ] **A1-172 Root Insight** (cost 2, action)
+  - Choose one: • Draw a card for each Lamplighter unit in play (up to 3). • A chosen unit of yours with cost 4 or less gains Duelist +1 this turn.
+- [ ] **A1-173 Smoulder Sowing** (cost 2, action)
+  - Choose one: • Gain an empty mana crystal. • Return chosen enemy unit to its owner’s hand.
+- [ ] **A1-174 Lion's-mane Postman – Note Taker** (cost 4, 2 power · 2 health, Charge)
+  - When you play this unit, if you have 2 or more other Baker units in play, draw 3 cards.
+- [ ] **A1-175 Honey Baker – Heavy Handed** (cost 3, 2 power · 1 health)
+  - Whenever this unit attacks, deal 2 damage to chosen enemy unit. If it was defeated, heal your hero for 2.
+- [ ] **A1-176 Meadow Remedy** (cost 1, action)
+  - You may deal 2 damage to your hero. If you do, remove 3 damage from a chosen Scholar unit of yours.
+- [ ] **A1-177 Ghost Baker – Thick Skin** (cost 3, 1 power · 4 health)
+  - While you have 2 or more other Postman units in play, this unit has Armor +1.
+- [ ] **A1-178 Mire Mending** (cost 2, action)
+  - Remove all damage from your units.
+- [ ] **A1-179 Turkey-tail Baker – Goes for the Gills** (cost 4, 1 power · 2 health, Elusive)
+  - Whenever this unit attacks the enemy hero, gain an empty mana crystal.
+- [ ] **A1-180 Turkey-tail Baker – Tough Critic** (cost 4, 2 power · 5 health)
+  - Whenever you play another Lamplighter unit, if you have 2 or more other Lamplighter units in play, deal 2 damage to the enemy hero.
+- [ ] **A1-181 Inkcap Lamplighter – Bright and Early** (cost 4, 1 power · 5 health, Armor +1)
+  - At the start of your turn, if you have 2 or more other Lamplighter units in play, this unit gains Duelist +1 this turn.
+- [ ] **A1-182 Lion's-mane Baker – Going Out in Style** (cost 3, 2 power · 4 health)
+  - When this unit is defeated, you may deal 3 damage to your hero. If you do, remove all damage from another chosen unit of yours with cost 2 or less.
+- [ ] **A1-183 Truffle Scholar – Dew Collector** (cost 5, 1 power · 1 health, Charge)
+  - At the start of your turn, you may deal 3 damage to your hero. If you do, draw 3 cards.
+- [ ] **A1-184 Chanterelle Miner – Uproots Trouble** (cost 6, 2 power · 1 health)
+  - At the end of your turn, defeat chosen enemy unit with cost 4 or less.
+- [ ] **A1-185 Puffball Miner – One Final Favour** (cost 3, 2 power · 1 health, Armor +1)
+  - When this unit is defeated, you may discard a card. If you do, draw 2 cards.
+- [ ] **A1-186 Inkcap Chef – Hard Knocks** (cost 3, 2 power · 1 health)
+  - When you play this unit, deal 1 damage to chosen enemy unit with cost 2 or less for each of your Scholar units (up to 5). If it was defeated, draw a card.
+- [ ] **A1-187 Bog Flourish** (cost 1, action)
+  - You may discard a card. If you do, a chosen unit of yours with cost 3 or less gets +3 health this turn.
+- [ ] **A1-188 Chanterelle Scholar – Fresh Out of the Ground** (cost 3, 2 power · 2 health, Duelist +2)
+  - When you play this unit, if you have 3 or more other Chef units in play, deal 1 damage to chosen enemy unit with cost 2 or less.
+- [ ] **A1-189 Ghost Chef – Paper Shredder** (cost 5, 1 power · 2 health, Armor +2)
+  - When you play this unit, choose one: • Your opponent discards 2 cards at random. • Deal 2 damage to chosen enemy unit.
+- [ ] **A1-190 Ghost Baker – Bounty Hunter** (cost 4, 2 power · 2 health)
+  - Whenever an enemy unit is defeated, freeze all enemy units: they can’t attack on their next turn.
+- [ ] **A1-191 Fly-agaric Baker – Picking a Fight** (cost 3, 2 power · 4 health)
+  - Whenever this unit attacks, chosen enemy unit gets −1 power this turn.
+- [ ] **A1-192 Ghost Miner – Friends and Family Rate** (cost 3, 2 power · 3 health)
+  - Miner cards you play cost 1 less.
+- [ ] **A1-193 Ghost Lamplighter – Rummages Through** (cost 4, 1 power · 1 health, Armor +2)
+  - At the end of your turn, if you have 2 or more other Postman units in play, your opponent discards a card at random.
+- [ ] **A1-194 Bonfire Bloom** (cost 1, action)
+  - You may deal 2 damage to your hero. If you do, a chosen unit of yours gets +2 health this turn.
+- [ ] **A1-195 Shiitake Baker – Opening Shift** (cost 2, 1 power · 2 health, Charge)
+  - At the start of your turn, you may discard a card. If you do, this unit gets +3 power this turn.
+- [ ] **A1-196 Honey Baker – Back to the Soil** (cost 5, 4 power · 1 health, Elusive)
+  - When this unit is defeated, deal 4 damage to chosen enemy unit. If it was defeated, draw a card.
+- [ ] **A1-197 Ember Surge** (cost 1, action)
+  - You may deal 3 damage to your hero. If you do, a chosen damaged unit of yours gets +3 power this turn.
+- [ ] **A1-198 Honey Chef – Turning Up** (cost 4, 5 power · 1 health)
+  - When you play this unit, choose one: • Draw a card. • Heal your hero for 1 for each Chef unit in play (up to 4).
+- [ ] **A1-199 Oyster Lamplighter – First Light** (cost 5, 2 power · 1 health)
+  - At the start of your turn, return chosen enemy unit to its owner’s hand.
+- [ ] **A1-200 Honey Postman – Dew Collector** (cost 2, 1 power · 1 health)
+  - At the start of your turn, deal 1 damage to the enemy hero.

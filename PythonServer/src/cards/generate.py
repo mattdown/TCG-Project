@@ -111,13 +111,11 @@ class CardGenerator:
     def _build(self, index: int, card_type: str, ability: dict, value: float) -> tuple[Card, str | None]:
         t = self.sampler.trace
         aspect = (t.choice("Aspect", ASPECTS),)
-        energy_source = t.chance("Energy source?", 0.8)
         if card_type == "action":
             name = self.namer.action(aspect[0], ability)
             cost = max(0, math.ceil(value / 2))
             t.fixed("Cost", cost, f"half the ability's rough value ({value:g}), rounded up")
-            return Card(f"gen-{index}", name, "action", aspect, energy_source, cost, 0, 0, 0,
-                        abilities=(ability,)), None
+            return Card(f"gen-{index}", name, "action", aspect, cost, 0, 0, abilities=(ability,)), None
 
         species, job = t.choice("Species", SPECIES), t.choice("Job", self.jobs)
         name = f"{species} {job}"
@@ -132,16 +130,16 @@ class CardGenerator:
         spend = math.ceil(value) + keyword_value(keywords)
         cost = t.randint("Starting cost", 1, 5)
         start = cost
-        while stat_budget(cost, energy_source) - spend < MIN_STATS_VALUE and cost < 9:
+        while stat_budget(cost) - spend < MIN_STATS_VALUE and cost < 10:
             cost += 1
         if cost != start:
             t.fixed("Cost", cost, "raised until the card can afford its ability and keywords plus minimum stats")
-        budget = max(MIN_STATS_VALUE, stat_budget(cost, energy_source) - spend)
+        budget = max(MIN_STATS_VALUE, stat_budget(cost) - spend)
         stats = _allocate(self.rng, budget, ARCHETYPES[archetype])
-        t.fixed("Stats", f"{stats['power']} power, {stats['health']} health, {stats['score']} VP",
-                f"stat budget {stat_budget(cost, energy_source)} for cost {cost}, minus {spend} for the ability and "
+        t.fixed("Stats", f"{stats['power']} power, {stats['health']} health",
+                f"stat budget {stat_budget(cost)} for cost {cost}, minus {spend} for the ability and "
                 f"keywords, spread at random with {archetype} weights")
-        return Card(f"gen-{index}", name, "unit", aspect, energy_source, cost, **stats, traits=(job,),
+        return Card(f"gen-{index}", name, "unit", aspect, cost, **stats, traits=(job,),
                     keywords=tuple(sorted(keywords.items())), abilities=(ability,), subtitle=subtitle), archetype
 
 

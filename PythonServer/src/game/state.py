@@ -8,8 +8,7 @@ class Zone(IntEnum):
     DECK = 0
     HAND = 1
     PLAY = 2
-    ENERGY = 3
-    DISCARD = 4
+    DISCARD = 3
 
 
 class Phase(IntEnum):
@@ -24,9 +23,10 @@ class CardInstance:
     card: Card
     owner: int
     zone: Zone
-    exhausted: bool = False
-    fresh: bool = False  # entered play this turn: can't score or duel
+    exhausted: bool = False  # has attacked (or been stopped from attacking) this turn
+    fresh: bool = False  # entered play this turn: can't attack yet, unless it has Charge
     damage: int = 0
+    revealed: bool = False  # has attacked, so Elusive no longer protects it
 
 
 @dataclass
@@ -36,7 +36,7 @@ class ActiveEffect:
     It ends when turn `expires_turn` ends, when its `source` leaves play (for "while this
     card is in play"), or when the affected card leaves play.
     """
-    kind: str  # "stat" | "keyword" | "cant_ready" | "barred" (can't score or use ⟳ abilities)
+    kind: str  # "stat" | "keyword" | "freeze" (can't attack on its owner's next turn)
     uid: int
     stat: str | None = None
     keyword: str | None = None
@@ -58,9 +58,9 @@ class Frame:
 @dataclass
 class Continuation:
     """Engine work that waits for the abilities above it on the stack to resolve first:
-    duel damage after "when this attacks" triggers, the end of a turn after "end of turn"
+    attack damage after "when this attacks" triggers, the end of a turn after "end of turn"
     triggers, the draw after "start of turn" triggers."""
-    kind: str  # "duel" | "end_turn" | "draw"
+    kind: str  # "attack" (attacker, defender uid or None for the hero) | "end_turn" | "draw"
     args: tuple = ()
 
 
@@ -69,10 +69,12 @@ class PlayerState:
     deck: list[int]  # card uids, top of the deck is the end of the list
     hand: list[int] = field(default_factory=list)
     play: list[int] = field(default_factory=list)
-    energy: list[int] = field(default_factory=list)
     discard: list[int] = field(default_factory=list)
-    vp: int = 0
-    added_energy_this_turn: bool = False
+    health: int = 30  # the hero's health left
+    crystals: int = 0  # mana crystals: one more each turn, up to GameConfig.max_mana
+    mana: int = 0  # unspent mana this turn
+    fatigue: int = 0  # damage the next draw from an empty deck deals
+    spare_spore: bool = False  # the second player's one-off +1 mana
     mulligan_done: bool = False
     mulligan_marked: list[int] = field(default_factory=list)
 
@@ -90,4 +92,4 @@ class GameState:
     pending: list[Frame | Continuation] = field(default_factory=list)  # the stack; top is the end
     queue: list[Frame] = field(default_factory=list)  # triggered, waiting to go on the stack
     effects: list[ActiveEffect] = field(default_factory=list)
-    duel: tuple[int, int] | None = None  # (attacker, defender) while duel damage is worked out
+    duel: tuple[int, int | None] | None = None  # (attacker, defender; None for the hero) while attack damage is worked out

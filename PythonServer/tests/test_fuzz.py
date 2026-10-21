@@ -24,14 +24,14 @@ def ability_pool(rng: random.Random, n: int = 120) -> list[Card]:
     for i in range(n):
         aspects = (ASPECTS[i % len(ASPECTS)],)
         if rng.random() < 0.3:
-            cards.append(Card(f"A{i}", f"Action {i}", "action", aspects, rng.random() < 0.8, rng.randint(0, 5),
-                              0, 0, 0, abilities=(sampler.ability("action"),)))
+            cards.append(Card(f"A{i}", f"Action {i}", "action", aspects, rng.randint(0, 5), 0, 0,
+                              abilities=(sampler.ability("action"),)))
         else:
             while True:  # resample cards whose abilities could never matter (Card rejects them)
                 abilities = tuple(sampler.ability("unit") for _ in range(rng.choice((0, 1, 1, 2))))
                 try:
-                    cards.append(Card(f"U{i}", f"Unit {i}", "unit", aspects, rng.random() < 0.8, rng.randint(1, 6),
-                                      rng.randint(0, 5), rng.randint(1, 6), rng.randint(1, 3),
+                    cards.append(Card(f"U{i}", f"Unit {i}", "unit", aspects, rng.randint(1, 6),
+                                      rng.randint(0, 5), rng.randint(1, 6),
                                       traits=(rng.choice(("Fisher", "Baker", "Knight", "Chef")),),
                                       abilities=abilities))
                     break
@@ -43,9 +43,11 @@ def ability_pool(rng: random.Random, n: int = 120) -> list[Card]:
 def check_invariants(game: Game):
     s = game.state
     for p, ps in enumerate(s.players):
-        zones = {Zone.DECK: ps.deck, Zone.HAND: ps.hand, Zone.PLAY: ps.play, Zone.ENERGY: ps.energy,
-                 Zone.DISCARD: ps.discard}
-        assert sum(len(z) for z in zones.values()) == 60
+        zones = {Zone.DECK: ps.deck, Zone.HAND: ps.hand, Zone.PLAY: ps.play, Zone.DISCARD: ps.discard}
+        assert sum(len(z) for z in zones.values()) == 30
+        assert len(ps.play) <= game.config.max_board and len(ps.hand) <= game.config.max_hand
+        assert 0 <= ps.crystals <= game.config.max_mana and ps.mana >= 0
+        assert ps.health <= game.config.hero_health and (ps.health > 0 or game.is_over)
         for zone, uids in zones.items():
             assert all(game.card(u).zone == zone and game.card(u).owner == p for u in uids)
         for u in ps.play:
@@ -61,7 +63,7 @@ def check_invariants(game: Game):
 def test_random_games_with_random_abilities(seed):
     rng = random.Random(seed)
     pool = ability_pool(rng)
-    game = Game([rng.choice(pool) for _ in range(60)], [rng.choice(pool) for _ in range(60)], seed=seed)
+    game = Game([rng.choice(pool) for _ in range(30)], [rng.choice(pool) for _ in range(30)], seed=seed)
     for step in range(MAX_STEPS):
         if game.is_over:
             break

@@ -55,8 +55,8 @@ def _checks(a: Attempt) -> list[dict]:
 def _attempt_json(a: Attempt, trace: bool = False) -> dict:
     c = a.card
     card = None if c is None else {
-        "name": c.name, "subtitle": c.subtitle, "type": c.type, "cost": c.cost, "power": c.power, "health": c.health, "score": c.score,
-        "aspect": c.aspects[0], "aspect_name": ASPECT_NAMES[c.aspects[0]], "energy_source": c.energy_source,
+        "name": c.name, "subtitle": c.subtitle, "type": c.type, "cost": c.cost, "power": c.power, "health": c.health,
+        "aspect": c.aspects[0], "aspect_name": ASPECT_NAMES[c.aspects[0]],
         "traits": list(c.traits), "keywords": [keyword_text(k, v) for k, v in c.keywords], "archetype": a.archetype,
     }
     return {"index": a.index, "card_type": a.card_type, "kind": a.ability["kind"], "text": a.text,
@@ -98,7 +98,7 @@ def print_text(data: dict, rejected: bool):
     for n, i in enumerate(data["kept"], 1):
         a = by_index[i]
         c = a["card"]
-        stats = "" if c["type"] == "action" else f" {c['power']}/{c['health']}, {c['score']} VP,"
+        stats = "" if c["type"] == "action" else f" {c["power"]}/{c["health"]},"
         keywords = "".join(f" {k}." for k in c["keywords"])
         name = f"{c['name']} – {c['subtitle']}" if c["subtitle"] else c["name"]
         print(f"{n:3d}. {name} [{c['type']}, cost {c['cost']},{stats} {a['kind']}]{keywords} {a['text']}")

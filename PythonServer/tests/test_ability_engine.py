@@ -1,7 +1,7 @@
 """Abilities in the engine: hand-written cards for each trigger, decision, effect, duration and static."""
 from src.game.actions import Action, ActionType
 from src.game.state import Zone
-from tests.helpers import action, give_energy, put_in_hand, put_in_play, started_game, unit
+from tests.helpers import action, give_mana, put_in_hand, put_in_play, started_game, unit
 
 OPP = {"owner": "opponent"}
 END = Action(ActionType.END_TURN)
@@ -27,9 +27,9 @@ def it():
 
 
 def play(game, card, player=0):
-    """Puts the card in hand with enough energy and plays it."""
+    """Puts the card in hand with enough mana and plays it."""
     uid = put_in_hand(game, player, card)
-    give_energy(game, player, card.cost)
+    give_mana(game, player, card.cost)
     game.step(Action(ActionType.PLAY, uid))
     return uid
 
@@ -99,22 +99,23 @@ def test_may_declined_does_nothing():
 
 
 def test_may_isnt_offered_when_the_cost_cant_be_paid():
-    sacrifice = action({"may": [effect("lose_vp", "you", amount=1)],
+    sacrifice = action({"may": [effect("damage_hero", "you", amount=2)],
                         "if_you_do": [effect("draw", "you", amount=2)]}, name="Sacrifice")
     game = started_game()
-    play(game, sacrifice)  # 0 VP: can't lose 1
+    game.state.players[0].health = 2
+    play(game, sacrifice)  # paying 2 health would end the game
     assert not game.state.pending
 
 
 def test_choose_one():
-    charm = action({"choose_one": [[effect("gain_vp", "you", amount=2)], [effect("draw", "you", amount=1)]]},
+    charm = action({"choose_one": [[effect("damage_hero", "opponent", amount=2)], [effect("draw", "you", amount=1)]]},
                    name="Charm")
     game = started_game()
     play(game, charm)
     options = game.legal_actions()
     assert [a.option for a in options] == [0, 1] and options[0].type == ActionType.CHOOSE_OPTION
     game.step(options[0])
-    assert game.state.players[0].vp == 2
+    assert game.state.players[1].health == 28
 
 
 # ------------------------------------------------------------------ action cards and activated abilities
@@ -131,17 +132,19 @@ def test_action_card_affects_all_matching_units_and_goes_to_discard():
     assert game.card(uid).zone == Zone.DISCARD
 
 
-def test_activated_ability_costs_exhaust_and_energy():
+def test_activated_ability_costs_the_attack_and_mana():
+    """Not generated in rules v2, but the engine keeps them for a later mechanic."""
     wizard = unit(name="Wizard", abilities=[{"kind": "activated", "cost": [{"exhaust_this": True}, {"pay": 2}],
                                              "steps": [effect("draw", "you", amount=1)]}])
     game = started_game()
     uid = put_in_play(game, 0, wizard)
     activate = Action(ActionType.ACTIVATE, uid, option=0)
-    assert activate not in game.legal_actions()  # no energy
-    give_energy(game, 0, 2)
+    give_mana(game, 0, 1)
+    assert activate not in game.legal_actions()  # not enough mana
+    give_mana(game, 0, 2)
     hand = len(game.state.players[0].hand)
     game.step(activate)
-    assert game.card(uid).exhausted and game.ready_energy(0) == 0
+    assert game.card(uid).exhausted and game.mana(0) == 0
     assert len(game.state.players[0].hand) == hand + 1
     assert activate not in game.legal_actions()
 
@@ -157,7 +160,7 @@ def test_fresh_units_cant_activate():
 def test_exhaust_another_cost_is_a_choice():
     general = unit(name="General", abilities=[{"kind": "activated",
                                                "cost": [{"exhaust_this": True}, {"exhaust_another": 1}],
-                                               "steps": [effect("gain_vp", "you", amount=2)]}])
+                                               "steps": [effect("damage_hero", "opponent", amount=2)]}])
     game = started_game()
     uid = put_in_play(game, 0, general)
     a = put_in_play(game, 0, unit(name="A"))
@@ -165,33 +168,34 @@ def test_exhaust_another_cost_is_a_choice():
     game.step(Action(ActionType.ACTIVATE, uid, option=0))
     assert {x.target for x in game.legal_actions()} == {a, b}
     game.step(Action(ActionType.CHOOSE_TARGET, uid, a))
-    assert game.card(a).exhausted and not game.card(b).exhausted and game.state.players[0].vp == 2
-
-
-def test_readied_unit_cant_score_this_turn():
-    rally = action(choose({"owner": "you"}), effect("ready", it(), no_score_or_activate=True), name="Rally")
-    game = started_game()
-    tired = put_in_play(game, 0, unit(name="Tired"), exhausted=True)
-    play(game, rally)
-    assert not game.card(tired).exhausted
-    assert Action(ActionType.SCORE, tired) not in game.legal_actions()
+    assert game.card(a).exhausted and not game.card(b).exhausted and game.state.players[1].health == 28
 
 
 # ------------------------------------------------------------------ triggers
 
 
-def test_on_score_and_on_defeated_triggers():
-    scorer = unit(name="Scorer", abilities=[triggered("on_score", effect("draw", "you", amount=1))])
-    martyr = unit(name="Martyr", abilities=[triggered("on_defeated", effect("gain_vp", "you", amount=3))])
+def test_on_attack_hero_and_on_defeated_triggers():
+    raider = unit(name="Raider", abilities=[triggered("on_attack_hero", effect("draw", "you", amount=1))])
+    martyr = unit(name="Martyr", abilities=[triggered("on_defeated", effect("damage_hero", "opponent", amount=3))])
     game = started_game()
-    s = put_in_play(game, 0, scorer)
+    r = put_in_play(game, 0, raider)
     hand = len(game.state.players[0].hand)
-    game.step(Action(ActionType.SCORE, s))
-    assert len(game.state.players[0].hand) == hand + 1
-    m = put_in_play(game, 1, martyr, exhausted=True)
+    game.step(Action(ActionType.ATTACK_HERO, r))
+    assert len(game.state.players[0].hand) == hand + 1 and game.state.players[1].health == 29
+    m = put_in_play(game, 1, martyr)
     attacker = put_in_play(game, 0, unit(power=3, health=3, name="Attacker"))
-    game.step(Action(ActionType.DUEL, attacker, m))
-    assert game.card(m).zone == Zone.DISCARD and game.state.players[1].vp == 3
+    game.step(Action(ActionType.ATTACK, attacker, m))
+    assert game.card(m).zone == Zone.DISCARD and game.state.players[0].health == 27
+
+
+def test_on_attack_hero_doesnt_trigger_on_unit_attacks():
+    raider = unit(name="Raider", health=5, abilities=[triggered("on_attack_hero", effect("draw", "you", amount=1))])
+    game = started_game()
+    r = put_in_play(game, 0, raider)
+    target = put_in_play(game, 1, unit(health=5, name="Target"))
+    hand = len(game.state.players[0].hand)
+    game.step(Action(ActionType.ATTACK, r, target))
+    assert len(game.state.players[0].hand) == hand
 
 
 def test_on_attack_resolves_before_damage():
@@ -199,53 +203,71 @@ def test_on_attack_resolves_before_damage():
         "on_attack", effect("modify_stat", "this", stat="power", delta=2, duration="this_turn"))])
     game = started_game()
     b = put_in_play(game, 0, brute)
-    target = put_in_play(game, 1, unit(health=5, name="Target"), exhausted=True)
-    game.step(Action(ActionType.DUEL, b, target))
+    target = put_in_play(game, 1, unit(health=5, name="Target"))
+    game.step(Action(ActionType.ATTACK, b, target))
     assert game.card(target).damage == 3
 
 
 def test_start_and_end_of_turn_triggers():
-    farmer = unit(name="Farmer", abilities=[triggered("start_of_turn", effect("gain_vp", "you", amount=1)),
-                                            triggered("end_of_turn", effect("gain_vp", "you", amount=2))])
+    farmer = unit(name="Farmer", abilities=[triggered("start_of_turn", effect("damage_hero", "opponent", amount=1)),
+                                            triggered("end_of_turn", effect("damage_hero", "opponent", amount=2))])
     game = started_game()
     put_in_play(game, 0, farmer)
     game.step(END)
-    assert game.state.players[0].vp == 2
+    assert game.state.players[1].health == 28
     game.step(END)
-    assert game.state.players[0].vp == 3
+    assert game.state.players[1].health == 27
 
 
 def test_another_played_trigger_checks_its_filter():
     captain = unit(name="Captain", abilities=[triggered(
-        "another_played", effect("gain_vp", "you", amount=1),
+        "another_played", effect("damage_hero", "opponent", amount=1),
         trigger_filter={"owner": "you", "trait": "Sailor", "not_this": True})])
     game = started_game()
     put_in_play(game, 0, captain)
     play(game, unit(name="Sailor", traits=("Sailor",)))
     play(game, unit(name="Baker", traits=("Baker",)))
-    assert game.state.players[0].vp == 1
+    assert game.state.players[1].health == 29
 
 
 def test_opposing_defeated_trigger():
     hunter = unit(name="Hunter", abilities=[triggered("opposing_defeated", effect("draw", "you", amount=1))])
     game = started_game()
     put_in_play(game, 0, hunter)
-    victim = put_in_play(game, 1, unit(name="Victim"), exhausted=True)
+    victim = put_in_play(game, 1, unit(name="Victim"))
     attacker = put_in_play(game, 0, unit(power=2, health=3, name="Attacker"))
     hand = len(game.state.players[0].hand)
-    game.step(Action(ActionType.DUEL, attacker, victim))
+    game.step(Action(ActionType.ATTACK, attacker, victim))
     assert len(game.state.players[0].hand) == hand + 1
 
 
 def test_trigger_condition():
     comeback = unit(name="Comeback", abilities=[triggered(
-        "on_play", effect("gain_vp", "you", amount=2), condition={"behind_on_vp": True})])
+        "on_play", effect("heal_hero", "you", amount=2), condition={"behind_on_health": True})])
     game = started_game()
+    game.state.players[0].health = 25
+    game.state.players[1].health = 20
     play(game, comeback)
-    assert game.state.players[0].vp == 0
-    game.state.players[1].vp = 5
+    assert game.state.players[0].health == 25
+    game.state.players[1].health = 28
     play(game, unit(name="Comeback 2", abilities=comeback.abilities))
-    assert game.state.players[0].vp == 2
+    assert game.state.players[0].health == 27
+
+
+def test_heal_hero_stops_at_full_health():
+    tea = action(effect("heal_hero", "you", amount=5), name="Tea")
+    game = started_game()
+    game.state.players[0].health = 28
+    play(game, tea)
+    assert game.state.players[0].health == 30
+
+
+def test_gain_crystal_adds_an_empty_crystal():
+    sprout = action(effect("gain_crystal", "you"), name="Sprout")
+    game = started_game()
+    give_mana(game, 0, 3)
+    game.step(Action(ActionType.PLAY, put_in_hand(game, 0, sprout)))  # costs 1
+    assert game.state.players[0].crystals == 4 and game.mana(0) == 2
 
 
 # ------------------------------------------------------------------ durations
@@ -262,13 +284,14 @@ def test_this_turn_bonus_expires():
     assert game.stat(u, "power") == 1
 
 
-def test_cant_ready_skips_one_ready_step():
-    freeze = action(choose(OPP), effect("cant_ready", it(), duration="until_their_next_turn"), name="Freeze")
+def test_freeze_stops_one_turn_of_attacks():
+    freeze = action(choose(OPP), effect("freeze", it()), name="Freeze")
     game = started_game()
-    target = put_in_play(game, 1, unit(name="Target"), exhausted=True)
+    target = put_in_play(game, 1, unit(name="Target"))
     play(game, freeze)
     game.step(END)
-    assert game.card(target).exhausted  # its turn started, it didn't ready
+    assert game.card(target).exhausted  # its turn started: it can't attack
+    assert not any(a.card == target for a in game.legal_actions())
     game.step(END)
     game.step(END)
     assert not game.card(target).exhausted
@@ -297,10 +320,11 @@ def test_scaling_static_applies_only_while_attacking():
     c = put_in_play(game, 0, champion)
     for i in range(4):
         put_in_play(game, i % 2, unit(name=f"Fisher {i}", traits=("Fisher",)))
-    target = put_in_play(game, 1, unit(power=1, health=9, name="Target"), exhausted=True)
+    target = put_in_play(game, 1, unit(power=1, health=9, name="Target"))
     assert game.stat(c, "power") == 1
-    assert game.duel_damage(c, target) == (1, 4)  # 1 + 3 (4 Fishers, capped at 3)
-    assert game.duel_damage(target, c) == (1, 1)  # defending: no bonus
+    assert game.attack_damage(c, target) == (1, 4)  # 1 + 3 (4 Fishers, capped at 3)
+    assert game.attack_damage(target, c) == (1, 1)  # defending: no bonus
+    assert game.attack_damage(c, None) == (0, 4)  # attacking the hero counts too
 
 
 def test_lord_bonus_ends_when_the_lord_leaves():
@@ -309,12 +333,12 @@ def test_lord_bonus_ends_when_the_lord_leaves():
         "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Knight", "not_this": True}},
                        "stat": "health", "amount": 1}]}])
     game = started_game()
-    lord_uid = put_in_play(game, 1, lord, exhausted=True)
+    lord_uid = put_in_play(game, 1, lord)
     knight = put_in_play(game, 1, unit(health=1, name="Knight", traits=("Knight",)))
     game.card(knight).damage = 1
     assert game.stat(knight, "health") == 2
     attacker = put_in_play(game, 0, unit(power=1, health=3, name="Attacker"))
-    game.step(Action(ActionType.DUEL, attacker, lord_uid))
+    game.step(Action(ActionType.ATTACK, attacker, lord_uid))
     assert game.card(lord_uid).zone == Zone.DISCARD and game.card(knight).zone == Zone.DISCARD
 
 
@@ -324,10 +348,18 @@ def test_static_keyword_while_damaged():
     game = started_game()
     attacker = put_in_play(game, 0, unit(name="Attacker"))
     w = put_in_play(game, 1, wall)
-    tired = put_in_play(game, 1, unit(name="Tired"), exhausted=True)
-    assert game.duel_targets(attacker) == [tired]
+    other = put_in_play(game, 1, unit(name="Other"))
+    assert game.attack_targets(attacker) == ([w, other], True)
     game.card(w).damage = 1
-    assert game.duel_targets(attacker) == [w]
+    assert game.attack_targets(attacker) == ([w], False)
+
+
+def test_hidden_elusive_units_cant_be_chosen_by_enemy_abilities():
+    game = started_game()
+    sneaky = put_in_play(game, 1, unit(health=5, name="Sneaky", elusive=1))
+    plain = put_in_play(game, 1, unit(health=5, name="Plain"))
+    play(game, SNIPER)  # only one legal target left, so it's chosen automatically
+    assert game.card(plain).damage == 2 and game.card(sneaky).damage == 0
 
 
 def test_cost_reduction_static():
@@ -364,3 +396,13 @@ def test_clone_in_the_middle_of_a_decision():
     assert copy.card(a).damage == 2 and game.card(a).damage == 0
     game.step(Action(ActionType.CHOOSE_TARGET, game.state.pending[-1].source, b))
     assert game.card(b).damage == 2 and copy.card(b).damage == 0
+
+
+def test_returning_to_a_full_hand_discards_the_card():
+    bounce = action(choose(OPP), effect("return_to_hand", it()), name="Bounce")
+    game = started_game()
+    target = put_in_play(game, 1, unit(name="Target"))
+    while len(game.state.players[1].hand) < 10:
+        put_in_hand(game, 1, unit())
+    play(game, bounce)
+    assert game.card(target).zone == Zone.DISCARD and len(game.state.players[1].hand) == 10

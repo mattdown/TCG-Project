@@ -55,4 +55,4 @@ crashlytics-build.properties
 .claude/
 
 # --- Training outputs ---
-PythonServer/models/*.pt
+PythonServer/models/**/*.pt

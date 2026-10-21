@@ -7,8 +7,9 @@ scratch. The rules are written by hand; agents trained through self-play judge t
 2. **Part b:** self-play agent.
 3. **Part c:** card set generation.
 
-The rules follow Lorcana's broad structure, but the card pool is entirely synthetic: never use
-real cards, names or text from any existing game. Read [docs/technical-plan.md](docs/technical-plan.md)
+The rules follow Hearthstone's broad structure (rules v2: mana, heroes, attacks; the earlier
+Lorcana-style v1 is recorded in docs/technical-plan.md section 2b). The card pool is entirely synthetic: never use real cards, names or text from any
+existing game. Read [docs/technical-plan.md](docs/technical-plan.md)
 for the design.
 
 ## Status and planning
@@ -19,6 +20,10 @@ date when work lands: tick items, add dated entries to "Done", and record decisi
 
 Decisions already made (don't re-open without a reason):
 - **Cards:** fully synthetic cards; all game terms are placeholders.
+- **Rules v2:** Hearthstone-style, chosen because more players and readers know it. Heroes
+  with 30 health, mana up to 10, units attack units or the hero; ⟳ abilities replace attacking.
+- **Blog series:** part 1 setup and card generation, part 2 self-play and balancing, part 3 a
+  twist of our own.
 - **Model:** PyTorch, with the heterogeneous GNN (`--arch gnn`) as the default model. The
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
@@ -110,6 +115,8 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   The human's decisions are commands (`Commands.cs`): each step picks its action from the
   latest `legal_actions`, so a multi-step choice like the mulligan is picked locally and sent
   in one go, and indexes never go stale.
+  **The client still speaks protocol v1** (energy, VP, duels): milestone 4 moves it to v2
+  (docs/client-protocol.md, "Status and checking cards").
   Ability UI: `View/CardText.cs` builds card text from the server's `keywords` and
   `ability_text`; `Board/AbilityPanels.cs` has the choice banner and the dev scenario panel
   (DEV button); `Board/AutoPlayer.cs` is a dev-only random player for soak tests (add it to the

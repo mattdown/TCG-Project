@@ -5,8 +5,8 @@ from collections import Counter
 from src.cards.schema import Card, CardSet
 from src.game.terms import ASPECTS
 
-DECK_SIZE = 60
-MAX_COPIES = 4
+DECK_SIZE = 30
+MAX_COPIES = 2
 
 
 def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZE,

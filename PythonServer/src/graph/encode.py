@@ -21,9 +21,9 @@ from src.game.state import Phase, Zone
 from src.game.terms import ASPECTS
 
 KEYWORD_SCALE = {"guard": 1, "elusive": 1, "charge": 1, "duelist": 3, "armor": 2}
-CARD_STATIC_DIM = 5 + len(KEYWORD_SCALE) + len(ASPECTS)
-CARD_DYNAMIC_DIM = 8
-PLAYER_DIM = 12
+CARD_STATIC_DIM = 3 + len(KEYWORD_SCALE) + len(ASPECTS)
+CARD_DYNAMIC_DIM = 10
+PLAYER_DIM = 13
 GLOBAL_DIM = 4
 
 
@@ -57,7 +57,7 @@ class Observation:
 @lru_cache(maxsize=None)
 def card_static_features(card: Card) -> np.ndarray:
     """What the card is. The card encoder turns these into the card embedding."""
-    return np.array([card.cost / 10, card.power / 10, card.health / 10, card.score / 5, float(card.energy_source),
+    return np.array([card.cost / 10, card.power / 10, card.health / 10,
                      *(card.keyword(k) / scale for k, scale in KEYWORD_SCALE.items()),
                      *(float(a in card.aspects) for a in ASPECTS)], dtype=np.float32)
 
@@ -76,18 +76,20 @@ def observe(game: Game, player: int) -> Observation:
     static = np.array([card_static_features(c.card) for c in instances], dtype=np.float32).reshape(-1, CARD_STATIC_DIM)
     dynamic = np.array([
         (c.zone == Zone.HAND, c.zone == Zone.PLAY, c.owner == player, c.exhausted, c.fresh,
-         c.damage / 10, (c.card.health - c.damage) / 10, c.uid in marked)
+         c.damage / 10, (c.card.health - c.damage) / 10, c.uid in marked,
+         c.zone == Zone.PLAY and game.hidden(c.uid), game.frozen(c.uid))
         for c in instances], dtype=np.float32).reshape(-1, CARD_DYNAMIC_DIM)
     owner = np.array([c.owner != player for c in instances], dtype=np.int64)
     in_play = dynamic[:, 1].astype(bool)
 
     def player_features(p: int) -> list[float]:
         ps = s.players[p]
-        units = [game.card(u) for u in ps.play]
-        return [ps.vp / game.config.vp_to_win, game.ready_energy(p) / 10, len(ps.energy) / 10, len(ps.hand) / 10,
-                len(ps.deck) / 60, len(ps.discard) / 60, len(units) / 10, sum(not u.exhausted for u in units) / 10,
-                sum(u.card.score for u in units) / 20, ps.added_energy_this_turn, s.active_player == p,
-                ps.mulligan_done]
+        cfg = game.config
+        return [ps.health / cfg.hero_health, ps.mana / cfg.max_mana, ps.crystals / cfg.max_mana, len(ps.hand) / 10,
+                len(ps.deck) / 30, len(ps.discard) / 30, len(ps.play) / cfg.max_board,
+                sum(game.can_attack(u) for u in ps.play) / cfg.max_board,
+                sum(game.stat(u, "power") for u in ps.play) / 30, ps.spare_spore, s.active_player == p,
+                ps.mulligan_done, ps.fatigue / 10]
 
     actions = game.legal_actions() if s.decision_player == player else []
     encoded = EncodedObs(

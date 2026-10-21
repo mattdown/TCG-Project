@@ -16,7 +16,7 @@ def test_generated_cards_are_within_one_point_of_budget():
     assert len(card_set) == 200
     assert len({c.name for c in card_set.cards}) == 200
     for card in card_set.cards:
-        delta = stat_value(card.power, card.health, card.score) - stat_budget(card.cost, card.energy_source)
+        delta = stat_value(card.power, card.health) - stat_budget(card.cost)
         assert abs(delta) <= 1
         assert card_set.notes["budget_delta"][card.id] == delta
 

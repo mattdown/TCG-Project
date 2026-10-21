@@ -1,9 +1,10 @@
-"""Rules engine.
+"""Rules engine (rules v2, Hearthstone-style: docs/technical-plan.md section 2).
 
 Every decision is a choice from legal_actions(), and step() applies one. Turn structure:
-mulligan (each player once) → for each turn: ready, start-of-turn abilities, draw, then
-main-phase actions until END_TURN, then end-of-turn abilities. The first player to
-GameConfig.vp_to_win VP wins; a player who has to draw from an empty deck loses.
+mulligan (each player once) → for each turn: gain a mana crystal and refill them, units can
+attack again, start-of-turn abilities, draw, then main-phase actions until END_TURN, then
+end-of-turn abilities. A hero at 0 health loses. Drawing from an empty deck deals growing
+damage to your hero instead.
 
 Abilities (docs/technical-plan.md section 3) are compiled to decision graphs and resolved on a
 stack (state.pending). Triggered abilities wait in state.queue until no ability is part-way
@@ -26,8 +27,11 @@ ZONES = {"play": Zone.PLAY, "hand": Zone.HAND, "discard": Zone.DISCARD}
 
 @dataclass(frozen=True)
 class GameConfig:
-    hand_size: int = 7
-    vp_to_win: int = 20
+    hero_health: int = 30
+    max_mana: int = 10
+    opening_hand: tuple[int, int] = (3, 4)  # first player, second player
+    max_board: int = 7
+    max_hand: int = 10  # a card drawn into a full hand is discarded
     max_turns: int = 100  # safety cap: the game is a draw after this many turns
 
 
@@ -48,10 +52,12 @@ class StepResult:
     """
     damage: dict[int, int] = field(default_factory=dict)  # uid → damage dealt
     defeated: list[int] = field(default_factory=list)
-    vp: dict[int, int] = field(default_factory=dict)  # player → VP gained (negative if lost)
-    energy_spent: dict[int, int] = field(default_factory=dict)  # player → energy exhausted to pay
-    exhausted: list[int] = field(default_factory=list)  # units exhausted by acting
-    readied: list[int] = field(default_factory=list)  # cards readied at the start of a turn or by an ability
+    hero_damage: dict[int, int] = field(default_factory=dict)  # player → damage to their hero
+    hero_healed: dict[int, int] = field(default_factory=dict)  # player → health their hero got back
+    mana_spent: dict[int, int] = field(default_factory=dict)  # player → mana paid
+    crystals: dict[int, int] = field(default_factory=dict)  # player → mana crystals gained by abilities
+    exhausted: list[int] = field(default_factory=list)  # units that attacked (or were stopped from attacking)
+    readied: list[int] = field(default_factory=list)  # units that can attack again at the start of a turn
     moves: list[Move] = field(default_factory=list)
     abilities: list[int] = field(default_factory=list)  # sources of abilities that started resolving
     healed: dict[int, int] = field(default_factory=dict)  # uid → damage removed
@@ -71,11 +77,12 @@ class Game:
                 uids.append(len(cards))
                 cards.append(CardInstance(len(cards), card, owner, Zone.DECK))
             self.rng.shuffle(uids)
-            players.append(PlayerState(deck=uids))
+            players.append(PlayerState(deck=uids, health=config.hero_health))
         first = self.rng.randrange(2) if first_player is None else first_player
         self.state = GameState(cards, players, first_player=first, active_player=first, decision_player=first)
-        for p in range(2):
-            for _ in range(config.hand_size):
+        players[1 - first].spare_spore = True
+        for p in (first, 1 - first):
+            for _ in range(config.opening_hand[p != first]):
                 self._draw(p)
 
     # ------------------------------------------------------------------ queries
@@ -87,11 +94,11 @@ class Game:
     def card(self, uid: int) -> CardInstance:
         return self.state.cards[uid]
 
-    def ready_energy(self, player: int) -> int:
-        return sum(not self.state.cards[u].exhausted for u in self.state.players[player].energy)
+    def mana(self, player: int) -> int:
+        return self.state.players[player].mana
 
     def stat(self, uid: int, name: str) -> int:
-        """Power, health or score, including abilities' bonuses (never below 0)."""
+        """Power or health, including abilities' bonuses (never below 0)."""
         c = self.card(uid)
         value = getattr(c.card, name)
         if c.zone == Zone.PLAY:
@@ -109,13 +116,13 @@ class Game:
             value += sum(m.get("value", 1) for _, _, m in self._statics_on(uid) if m.get("keyword") == name)
         return value if KEYWORDS[name] else min(value, 1)
 
-    def cant_ready(self, uid: int) -> bool:
-        """An ability stops this card readying at the start of its owner's next turn."""
-        return any(e.uid == uid and e.kind == "cant_ready" for e in self.state.effects)
+    def frozen(self, uid: int) -> bool:
+        """An ability stops this unit attacking on its owner's next turn."""
+        return any(e.uid == uid and e.kind == "freeze" for e in self.state.effects)
 
-    def barred(self, uid: int) -> bool:
-        """An ability stops this unit scoring or using ⟳ abilities this turn."""
-        return self._barred(uid)
+    def hidden(self, uid: int) -> bool:
+        """Elusive and hasn't attacked yet: enemies can't attack it or choose it."""
+        return bool(self.keyword(uid, "elusive")) and not self.card(uid).revealed
 
     def play_cost(self, uid: int) -> int:
         c = self.card(uid)
@@ -126,27 +133,30 @@ class Game:
                 reduction += modifier["cost_reduction"]
         return max(c.card.cost - reduction, 0)
 
-    def duel_targets(self, attacker_uid: int) -> list[int]:
-        """Opposing units this unit may duel.
+    def can_attack(self, uid: int) -> bool:
+        c = self.card(uid)
+        return (c.zone == Zone.PLAY and not c.exhausted and (not c.fresh or bool(self.keyword(uid, "charge")))
+                and self.stat(uid, "power") + self.keyword(uid, "duelist") > 0)
 
-        Normally only exhausted units. Guard units can be dueled even while ready, and must be
-        dueled first if any can be. Only Elusive units can duel Elusive units.
-        """
+    def attack_targets(self, attacker_uid: int) -> tuple[list[int], bool]:
+        """(enemy units this unit may attack, whether it may attack the enemy hero).
+
+        Hidden Elusive units can't be attacked. While the enemy has a Guard unit that can be
+        attacked, attacks must go to a Guard unit."""
         s = self.state
-        elusive = self.keyword(attacker_uid, "elusive")
-        candidates = [uid for uid in s.players[1 - s.cards[attacker_uid].owner].play
-                      if (s.cards[uid].exhausted or self.keyword(uid, "guard"))
-                      and (not self.keyword(uid, "elusive") or elusive)]
-        guards = [uid for uid in candidates if self.keyword(uid, "guard")]
-        return guards or candidates
+        units = [uid for uid in s.players[1 - s.cards[attacker_uid].owner].play if not self.hidden(uid)]
+        guards = [uid for uid in units if self.keyword(uid, "guard")]
+        return (guards, False) if guards else (units, True)
 
-    def duel_damage(self, attacker_uid: int, defender_uid: int) -> tuple[int, int]:
-        """(damage to the attacker, damage to the defender). Duelist adds to the attacker's power;
-        Armor reduces the damage each unit takes. Abilities that apply "while attacking" or
-        "while defending" count."""
+    def attack_damage(self, attacker_uid: int, defender_uid: int | None) -> tuple[int, int]:
+        """(damage to the attacker, damage to the defender, or to the hero when defender_uid is
+        None). Duelist adds to the attacker's power; Armor reduces the damage each unit takes;
+        heroes deal none back. Abilities that apply "while attacking" or "while defending" count."""
         previous, self.state.duel = self.state.duel, (attacker_uid, defender_uid)
         try:
             attack = self.stat(attacker_uid, "power") + self.keyword(attacker_uid, "duelist")
+            if defender_uid is None:
+                return 0, attack
             to_defender = max(0, attack - self.keyword(defender_uid, "armor"))
             to_attacker = max(0, self.stat(defender_uid, "power") - self.keyword(attacker_uid, "armor"))
         finally:
@@ -192,22 +202,21 @@ class Game:
             return self._decision_actions()
 
         actions = []
-        ready_energy = self.ready_energy(p)
+        board_full = len(ps.play) >= self.config.max_board
         for uid in ps.hand:
-            card = s.cards[uid].card
-            if card.energy_source and not ps.added_energy_this_turn:
-                actions.append(Action(ActionType.ADD_ENERGY, uid))
-            if self.play_cost(uid) <= ready_energy:
+            if self.play_cost(uid) <= ps.mana and (s.cards[uid].card.type != "unit" or not board_full):
                 actions.append(Action(ActionType.PLAY, uid))
+        if ps.spare_spore:
+            actions.append(Action(ActionType.SPARE_SPORE))
         for uid in ps.play:
             unit = s.cards[uid]
-            if unit.exhausted:
-                continue
-            if not unit.fresh and not self._barred(uid):
-                actions.append(Action(ActionType.SCORE, uid))
+            if not unit.exhausted and not unit.fresh:
                 actions.extend(Action(ActionType.ACTIVATE, uid, option=i) for i in self._activatable(uid))
-            if not unit.fresh or self.keyword(uid, "charge"):
-                actions.extend(Action(ActionType.DUEL, uid, t) for t in self.duel_targets(uid))
+            if self.can_attack(uid):
+                units, hero = self.attack_targets(uid)
+                actions.extend(Action(ActionType.ATTACK, uid, t) for t in units)
+                if hero:
+                    actions.append(Action(ActionType.ATTACK_HERO, uid))
         actions.append(Action(ActionType.END_TURN))
         return actions
 
@@ -234,24 +243,20 @@ class Game:
                 ps.mulligan_marked.append(action.card)
             case ActionType.KEEP_HAND:
                 self._keep_hand(p)
-            case ActionType.ADD_ENERGY:
-                self._move(action.card, Zone.ENERGY)
-                ps.added_energy_this_turn = True
             case ActionType.PLAY:
                 self._play(p, action.card)
-            case ActionType.SCORE:
+            case ActionType.SPARE_SPORE:
+                ps.spare_spore = False
+                ps.mana += 1
+            case ActionType.ATTACK | ActionType.ATTACK_HERO:
                 unit = self.card(action.card)
-                unit.exhausted = True
+                unit.exhausted = unit.revealed = True
                 if self._result:
                     self._result.exhausted.append(unit.uid)
-                self._gain_vp(p, self.stat(unit.uid, "score"))
-                self._trigger(action.card, "on_score")
-            case ActionType.DUEL:
-                self.card(action.card).exhausted = True
-                if self._result:
-                    self._result.exhausted.append(action.card)
-                s.pending.append(Continuation("duel", (action.card, action.target)))
+                s.pending.append(Continuation("attack", (action.card, action.target)))
                 self._trigger(action.card, "on_attack")
+                if action.type == ActionType.ATTACK_HERO:
+                    self._trigger(action.card, "on_attack_hero")
             case ActionType.ACTIVATE:
                 self._activate(p, action.card, action.option)
             case ActionType.END_TURN:
@@ -303,19 +308,20 @@ class Game:
             self._end_game(None)
             return
         ps = s.players[p]
-        ps.added_energy_this_turn = False
-        for uid in ps.play + ps.energy:
+        ps.crystals = min(ps.crystals + 1, self.config.max_mana)
+        ps.mana = ps.crystals
+        for uid in ps.play:
             c = self.card(uid)
             c.fresh = False
-            held = [e for e in s.effects if e.uid == uid and e.kind == "cant_ready"]
-            if held:  # "can't ready at the start of its next turn": used up now
+            held = [e for e in s.effects if e.uid == uid and e.kind == "freeze"]
+            if held:  # frozen: can't attack this turn, then it wears off
                 s.effects = [e for e in s.effects if e not in held]
+                c.exhausted = True
                 continue
             if self._result and c.exhausted:
                 self._result.readied.append(uid)
             c.exhausted = False
-        if s.turn > 1:  # the first player skips their first draw
-            s.pending.append(Continuation("draw", (p,)))
+        s.pending.append(Continuation("draw", (p,)))
         for uid in ps.play:
             self._trigger(uid, "start_of_turn")
 
@@ -329,20 +335,22 @@ class Game:
     def _draw(self, p: int):
         ps = self.state.players[p]
         if not ps.deck:
-            self._end_game(1 - p)
+            ps.fatigue += 1
+            self._damage_hero(p, ps.fatigue)
             return
         uid = ps.deck.pop()
-        ps.hand.append(uid)
-        self.card(uid).zone = Zone.HAND
+        dest = Zone.HAND if len(ps.hand) < self.config.max_hand else Zone.DISCARD  # a full hand burns the card
+        self._zone_lists(p)[dest].append(uid)
+        self.card(uid).zone = dest
         if self._result:
-            self._result.moves.append(Move(uid, p, Zone.DECK, Zone.HAND))
+            self._result.moves.append(Move(uid, p, Zone.DECK, dest))
 
     def _pay(self, p: int, cost: int):
-        ready = [u for u in self.state.players[p].energy if not self.card(u).exhausted]
-        for uid in ready[:cost]:
-            self.card(uid).exhausted = True
+        ps = self.state.players[p]
+        paid = min(cost, ps.mana)
+        ps.mana -= paid
         if self._result:
-            self._result.energy_spent[p] = self._result.energy_spent.get(p, 0) + min(cost, len(ready))
+            self._result.mana_spent[p] = self._result.mana_spent.get(p, 0) + paid
 
     def _play(self, p: int, uid: int):
         card = self.card(uid).card
@@ -378,7 +386,7 @@ class Game:
                 continue
             payable = True
             for cost in ability.tree["cost"]:
-                if "pay" in cost and cost["pay"] > self.ready_energy(c.owner):
+                if "pay" in cost and cost["pay"] > self.mana(c.owner):
                     payable = False
                 if "exhaust_another" in cost and not any(
                         u != uid and not self.card(u).exhausted for u in self.state.players[c.owner].play):
@@ -388,9 +396,6 @@ class Game:
             if payable:
                 out.append(i)
         return out
-
-    def _barred(self, uid: int) -> bool:
-        return any(e.kind == "barred" for e in self._effects_on(uid))
 
     # ------------------------------------------------------------------ abilities
 
@@ -477,10 +482,14 @@ class Game:
 
     def _continue(self, step: Continuation):
         match step.kind:
-            case "duel":
+            case "attack":
                 attacker, defender = step.args
-                if self.card(attacker).zone == Zone.PLAY and self.card(defender).zone == Zone.PLAY:
-                    to_attacker, to_defender = self.duel_damage(attacker, defender)
+                if self.card(attacker).zone != Zone.PLAY:
+                    return
+                if defender is None:
+                    self._damage_hero(1 - self.card(attacker).owner, self.attack_damage(attacker, None)[1])
+                elif self.card(defender).zone == Zone.PLAY:
+                    to_attacker, to_defender = self.attack_damage(attacker, defender)
                     self._damage(attacker, to_attacker)
                     self._damage(defender, to_defender)
                     self._check_defeats()
@@ -513,8 +522,10 @@ class Game:
                 frame.node = node.branches[action.option]
 
     def _choose_options(self, frame: Frame, node: Node) -> list[int]:
+        """Hidden Elusive units can't be chosen by their owner's opponent."""
         chosen = frame.bindings.get(node.name, [])
-        return [u for u in self.candidates(node.data["filter"], frame.controller, frame.source) if u not in chosen]
+        return [u for u in self.candidates(node.data["filter"], frame.controller, frame.source)
+                if u not in chosen and not (self.card(u).owner != frame.controller and self.hidden(u))]
 
     def _payable(self, cost: list, frame: Frame) -> bool:
         """Whether a "you may" cost can be paid in full, so "if you do" can follow."""
@@ -524,7 +535,7 @@ class Game:
                 return False
             if step.get("effect") == "discard" and len(ps.hand) < step.get("amount", 1):
                 return False
-            if step.get("effect") == "lose_vp" and ps.vp < step.get("amount", 1):
+            if step.get("effect") == "damage_hero" and ps.health <= step.get("amount", 1):
                 return False
         return True
 
@@ -565,8 +576,8 @@ class Game:
             return any(self.card(u).zone == Zone.PLAY for u in bindings.get(cond["in_play"], []))
         if "count" in cond:
             return len(self.candidates(cond["count"], controller, source)) >= cond["at_least"]
-        if "behind_on_vp" in cond:
-            return s.players[controller].vp < s.players[1 - controller].vp
+        if "behind_on_health" in cond:
+            return s.players[controller].health < s.players[1 - controller].health
         if "turn" in cond:
             return (s.active_player == controller) == (cond["turn"] == "yours")
         if "this_is" in cond:
@@ -601,19 +612,15 @@ class Game:
                         self._result.healed[t] = self._result.healed.get(t, 0) + before - self.card(t).damage
                 case "defeat":
                     self._defeat(t)
-                case "return_to_hand":
-                    self._move(t, Zone.HAND)
+                case "return_to_hand":  # into a full hand, the card is discarded instead
+                    full = len(s.players[self.card(t).owner].hand) >= self.config.max_hand
+                    self._move(t, Zone.DISCARD if full else Zone.HAND)
                 case "exhaust":
                     self.card(t).exhausted = True
                     if self._result:
                         self._result.exhausted.append(t)
-                case "ready":
-                    self.card(t).exhausted = False
-                    if self._result:
-                        self._result.readied.append(t)
-                    self._add_effect(ActiveEffect("barred", t, expires_turn=s.turn))
-                case "cant_ready":
-                    self._add_effect(ActiveEffect("cant_ready", t))
+                case "freeze":
+                    self._add_effect(ActiveEffect("freeze", t))
                 case "modify_stat":
                     self._add_effect(lasting(t, kind="stat", stat=step["stat"], value=step["delta"]))
                 case "grant_keyword":
@@ -627,18 +634,20 @@ class Game:
                             self._move(self.rng.choice(s.players[t].hand), Zone.DISCARD)
                 case "discard_card":
                     self._move(t, Zone.DISCARD)
-                case "gain_vp":
-                    self._gain_vp(t, amount)
-                case "lose_vp":
-                    lost = min(amount, s.players[t].vp)
-                    s.players[t].vp -= lost
-                    if self._result:
-                        self._result.vp[t] = self._result.vp.get(t, 0) - lost
-                case "add_energy":
-                    if s.players[t].deck:
-                        uid = s.players[t].deck[-1]
-                        self._move(uid, Zone.ENERGY)
-                        self.card(uid).exhausted = True
+                case "heal_hero":
+                    ps = s.players[t]
+                    healed = min(amount, self.config.hero_health - ps.health)
+                    ps.health += healed
+                    if self._result and healed:
+                        self._result.hero_healed[t] = self._result.hero_healed.get(t, 0) + healed
+                case "damage_hero":
+                    self._damage_hero(t, amount)
+                case "gain_crystal":
+                    ps = s.players[t]
+                    if ps.crystals < self.config.max_mana:  # an empty crystal: more mana from next turn
+                        ps.crystals += 1
+                        if self._result:
+                            self._result.crystals[t] = self._result.crystals.get(t, 0) + 1
                 case _:
                     raise ValueError(f"unknown effect {op}")
 
@@ -708,12 +717,14 @@ class Game:
         for other in self.state.players[1 - owner].play:
             self._trigger(other, "opposing_defeated")
 
-    def _gain_vp(self, p: int, amount: int):
-        self.state.players[p].vp += amount
+    def _damage_hero(self, p: int, amount: int):
+        if amount <= 0:
+            return
+        self.state.players[p].health -= amount
         if self._result:
-            self._result.vp[p] = self._result.vp.get(p, 0) + amount
-        if self.state.players[p].vp >= self.config.vp_to_win:
-            self._end_game(p)
+            self._result.hero_damage[p] = self._result.hero_damage.get(p, 0) + amount
+        if self.state.players[p].health <= 0:
+            self._end_game(1 - p)
 
     def _move(self, uid: int, zone: Zone):
         c = self.card(uid)
@@ -723,7 +734,7 @@ class Game:
         zones[c.zone].remove(uid)
         zones[zone].append(uid)
         c.zone = zone
-        c.exhausted = c.fresh = False
+        c.exhausted = c.fresh = c.revealed = False
         c.damage = 0
         if zone != Zone.PLAY:  # lasting effects end when a card leaves play
             self.state.effects = [e for e in self.state.effects if e.uid != uid]
@@ -733,8 +744,7 @@ class Game:
 
     @staticmethod
     def _zone_lists_of(ps: PlayerState) -> dict[Zone, list[int]]:
-        return {Zone.DECK: ps.deck, Zone.HAND: ps.hand, Zone.PLAY: ps.play, Zone.ENERGY: ps.energy,
-                Zone.DISCARD: ps.discard}
+        return {Zone.DECK: ps.deck, Zone.HAND: ps.hand, Zone.PLAY: ps.play, Zone.DISCARD: ps.discard}
 
     def _end_game(self, winner: int | None):
         if self.state.phase == Phase.GAME_OVER:
@@ -755,14 +765,14 @@ def describe_action(game: Game, action: Action) -> str:
             return f"Put back {name}"
         case ActionType.KEEP_HAND:
             return "Keep hand"
-        case ActionType.ADD_ENERGY:
-            return f"Add {name} as {TERMS['energy']}"
         case ActionType.PLAY:
             return f"Play {name}"
-        case ActionType.SCORE:
-            return f"{TERMS['score'].capitalize()} with {name}"
-        case ActionType.DUEL:
-            return f"{TERMS['duel'].capitalize()}: {name} → {game.card(action.target).card.name}"
+        case ActionType.SPARE_SPORE:
+            return f"Use the {TERMS['spare_spore']} (+1 {TERMS['mana']} this turn)"
+        case ActionType.ATTACK:
+            return f"{TERMS['attack'].capitalize()}: {name} → {game.card(action.target).card.name}"
+        case ActionType.ATTACK_HERO:
+            return f"{TERMS['attack'].capitalize()}: {name} → the enemy {TERMS['hero']}"
         case ActionType.END_TURN:
             return "End turn"
         case ActionType.ACTIVATE:

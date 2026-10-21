@@ -28,13 +28,13 @@ def damage(n, target=None):
 
 
 def gain(n):
-    return {"effect": "gain_vp", "amount": n, "target": "you"}
+    return {"effect": "heal_hero", "amount": n, "target": "you"}
 
 
 def test_complexity_counts_every_node():
     assert complexity(on_play(gain(1))) == 1
     assert complexity(on_play(choose(), damage(2), {"if": {"defeated": "it"}, "then": [gain(1)]})) == 4
-    assert complexity(on_play(gain(1), condition={"behind_on_vp": True})) == 2
+    assert complexity(on_play(gain(1), condition={"behind_on_health": True})) == 2
     activated = {"kind": "activated", "cost": [{"exhaust_this": True}, {"pay": 2}], "steps": [gain(1)]}
     assert complexity(activated) == 2
 
@@ -43,8 +43,8 @@ def test_steps_must_connect():
     follow_up = on_play(choose(), damage(2), {"if": {"defeated": "it"}, "then": [gain(1)]})
     assert disconnected_steps(follow_up["steps"]) == []
     glued = on_play(choose(), damage(2), gain(1))
-    assert disconnected_steps(glued["steps"]) == ["'gain_vp' isn't connected to the steps before it"]
-    # Player effects don't connect: "draw a card, gain 1 VP" is two ideas.
+    assert disconnected_steps(glued["steps"]) == ["'heal_hero' isn't connected to the steps before it"]
+    # Player effects don't connect: "draw a card, heal your hero" is two ideas.
     assert disconnected_steps([{"effect": "draw", "amount": 1, "target": "you"}, gain(1)])
     # Choose one's options are alternatives, not a sequence.
     assert disconnected_steps([{"choose_one": [[gain(1)], [choose(), damage(1)]]}]) == []
@@ -167,8 +167,8 @@ def test_names_are_unique_and_actions_get_event_names():
 
 
 def test_main_effect_and_static_kind():
-    may = on_play({"may": [{"effect": "lose_vp", "target": "you", "amount": 1}], "if_you_do": [gain(2)]})
-    assert main_effect(may) == "gain_vp"
+    may = on_play({"may": [{"effect": "damage_hero", "target": "you", "amount": 2}], "if_you_do": [gain(3)]})
+    assert main_effect(may) == "heal_hero"
     discount = {"kind": "static", "condition": None, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you"}}]}
     assert static_kind(discount) == "discount"
 
