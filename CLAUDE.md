@@ -21,7 +21,8 @@ date when work lands: tick items, add dated entries to "Done", and record decisi
 Decisions already made (don't re-open without a reason):
 - **Cards:** fully synthetic cards; all game terms are placeholders.
 - **Rules v2:** Hearthstone-style, chosen because more players and readers know it. Heroes
-  with 30 health, mana up to 10, units attack units or the hero; ⟳ abilities replace attacking.
+  with 30 health, mana up to 10, units attack units or the hero. Units only attack: no
+  activated (⟳) abilities are generated (the engine keeps them for a later mechanic).
 - **Blog series:** part 1 setup and card generation, part 2 self-play and balancing, part 3 a
   twist of our own.
 - **Model:** PyTorch, with the heterogeneous GNN (`--arch gnn`) as the default model. The
@@ -115,7 +116,6 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   The human's decisions are commands (`Commands.cs`): each step picks its action from the
   latest `legal_actions`, so a multi-step choice like the mulligan is picked locally and sent
   in one go, and indexes never go stale.
-  The client speaks protocol v2 (milestone 4: heroes, mana crystals, attacks, the Spare Spore).
   Ability UI: `View/CardText.cs` builds card text from the server's `keywords` and
   `ability_text`; `Board/AbilityPanels.cs` has the choice banner and the dev scenario panel
   (DEV button); `Board/AutoPlayer.cs` is a dev-only random player for soak tests (add it to the
