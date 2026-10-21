@@ -454,6 +454,13 @@ public static class ClientAssetBuilder
         pillFit.horizontalFit = pillFit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         bv.TurnText = Text(Node("Text", pill), "TURN 1", f.Lilita, 13, Palette.Gold, TextAlignmentOptions.Center);
 
+        // A soft gold glow behind END TURN, pulsed by BoardView when nothing else is left to do.
+        var glow = Node("EndTurnGlow", board);
+        Anchor(glow, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-2, 170), new Vector2(224, 102));
+        bv.EndTurnGlow = Img(glow, _glow, Palette.Gold);
+        bv.EndTurnGlow.type = Image.Type.Sliced;
+        glow.gameObject.SetActive(false);
+
         var button = Node("EndTurn", board);
         Anchor(button, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 148), new Vector2(180, 58));
         Rounded(button, Palette.Outline, 14).raycastTarget = true;

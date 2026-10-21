@@ -90,7 +90,8 @@ States:
 | Buffed / debuffed | stat number in green / red |
 | Selected | lifted 10 px, gold glow |
 | Target | red glow |
-| Playable (in hand) | green glow |
+| Playable (in hand), or can still attack (your units) | green glow |
+| END TURN with nothing else left to do | the button pulses with a gold glow |
 
 ## Interaction
 

@@ -172,6 +172,7 @@ namespace Tcg.Board
         {
             _busy = busy;
             Interaction.Interactive = !busy && _state != null && _state.HumanDecides;
+            Board.SetEndTurnGlow(!busy && NothingLeftButEndTurn(_state));
             if (busy || _state == null)
             {
                 if (busy) Board.SetEndTurnButton(Board.EndTurnLabel.text, false);
@@ -184,6 +185,22 @@ namespace Tcg.Board
             }
             var action = PrimaryAction(_state);
             Board.SetEndTurnButton(action != null ? action.text.ToUpperInvariant() : UiText.Waiting, action != null);
+        }
+
+        /// <summary>
+        /// Your main-phase decision with only END TURN left to do (the Spare Spore alone doesn't
+        /// count: it only matters if there's something to spend the mana on).
+        /// </summary>
+        static bool NothingLeftButEndTurn(GameState s)
+        {
+            if (s == null || !s.HumanDecides || s.InMulligan || s.pending != null) return false;
+            bool canEnd = false;
+            foreach (var a in s.legal_actions)
+            {
+                if (a.type == ActionTypes.EndTurn) canEnd = true;
+                else if (a.type != ActionTypes.SpareSpore) return false;
+            }
+            return canEnd;
         }
 
         /// <summary>The legal action the button stands for: end_turn, or keep_hand during the mulligan.</summary>

@@ -24,7 +24,6 @@ namespace Tcg.Board
         const float HandMaxWidth = 700f;
         const float BackStep = 40f;
         const float Move = 0.3f;
-        const float FreshDrop = 18f;  // units played this turn sit back from the divider
 
         public UiTheme Theme;
 
@@ -53,6 +52,8 @@ namespace Tcg.Board
         public TMP_Text TurnText;
         public Button EndTurnButton;
         public TMP_Text EndTurnLabel;
+        [Tooltip("Pulses behind END TURN when there's nothing else left to do.")]
+        public Image EndTurnGlow;
         [Tooltip("The second player's one-off +1 mana, shown while its action is legal.")]
         public Button SpareSporeButton;
         public TMP_Text SpareSporeLabel;
@@ -178,6 +179,17 @@ namespace Tcg.Board
             EndTurnButton.interactable = interactable;
         }
 
+        /// <summary>Pulses a glow behind END TURN: nothing else is left to do this turn.</summary>
+        public void SetEndTurnGlow(bool on)
+        {
+            if (on == EndTurnGlow.gameObject.activeSelf) return;
+            EndTurnGlow.DOKill();
+            EndTurnGlow.gameObject.SetActive(on);
+            if (!on) return;
+            EndTurnGlow.color = Palette.Gold.WithAlpha(0.35f);
+            EndTurnGlow.DOFade(0.95f, 0.7f).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo);
+        }
+
         /// <summary>A one-line notice (server errors, connection problems); null or empty hides it.</summary>
         public void ShowMessage(string text)
         {
@@ -282,19 +294,19 @@ namespace Tcg.Board
                     view.Rect.position = from;  // e.g. played from the opponent's hand
                     view.Rect.localScale = Vector3.one * 0.4f;
                 }
-                // A unit played this turn (fresh) waits a little back, towards its owner, and moves up
-                // into line when it can act.
-                float back = c.fresh ? FreshDrop * (zone == "human_play" ? -1f : 1f) : 0f;
-                var pos = new Vector2((i - (n - 1) / 2f) * (slot + RowGap) * fit, back);
+                var pos = new Vector2((i - (n - 1) / 2f) * (slot + RowGap) * fit, 0f);
                 Place(view, pos, Vector3.one * FieldScale * fit, Quaternion.identity, animate);
                 view.Rect.SetSiblingIndex(i);
-                view.SetMark(CardMark.None);
+                // Your units that can still do something glow, like playable cards in your hand.
+                bool ready = zone == "human_play" && (HasAction(c.uid, ActionTypes.Attack) ||
+                    HasAction(c.uid, ActionTypes.AttackHero) || HasAction(c.uid, ActionTypes.Activate));
+                view.SetMark(ready ? CardMark.Playable : CardMark.None);
                 view.SetAbilityReady(zone == "human_play" && HasAction(c.uid, ActionTypes.Activate));
                 _zoneOf[c.uid] = zone;
             }
             if (extraSlots > 0)
             {
-                _ghost.anchoredPosition = new Vector2((n - 1) / 2f * (slot + RowGap) * fit, -FreshDrop);  // lands fresh
+                _ghost.anchoredPosition = new Vector2((n - 1) / 2f * (slot + RowGap) * fit, 0f);
                 _ghost.localScale = Vector3.one * fit;
             }
         }

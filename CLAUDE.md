@@ -115,8 +115,7 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   The human's decisions are commands (`Commands.cs`): each step picks its action from the
   latest `legal_actions`, so a multi-step choice like the mulligan is picked locally and sent
   in one go, and indexes never go stale.
-  **The client still speaks protocol v1** (energy, VP, duels): milestone 4 moves it to v2
-  (docs/client-protocol.md, "Status and checking cards").
+  The client speaks protocol v2 (milestone 4: heroes, mana crystals, attacks, the Spare Spore).
   Ability UI: `View/CardText.cs` builds card text from the server's `keywords` and
   `ability_text`; `Board/AbilityPanels.cs` has the choice banner and the dev scenario panel
   (DEV button); `Board/AutoPlayer.cs` is a dev-only random player for soak tests (add it to the
