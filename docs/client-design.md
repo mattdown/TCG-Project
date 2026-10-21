@@ -10,7 +10,7 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 
 > **Rules v2 (2026-10-21).** The game moved to Hearthstone-style rules
 > ([technical-plan.md](technical-plan.md) section 2), and the look below still shows v1 in
-> places. Client milestone 4 changes:
+> places. Client milestone 4 (built 2026-10-21) changed:
 > - **VP bars → hero portraits** with health out of 30. The enemy hero is an attack target.
 > - **Energy gems and the energy zone → mana crystals:** full / total, up to 10, refilled each
 >   turn. No "add as energy" drop zone, no energy-source rim on the cost gem.
@@ -20,6 +20,14 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 >   buttons. A unit that has attacked is dimmed ("Zz" as before); a frozen one shows ice; a
 >   hidden (Elusive) one can't be targeted by enemies.
 > - **Subtitles** under card names.
+>
+> As built: each hero keeps its v1 corner (the enemy's top left, yours bottom left) with a
+> heart and a health bar in place of the VP bar; the enemy hero's whole panel is the
+> `attack_hero` drop target, ringed red while an arrow is out and showing "22 → 19" under the
+> finger. Mana crystals use the old gem row ("4/6"). The Spare Spore is a purple button left of
+> the turn pill, labelled with the action's text. Frozen units show ice and a ❄ over the art;
+> hidden ones a lilac veil. Unit names leave the banner's right end to the power and health
+> badges.
 
 ## Look
 

@@ -38,7 +38,7 @@ namespace Tcg.Board
         GameOverView _gameOver;
         ChoiceBanner _choice;
         DevPanel _dev;
-        DropZone _field, _energy, _score;
+        DropZone _field;
         RectTransform _finger;
 
         CardView _dragged;
@@ -47,8 +47,6 @@ namespace Tcg.Board
         GameAction _hover;
 
         static readonly Color PlayLabel = Palette.Hex("#2F8A27");
-        static readonly Color EnergyLabel = Palette.Hex("#A32A9A");
-        static readonly Color ScoreLabel = Palette.Hex("#C77E0E");
         static readonly Color BadgeRed = Palette.Hex("#C42A3A");
 
         void Start()
@@ -61,13 +59,7 @@ namespace Tcg.Board
             _field = DropZone.Create("PlayZone", root, Palette.GlowPlayable, PlayLabel, 0.18f);
             Ui.Anchor(_field.Rect, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -282), new Vector2(1200, 198));
             _field.PlaceLabel(new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), Vector2.zero);
-            _energy = DropZone.Create("EnergyZone", root, Palette.Energy, EnergyLabel, 0.25f);
-            Ui.Anchor(_energy.Rect, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-14, 180), new Vector2(266, 52));
-            _energy.PlaceLabel(new Vector2(0, 1), new Vector2(1, 1), new Vector2(-12, -10));
-            _score = DropZone.Create("ScoreZone", root, Palette.Gold, ScoreLabel, 0.22f);
-            Ui.Anchor(_score.Rect, new Vector2(0, 0), new Vector2(0, 0), new Vector2(12, 126), new Vector2(276, 100));
-            _score.PlaceLabel(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(16, 0));
-            foreach (var z in new[] { _field, _energy, _score }) z.Rect.SetSiblingIndex(below);
+            _field.Rect.SetSiblingIndex(below);
 
             Arrow = ArrowView.Create(Board.TopLayer);
             _finger = Ui.Node("Finger", Board.TopLayer);
@@ -146,27 +138,27 @@ namespace Tcg.Board
             _hover = null;
             if (Board.IsInHumanHand(uid))
             {
-                Collect(uid, ActionTypes.Play, ActionTypes.AddEnergy);
+                Collect(uid, ActionTypes.Play);
                 _arrowMode = false;
                 card.Rect.DOKill();
                 card.transform.SetParent(Board.TopLayer, true);
                 card.SetMark(CardMark.None);
-                foreach (var a in _options)
-                    (a.type == ActionTypes.Play ? _field : _energy).Show(false, null);
+                if (_options.Count > 0) _field.Show(false, null);
             }
             else if (Board.IsHumanUnit(uid))
             {
-                Collect(uid, ActionTypes.Score, ActionTypes.Duel);
+                Collect(uid, ActionTypes.Attack, ActionTypes.AttackHero);
                 if (_options.Count == 0) return false;
                 _arrowMode = true;
                 card.SetMark(CardMark.Selected);
+                // Only legal targets light up: Guard, hidden Elusive units and so on are the server's call.
                 foreach (var unit in Board.OpponentUnitViews())
                 {
-                    bool target = _options.Exists(a => a.type == ActionTypes.Duel && a.target == unit.Uid);
+                    bool target = _options.Exists(a => a.type == ActionTypes.Attack && a.target == unit.Uid);
                     if (target) unit.SetTargetRing(TargetRing.Valid);
                     else unit.SetDimmed(true);
                 }
-                if (_options.Exists(a => a.type == ActionTypes.Score)) _score.Show(false, null);
+                Board.SetHeroTarget(_options.Exists(a => a.type == ActionTypes.AttackHero), false);
             }
             else
             {
@@ -200,22 +192,20 @@ namespace Tcg.Board
             if (_arrowMode)
             {
                 Vector2 from = Board.ToTop(card.Rect.position);
-                bool duel = _hover != null && _hover.type == ActionTypes.Duel;
-                Vector2 to = duel ? Board.ToTop(Board.CardByUid(_hover.target.Value).Rect.position) : p;
-                Color colour = _hover == null ? Color.white : duel ? Palette.GlowTarget : Palette.Gold;
-                Arrow.Show(from, to, colour, duel);
+                bool unit = _hover != null && _hover.type == ActionTypes.Attack;
+                Vector2 to = unit ? Board.ToTop(Board.CardByUid(_hover.target.Value).Rect.position)
+                    : _hover != null ? Board.ToTop(Board.OpponentHealthText.transform.position) : p;
+                Arrow.Show(from, to, _hover == null ? Color.white : Palette.GlowTarget, _hover != null);
                 Arrow.transform.SetAsLastSibling();
                 _finger.SetAsLastSibling();
             }
             else
             {
-                // Held above the finger, tilting with the motion; smaller over the energy bar so the
-                // new gem slot stays visible.
-                bool overEnergy = _hover != null && _hover.type == ActionTypes.AddEnergy;
-                card.Rect.anchoredPosition = p + new Vector2(0f, overEnergy ? 90f : 70f);
+                // Held above the finger, tilting with the motion.
+                card.Rect.anchoredPosition = p + new Vector2(0f, 70f);
                 float tilt = Mathf.Clamp(-e.delta.x * 0.6f, -8f, 8f);
                 card.Rect.localRotation = Quaternion.Slerp(card.Rect.localRotation, Quaternion.Euler(0, 0, tilt), 0.3f);
-                card.Rect.localScale = Vector3.Lerp(card.Rect.localScale, Vector3.one * (overEnergy ? 0.7f : 0.95f), 0.35f);
+                card.Rect.localScale = Vector3.Lerp(card.Rect.localScale, Vector3.one * 0.95f, 0.35f);
             }
         }
 
@@ -226,16 +216,13 @@ namespace Tcg.Board
             {
                 switch (a.type)
                 {
-                    case ActionTypes.AddEnergy:
-                        if (_energy.Contains(e.position, cam)) return a;
-                        break;
                     case ActionTypes.Play:
                         if (_field.Contains(e.position, cam)) return a;
                         break;
-                    case ActionTypes.Score:
-                        if (_score.Contains(e.position, cam)) return a;
+                    case ActionTypes.AttackHero:
+                        if (RectTransformUtility.RectangleContainsScreenPoint(Board.OpponentHero, e.position, cam)) return a;
                         break;
-                    case ActionTypes.Duel:
+                    case ActionTypes.Attack:
                         var target = a.target.HasValue ? Board.CardByUid(a.target.Value) : null;
                         if (target != null && RectTransformUtility.RectangleContainsScreenPoint(target.Rect, e.position, cam))
                             return a;
@@ -253,19 +240,15 @@ namespace Tcg.Board
             switch (_hover.type)
             {
                 case ActionTypes.Play:
-                    _field.Show(true, string.Format(UiText.DropToPlay, preview.EnergyFor(me)));
+                    _field.Show(true, string.Format(UiText.DropToPlay, preview.ManaFor(me)));
                     if (!_dragged.Def.IsAction) Board.ShowGhostSlot(true);  // action cards don't stay in play
-                    Board.PreviewEnergySpend(preview.EnergyFor(me));
+                    Board.PreviewManaSpend(preview.ManaFor(me));
                     break;
-                case ActionTypes.AddEnergy:
-                    _energy.Show(true, UiText.DropToAddEnergy);
-                    Board.PreviewNewGem(true);
+                case ActionTypes.AttackHero:
+                    Board.SetHeroTarget(true, true, preview.HeroDamageTo(1 - me));
+                    _dragged.SetBadge(Outcome(preview, _dragged.Uid), BadgeRed);
                     break;
-                case ActionTypes.Score:
-                    _score.Show(true, string.Format(UiText.DropToScore, preview.VpFor(me)));
-                    Board.PreviewVp(preview.VpFor(me));
-                    break;
-                case ActionTypes.Duel:
+                case ActionTypes.Attack:
                     var target = Board.CardByUid(_hover.target.Value);
                     target.SetTargetRing(TargetRing.Hovered);
                     target.SetBadge(Outcome(preview, target.Uid), BadgeRed);
@@ -286,17 +269,13 @@ namespace Tcg.Board
                 case ActionTypes.Play:
                     _field.Show(false, null);
                     Board.ShowGhostSlot(false);
-                    Board.PreviewEnergySpend(0);
+                    Board.PreviewManaSpend(0);
                     break;
-                case ActionTypes.AddEnergy:
-                    _energy.Show(false, null);
-                    Board.PreviewNewGem(false);
+                case ActionTypes.AttackHero:
+                    Board.SetHeroTarget(true, false);
+                    _dragged.SetBadge(null, Color.clear);
                     break;
-                case ActionTypes.Score:
-                    _score.Show(false, null);
-                    Board.PreviewVp(0);
-                    break;
-                case ActionTypes.Duel:
+                case ActionTypes.Attack:
                     var target = Board.CardByUid(_hover.target.Value);
                     target.SetTargetRing(TargetRing.Valid);
                     target.SetBadge(null, Color.clear);
@@ -311,7 +290,8 @@ namespace Tcg.Board
             if (_dragged != card) return;
             var chosen = _hover;
             ClearHover();
-            foreach (var z in new[] { _field, _energy, _score }) z.Hide();
+            _field.Hide();
+            Board.SetHeroTarget(false, false);
             Arrow.Hide();
             _finger.gameObject.SetActive(false);
             _dragged = null;

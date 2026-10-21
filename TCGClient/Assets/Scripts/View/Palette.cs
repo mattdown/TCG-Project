@@ -28,7 +28,6 @@ namespace Tcg.View
         public static readonly Color Zz = Hex("#BFD3FF");
         public static readonly Color OpponentAccent = Hex("#E0503C");
         public static readonly Color OpponentLip = Hex("#A8321F");
-        public static readonly Color OpponentVp = Hex("#F0533A");
         public static readonly Color HumanAccent = Hex("#2F86E8");
         public static readonly Color HumanLip = Hex("#1A5DB0");
         public static readonly Color CardBack = Hex("#7A3FC4");

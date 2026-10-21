@@ -100,12 +100,12 @@ namespace Tcg.Board
 
     /// <summary>
     /// A dev panel to start a scenario with chosen cards (docs/client-protocol.md, new_game). Text like
-    /// "hand: C1-004; opponent_play: C1-018" becomes the request's scenario object.
+    /// "hand: C1-004; opponent_play: C1-018; mana: 3" becomes the request's scenario object.
     /// </summary>
     public class DevPanel : MonoBehaviour
     {
         const string PrefKey = "tcg.dev.scenario";
-        static readonly string[] Numbers = { "energy", "opponent_energy", "vp", "opponent_vp" };
+        static readonly string[] Numbers = { "mana", "opponent_mana", "health", "opponent_health" };
 
         /// <summary>Start: the scenario and an optional seed.</summary>
         public event Action<JObject, int?> ScenarioRequested;
@@ -191,7 +191,7 @@ namespace Tcg.Board
             }
         }
 
-        /// <summary>"hand: C1-004; play: C1-010 exhausted damage=1; energy: 2; seed: 1" → scenario JSON and seed.</summary>
+        /// <summary>"hand: C1-004; play: C1-010 exhausted damage=1; mana: 2; seed: 1" → scenario JSON and seed.</summary>
         public static (JObject scenario, int? seed) Parse(string text)
         {
             var scenario = new JObject();

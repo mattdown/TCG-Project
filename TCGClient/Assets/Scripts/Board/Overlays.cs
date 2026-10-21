@@ -20,18 +20,17 @@ namespace Tcg.Board
         static readonly Color ChipOpponent = Palette.Hex("#A8321F");
         static readonly Color ChipNeutral = Palette.Hex("#2E4680");
         static readonly Color PlayFace = Palette.Hex("#5BC84E"), PlayLip = Palette.Hex("#2F8A27");
-        static readonly Color EnergyLip = Palette.Hex("#A32A9A");
 
         public event Action<GameAction> ActionChosen;
         public bool IsOpen => gameObject.activeSelf;
 
         CardView _card;
         RectTransform _chips, _column, _buttons;
-        Button _play, _energy;
+        Button _play;
         TMP_Text _playText;
         GameObject _note;
         readonly List<GameObject> _built = new List<GameObject>();
-        GameAction _playAction, _energyAction;
+        GameAction _playAction;
 
         public static InspectView Create(RectTransform parent, CardView prefab)
         {
@@ -71,8 +70,6 @@ namespace Tcg.Board
             row.childForceExpandWidth = row.childForceExpandHeight = true;
             view._play = Ui.Button(Ui.Node("Play", view._buttons), "PLAY", PlayFace, PlayLip, 19, out view._playText);
             view._play.onClick.AddListener(() => view.Choose(view._playAction));
-            view._energy = Ui.Button(Ui.Node("Energy", view._buttons), UiText.AddEnergyButton, Palette.Energy, EnergyLip, 19, out _);
-            view._energy.onClick.AddListener(() => view.Choose(view._energyAction));
             view._note = Ui.Body(Ui.Node("Note", view._column), UiText.ButtonsNote, 13, Palette.SubtleText).gameObject;
 
             Ui.Body(Ui.TopStrip("Hint", root, 0, 652, 24), UiText.TapToClose, 14, Palette.SubtleText,
@@ -96,8 +93,8 @@ namespace Tcg.Board
                 if (instance.exhausted) Chip(UiText.Exhausted, ChipNeutral);
                 if (instance.fresh) Chip(UiText.Fresh, ChipNeutral);
                 if (instance.damage > 0) Chip(string.Format(UiText.DamageChip, instance.damage), ChipNeutral);
-                if (instance.cant_ready) Chip(UiText.CantReadyChip, ChipOpponent);
-                if (instance.barred) Chip(UiText.BarredChip, ChipOpponent);
+                if (instance.frozen) Chip(UiText.FrozenChip, ChipOpponent);
+                if (instance.hidden) Chip(UiText.HiddenChip, ChipNeutral);
             }
 
             // A box per keyword (with the server's reminder text), the full card text, the cost
@@ -116,8 +113,6 @@ namespace Tcg.Board
                 foreach (var line in def.ability_text) lines.Add(CardText.Ability(line));
                 Tip(UiText.CardTextTitle, string.Join("\n", lines), index++);
             }
-            if (def.energy_source) Tip(UiText.EnergySourceTitle, UiText.EnergySourceText, index++);
-            else Tip(UiText.NotEnergySourceTitle, UiText.NotEnergySourceText, index++);
             int health = instance?.health ?? def.health;
             if (instance != null && instance.damage > 0)
                 Tip(string.Format(UiText.HealthTitle, health - instance.damage, health),
@@ -142,17 +137,12 @@ namespace Tcg.Board
             _note.SetActive(inHand);
             if (inHand)
             {
-                _playAction = _energyAction = null;
+                _playAction = null;
                 foreach (var a in s.legal_actions)
-                {
-                    if (a.card != instance?.uid) continue;
-                    if (a.type == ActionTypes.Play) _playAction = a;
-                    if (a.type == ActionTypes.AddEnergy) _energyAction = a;
-                }
-                int cost = _playAction?.preview != null ? _playAction.preview.EnergyFor(s.human_seat) : def.cost;
+                    if (a.card == instance?.uid && a.type == ActionTypes.Play) _playAction = a;
+                int cost = _playAction?.preview != null ? _playAction.preview.ManaFor(s.human_seat) : instance?.cost ?? def.cost;
                 _playText.text = string.Format(UiText.PlayButton, cost);
                 _play.interactable = _playAction != null;
-                _energy.interactable = _energyAction != null;
             }
             LayoutRebuilder.ForceRebuildLayoutImmediate(_column);
         }
@@ -354,7 +344,7 @@ namespace Tcg.Board
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
             _title.text = s.winner == null ? UiText.Draw : s.winner == s.human_seat ? UiText.YouWin : UiText.YouLose;
-            _score.text = string.Format(UiText.FinalScore, UiText.You, s.Human.vp, opponentName, s.Opponent.vp);
+            _score.text = string.Format(UiText.FinalScore, UiText.You, s.Human.health, opponentName, s.Opponent.health);
         }
 
         public void Hide() => gameObject.SetActive(false);

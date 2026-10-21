@@ -18,7 +18,7 @@ namespace Tcg.Protocol
         public string opponent;
         public int human_seat;
         public int? seed;
-        public JObject scenario;  // optional: chosen cards in hand and in play, energy, VP
+        public JObject scenario;  // optional: chosen cards in hand and in play, mana, hero health
         public NewGameRequest(string opponent, int humanSeat, int? seed, JObject scenario = null) : base("new_game")
         {
             this.opponent = opponent;
@@ -73,13 +73,12 @@ namespace Tcg.Protocol
     {
         public string id;
         public string name;
+        public string subtitle;  // units: the version of the character ("Up Before Dawn"); actions: ""
         public string type;
         public List<string> aspects;
-        public bool energy_source;
         public int cost;
         public int power;
         public int health;
-        public int score;
         public List<string> traits;
         public Dictionary<string, JToken> keywords;  // true, or a number for Duelist / Armor
         public List<string> ability_text;
@@ -109,17 +108,19 @@ namespace Tcg.Protocol
         public int cost;
         public int? power;
         public int? health;
-        public int? score;
         public Dictionary<string, JToken> keywords;
-        public bool cant_ready;  // won't ready at the start of its owner's next turn
-        public bool barred;      // can't score or use ⟳ abilities this turn
+        public bool can_attack;  // it's its owner's turn and it can attack now
+        public bool frozen;      // can't attack on its owner's next turn
+        public bool hidden;      // Elusive and hasn't attacked yet: enemies can't target it
     }
 
     public class PlayerState
     {
-        public int vp;
-        public int energy_ready;
-        public int energy_total;
+        public int health;        // the hero's health left; 0 loses
+        public int mana;          // unspent mana this turn
+        public int crystals;      // mana crystals (up to max_mana)
+        public bool spare_spore;  // the second player's one-off +1 mana is still available
+        public int fatigue;       // damage from the last draw from an empty deck
         public int deck_count;
         public int hand_count;
         public List<CardInstance> hand;       // null for the AI
@@ -149,8 +150,10 @@ namespace Tcg.Protocol
     {
         public List<UidAmount> damage = new List<UidAmount>();
         public List<int> defeated = new List<int>();
-        public List<PlayerAmount> vp = new List<PlayerAmount>();
-        public List<PlayerAmount> energy_spent = new List<PlayerAmount>();
+        public List<PlayerAmount> hero_damage = new List<PlayerAmount>();
+        public List<PlayerAmount> hero_healed = new List<PlayerAmount>();
+        public List<PlayerAmount> mana_spent = new List<PlayerAmount>();
+        public List<PlayerAmount> crystals = new List<PlayerAmount>();  // empty crystals gained from abilities
         public List<int> exhausted = new List<int>();
         public List<int> readied = new List<int>();
         public List<CardMove> moves = new List<CardMove>();
@@ -165,8 +168,8 @@ namespace Tcg.Protocol
         }
 
         public bool Defeats(int uid) => defeated.Contains(uid);
-        public int VpFor(int player) => AmountFor(vp, player);
-        public int EnergyFor(int player) => AmountFor(energy_spent, player);
+        public int HeroDamageTo(int player) => AmountFor(hero_damage, player);
+        public int ManaFor(int player) => AmountFor(mana_spent, player);
 
         static int AmountFor(List<PlayerAmount> list, int player)
         {
@@ -175,15 +178,16 @@ namespace Tcg.Protocol
         }
     }
 
-    /// <summary>A lasting change an ability made: a stat change, a keyword, can't ready, barred.</summary>
+    /// <summary>A lasting change an ability made: a stat change, a granted keyword, or a freeze.</summary>
     public class EffectRecord
     {
         public int uid;
-        public string kind;     // "stat" | "keyword" | "cant_ready" | "barred"
+        public string kind;     // "stat" | "keyword" | "freeze"
         public string stat;     // power, health, score
         public string keyword;
         public int value;
         public bool this_turn;
+        public string lasts;    // this_turn, until_your_next_turn, until_its_next_turn, while_in_play, permanent
     }
 
     /// <summary>An ability waiting for a choice; the legal actions are its answers.</summary>
@@ -224,7 +228,6 @@ namespace Tcg.Protocol
         public const string Deck = "deck";
         public const string Hand = "hand";
         public const string Play = "play";
-        public const string Energy = "energy";
         public const string Discard = "discard";
     }
 
@@ -238,7 +241,8 @@ namespace Tcg.Protocol
         public bool game_over;
         public int? winner;
         public List<PlayerState> players;
-        public int vp_to_win;
+        public int hero_health;  // a full hero (30)
+        public int max_mana;     // the most mana crystals (10)
         public PendingChoice pending;
         public List<GameAction> legal_actions;
 
@@ -253,10 +257,10 @@ namespace Tcg.Protocol
     {
         public const string Mulligan = "mulligan";
         public const string KeepHand = "keep_hand";
-        public const string AddEnergy = "add_energy";
         public const string Play = "play";
-        public const string Score = "score";
-        public const string Duel = "duel";
+        public const string Attack = "attack";
+        public const string AttackHero = "attack_hero";
+        public const string SpareSpore = "spare_spore";
         public const string EndTurn = "end_turn";
         public const string Activate = "activate";
         public const string ChooseTarget = "choose_target";

@@ -39,6 +39,11 @@ namespace Tcg.Board
         {
             Network.ConnectionError += OnConnectionError;
             Board.EndTurnButton.onClick.AddListener(OnEndTurnPressed);
+            Board.SpareSporeButton.onClick.AddListener(() =>
+            {
+                var spore = _state != null ? Commands.Find(_state, x => x.type == ActionTypes.SpareSpore) : null;
+                if (spore != null) Execute(new ActionCommand(spore));
+            });
             Interaction.CommandIssued += Execute;
             Interaction.NewGameRequested += () => NewGame(Opponent);
             Interaction.ScenarioRequested += (scenario, seed) =>

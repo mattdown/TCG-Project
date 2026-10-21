@@ -19,12 +19,12 @@ index of the one the player picks. It never applies rules itself.
 
 ## Status and checking cards
 
-Client milestones 1–3 are done for protocol v1: the board, playing a full game, and
+Client milestones 1–3 were built for protocol v1: the board, playing a full game, and
 abilities (card text, action cards, the choice prompt, ⟳ buttons, ability feedback, the dev
-scenario panel). The protocol below is complete for everything the server does today.
+scenario panel). **Milestone 4 (2026-10-21) moved the client to protocol v2**, as listed below.
+The protocol below is complete for everything the server does today.
 
-**Next for the client: milestone 4, rules v2.** The current client speaks v1 and won't work
-with this server until it's updated:
+Milestone 4, rules v2 (done):
 - **Heroes:** a portrait for each player with `health` out of `hero_health` (30), in place of
   the VP bars. The enemy hero is a drop target for `attack_hero`.
 - **Mana:** crystals (`mana` full of `crystals`, up to `max_mana` = 10) in place of the energy

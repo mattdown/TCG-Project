@@ -20,18 +20,21 @@ namespace Tcg.View
         public const float Width = 150f, Height = 210f;
         static readonly float[] TextSizes = { 11.5f, 10.5f, 9.5f, 8.5f };
         const float SelectedLift = 10f;
+        const float StatsClearance = 50f;  // banner width kept clear of the power and health badges
 
         [Header("Parts")]
         public RectTransform Visual;
         public Image GlowHalo, GlowRing;
         public Image FrameEdge, BannerFill, Art;
         public GameObject ExhaustedOverlay;
-        public Image[] Crowns;
-        public TMP_Text NameText, BodyText, TraitText, CostText, PowerText, HealthText;
-        public Image CostRim;
+        [Tooltip("Ice over the art: frozen, so it can't attack on its next turn.")]
+        public GameObject FrozenOverlay;
+        [Tooltip("A veil over the art: Elusive and hasn't attacked, so enemies can't target it.")]
+        public GameObject HiddenOverlay;
+        public TMP_Text NameText, SubtitleText, BodyText, TraitText, CostText, PowerText, HealthText;
         public Image TargetOutline;
         public CanvasGroup Group;
-        [Tooltip("Power, health and score: hidden on action cards, which have no stats.")]
+        [Tooltip("Power and health: hidden on action cards, which have no stats.")]
         public GameObject[] UnitOnly;
         [Tooltip("Shown while the unit has a usable ⟳ ability.")]
         public GameObject AbilityMarker;
@@ -58,7 +61,10 @@ namespace Tcg.View
             if (def != Def) BindDefinition(def);
             Def = def;
             Uid = instance?.uid ?? -1;
-            ExhaustedOverlay.SetActive(instance != null && instance.exhausted);
+            bool frozen = instance != null && instance.frozen;
+            ExhaustedOverlay.SetActive(instance != null && instance.exhausted && !frozen);
+            FrozenOverlay.SetActive(frozen);
+            HiddenOverlay.SetActive(instance != null && instance.hidden);
 
             // Current values from the server, coloured against the printed ones.
             int cost = instance?.cost ?? def.cost;
@@ -72,9 +78,6 @@ namespace Tcg.View
             int damage = instance?.damage ?? 0;
             HealthText.text = (health - damage).ToString();
             HealthText.color = damage > 0 ? Palette.StatDown : Compare(health, def.health);
-            int score = instance?.score ?? def.score;
-            for (int i = 0; i < Crowns.Length; i++)
-                Crowns[i].gameObject.SetActive(i < score);
             SetBodyText(CardText.Build(def, instance));
         }
 
@@ -89,11 +92,17 @@ namespace Tcg.View
             BannerFill.color = aspectColour;
             Art.sprite = PickArt(def, aspect);
 
+            // The name, with the subtitle (the character's version) on a smaller line under it.
+            // Units keep the banner's right end clear for the power and health badges over it.
+            bool subtitled = !string.IsNullOrEmpty(def.subtitle);
+            float right = def.IsAction ? 3f : StatsClearance;
             NameText.text = def.name;
-            CostRim.color = def.energy_source ? Palette.Gold : Palette.Outline;
+            NameText.rectTransform.offsetMin = new Vector2(NameText.rectTransform.offsetMin.x, subtitled ? 11f : 0f);
+            NameText.rectTransform.offsetMax = new Vector2(-right, NameText.rectTransform.offsetMax.y);
+            SubtitleText.rectTransform.offsetMax = new Vector2(-right, SubtitleText.rectTransform.offsetMax.y);
+            SubtitleText.text = def.subtitle ?? "";
+            SubtitleText.gameObject.SetActive(subtitled);
             foreach (var go in UnitOnly) go.SetActive(!def.IsAction);
-            if (def.IsAction)
-                foreach (var crown in Crowns) crown.gameObject.SetActive(false);
 
             // The unit's job, or the card type for action cards.
             TraitText.text = def.traits != null && def.traits.Count > 0

@@ -26,12 +26,12 @@ public static class ClientAssetBuilder
     const float SpritePpu = 400f;   // 4 texture px per canvas unit
     const float SliceRadius = 16f;  // corner radius baked into rounded.png
     const string Charset =
-        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…’→";
+        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…’→⟳❄−•";
     static readonly string[] ArtNames = { "knight", "beast", "mage", "golem" };
 
     class Fonts
     {
-        public TMP_FontAsset Lilita, Nunito, NunitoBlack;
+        public TMP_FontAsset Lilita, Nunito, NunitoBlack, NunitoItalic;
         public Material LilitaOutline;
     }
 
@@ -121,7 +121,7 @@ public static class ClientAssetBuilder
             Nunito = FontAsset("Nunito-Bold.ttf", "Nunito Bold SDF"),
             NunitoBlack = FontAsset("Nunito-Black.ttf", "Nunito Black SDF"),
         };
-        var italic = FontAsset("Nunito-BoldItalic.ttf", "Nunito BoldItalic SDF");
+        var italic = f.NunitoItalic = FontAsset("Nunito-BoldItalic.ttf", "Nunito BoldItalic SDF");
         // Body text is Nunito 700; <b> (keywords, triggers) is 900 and <i> (flavour) the 700 italic.
         f.Nunito.fontWeightTable[7].regularTypeface = f.NunitoBlack;
         f.Nunito.fontWeightTable[4].italicTypeface = italic;
@@ -216,22 +216,6 @@ public static class ClientAssetBuilder
         cv.ArtSprites = artSprites.ToArray();
         cv.Art = Img(Box("Art", frame, 0, 0, 138, 92), artSprites[2], Color.white);
 
-        var crowns = Node("Crowns", frame);
-        Anchor(crowns, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-6, -6), new Vector2(100, 12));
-        var hlg = crowns.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.childAlignment = TextAnchor.UpperRight;
-        hlg.spacing = 1;
-        hlg.childControlWidth = hlg.childControlHeight = false;
-        hlg.childForceExpandWidth = hlg.childForceExpandHeight = false;
-        var crownImages = new List<Image>();
-        for (int i = 0; i < 6; i++)
-        {
-            var c = Img(Node($"Crown{i}", crowns), Sprite("crown"), Color.white);
-            c.rectTransform.sizeDelta = new Vector2(14, 12);
-            crownImages.Add(c);
-        }
-        cv.Crowns = crownImages.ToArray();
-
         var exhausted = Box("Exhausted", frame, 0, 0, 138, 92);
         Img(exhausted, null, Palette.Exhausted);
         var zz = Text(Stretch("Zz", exhausted, 0, 0, 0, 0), "Zz", f.Lilita, 26, Palette.Zz, TextAlignmentOptions.Center);
@@ -239,7 +223,20 @@ public static class ClientAssetBuilder
         cv.ExhaustedOverlay = exhausted.gameObject;
         exhausted.gameObject.SetActive(false);
 
-        var banner = Box("Banner", frame, 0, 82, 138, 22);
+        // Frozen: ice over the art. Hidden (Elusive, not attacked yet): a misty veil.
+        var frozen = Box("Frozen", frame, 0, 0, 138, 92);
+        Img(frozen, null, Palette.Hex("#BDEBFF").WithAlpha(0.55f));
+        Text(Stretch("Flake", frozen, 0, 0, 0, 0), "❄", f.Lilita, 34, Palette.Hex("#F2FBFF"),
+            TextAlignmentOptions.Center, f.LilitaOutline);
+        cv.FrozenOverlay = frozen.gameObject;
+        frozen.gameObject.SetActive(false);
+        var hidden = Box("Hidden", frame, 0, 0, 138, 92);
+        Img(hidden, null, Palette.Hex("#C9C2F2").WithAlpha(0.45f));
+        cv.HiddenOverlay = hidden.gameObject;
+        hidden.gameObject.SetActive(false);
+
+        // The name banner, with room for the subtitle line under the name.
+        var banner = Box("Banner", frame, 0, 78, 138, 28);
         Img(banner, null, Palette.CardNavy);
         cv.BannerFill = Img(Stretch("Fill", banner, 0, 2, 0, 2), null, Palette.Aspect(1));
         var shine = Node("Shine", cv.BannerFill.rectTransform);
@@ -253,6 +250,11 @@ public static class ClientAssetBuilder
         cv.NameText.enableAutoSizing = true;
         cv.NameText.fontSizeMin = 8;
         cv.NameText.fontSizeMax = 13;
+        cv.SubtitleText = Text(Stretch("Subtitle", banner, 4, 15, 4, 2), "", f.NunitoItalic, 8.5f,
+            Color.white.WithAlpha(0.92f), TextAlignmentOptions.Center);
+        cv.SubtitleText.enableAutoSizing = true;
+        cv.SubtitleText.fontSizeMin = 6.5f;
+        cv.SubtitleText.fontSizeMax = 8.5f;
 
         cv.BodyText = Text(Box("Text", frame, 8, 108, 122, 64), "", f.Nunito, 11.5f, Palette.BodyText,
             TextAlignmentOptions.Center);
@@ -274,7 +276,7 @@ public static class ClientAssetBuilder
 
         var cost = Box("Cost", visual, -7, -7, 36, 39);
         Img(Stretch("Fill", cost, 0, 0, 0, 0), Sprite("gem_fill"), Palette.Energy);
-        cv.CostRim = Img(Stretch("Rim", cost, 0, 0, 0, 0), Sprite("gem_rim"), Palette.Gold);
+        Img(Stretch("Rim", cost, 0, 0, 0, 0), Sprite("gem_rim"), Palette.Outline);
         Img(Stretch("Shine", cost, 0, 0, 0, 0), Sprite("gem_shine"), Color.white.WithAlpha(0.6f));
         cv.CostText = Number(Stretch("Value", cost, 0, 0, 0, 1), f, 20);
 
@@ -283,7 +285,7 @@ public static class ClientAssetBuilder
 
         var heart = Img(Box("Health", visual, 120.2f, 65.7f, 36, 33), Sprite("heart"), Color.white);
         cv.HealthText = Number(Box("HealthValue", visual, 120.2f, 65.7f, 36, 29), f, 18);
-        cv.UnitOnly = new[] { sword.gameObject, cv.PowerText.gameObject, heart.gameObject, cv.HealthText.gameObject, crowns.gameObject };
+        cv.UnitOnly = new[] { sword.gameObject, cv.PowerText.gameObject, heart.gameObject, cv.HealthText.gameObject };
 
         // A unit with a usable ⟳ ability: a small gold disc on the top edge.
         var marker = Box("AbilityMarker", visual, 63, -9, 24, 24);
@@ -366,8 +368,8 @@ public static class ClientAssetBuilder
         bv.HumanUnits = Node("HumanUnits", board);
         Anchor(bv.HumanUnits, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -380.5f), Vector2.zero);
 
-        BuildHumanVp(bv, board, f);
-        BuildEnergyAndButton(bv, board, f);
+        BuildHumanHero(bv, board, f);
+        BuildManaAndButtons(bv, board, f);
 
         bv.Hand = Node("Hand", board);
         Anchor(bv.Hand, new Vector2(0.5f, 0), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -387,43 +389,57 @@ public static class ClientAssetBuilder
 
     static void BuildOpponentBar(BoardView bv, RectTransform board, Fonts f)
     {
+        // The enemy hero: portrait, name and a health bar. The whole panel is the attack_hero target.
+        bv.OpponentHero = Box("OpponentHero", board, 12, 2, 300, 56);
+        var ring = Ui.Outline(Stretch("TargetRing", bv.OpponentHero, -4, -4, -4, -4), Palette.GlowTarget, 16);
+        ring.gameObject.SetActive(false);
         var avatar = Box("OpponentAvatar", board, 24, 8, 42, 42);
         bv.OpponentAvatarText = Avatar(avatar, Palette.OpponentAccent, Palette.OpponentLip, 10, 4, 16, f);
 
         bv.OpponentInfoText = Text(Box("OpponentInfo", board, 76, 9, 500, 20), "Opponent", f.NunitoBlack, 14,
             Color.white, TextAlignmentOptions.Left);
-        Img(Box("OpponentCrown", board, 76, 30, 18, 15), Sprite("crown"), Color.white).preserveAspect = true;
-        bv.OpponentVpFill = VpBar(Box("OpponentVp", board, 100, 31, 140, 12), Palette.OpponentVp, 6, 4, 3);
-        bv.OpponentVpText = Number(Box("OpponentVpText", board, 246, 26, 60, 21), f, 15);
-        bv.OpponentVpText.alignment = TextAlignmentOptions.Left;
+        Img(Box("OpponentHeart", board, 76, 29, 18, 17), Sprite("heart"), Color.white).preserveAspect = true;
+        bv.OpponentHealthFill = Bar(Box("OpponentHealth", board, 100, 31, 140, 12), Palette.Health, 6, 4, 3);
+        bv.OpponentHealthText = Number(Box("OpponentHealthText", board, 246, 26, 80, 21), f, 15);
+        bv.OpponentHealthText.alignment = TextAlignmentOptions.Left;
 
-        var energy = Node("OpponentEnergy", board);
-        Anchor(energy, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -14), new Vector2(400, 22));
-        bv.OpponentGems = GemRow(energy, new Vector2(20, 22), false);
-        bv.OpponentEnergyText = Number(Node("Count", energy), f, 16);
-        bv.OpponentEnergyText.rectTransform.sizeDelta = new Vector2(40, 22);
+        var mana = Node("OpponentMana", board);
+        Anchor(mana, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -14), new Vector2(400, 22));
+        bv.OpponentCrystals = GemRow(mana, new Vector2(18, 20), false);
+        bv.OpponentManaText = Number(Node("Count", mana), f, 16);
+        bv.OpponentManaText.rectTransform.sizeDelta = new Vector2(46, 22);
     }
 
-    static void BuildHumanVp(BoardView bv, RectTransform board, Fonts f)
+    static void BuildHumanHero(BoardView bv, RectTransform board, Fonts f)
     {
+        bv.HumanHero = Box("HumanHero", board, 12, 498, 290, 92, bottom: true);
         var avatar = Box("HumanAvatar", board, 24, 504, 48, 48, bottom: true);
         Avatar(avatar, Palette.HumanAccent, Palette.HumanLip, 11, 5, 18, f).text = UiText.YouAvatar;
         bv.HumanInfoText = Text(Box("HumanInfo", board, 82, 507, 180, 44, bottom: true), UiText.You, f.NunitoBlack, 15,
             Color.white, TextAlignmentOptions.TopLeft);
         bv.HumanInfoText.lineSpacing = -8f;
-        Img(Box("HumanCrown", board, 24, 559, 22, 18, bottom: true), Sprite("crown"), Color.white).preserveAspect = true;
-        bv.HumanVpFill = VpBar(Box("HumanVp", board, 52, 560, 170, 16, bottom: true), Palette.HumanAccent, 8, 6, 4);
-        bv.HumanVpText = Number(Box("HumanVpText", board, 228, 556, 60, 24, bottom: true), f, 18);
-        bv.HumanVpText.alignment = TextAlignmentOptions.Left;
+        Img(Box("HumanHeart", board, 24, 558, 22, 20, bottom: true), Sprite("heart"), Color.white).preserveAspect = true;
+        bv.HumanHealthFill = Bar(Box("HumanHealth", board, 52, 560, 170, 16, bottom: true), Palette.Health, 8, 6, 4);
+        bv.HumanHealthText = Number(Box("HumanHealthText", board, 228, 556, 80, 24, bottom: true), f, 18);
+        bv.HumanHealthText.alignment = TextAlignmentOptions.Left;
     }
 
-    static void BuildEnergyAndButton(BoardView bv, RectTransform board, Fonts f)
+    static void BuildManaAndButtons(BoardView bv, RectTransform board, Fonts f)
     {
-        var energy = Node("HumanEnergy", board);
-        Anchor(energy, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 220), new Vector2(400, 28));
-        bv.HumanGems = GemRow(energy, new Vector2(26, 28), true);
-        bv.HumanEnergyText = Number(Node("Count", energy), f, 20);
-        bv.HumanEnergyText.rectTransform.sizeDelta = new Vector2(46, 28);
+        var mana = Node("HumanMana", board);
+        Anchor(mana, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 220), new Vector2(400, 28));
+        bv.HumanCrystals = GemRow(mana, new Vector2(22, 24), true);
+        bv.HumanManaText = Number(Node("Count", mana), f, 20);
+        bv.HumanManaText.rectTransform.sizeDelta = new Vector2(58, 28);
+
+        // The Spare Spore: the second player's one-off +1 mana, shown while its action is legal.
+        var spore = Node("SpareSpore", board);
+        Anchor(spore, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-116, 190), new Vector2(190, 40));
+        bv.SpareSporeButton = Ui.Button(spore, "SPARE SPORE", Palette.Hex("#9152E0"), Palette.Hex("#5B2E99"), 13,
+            out bv.SpareSporeLabel, 10);
+        bv.SpareSporeLabel.textWrappingMode = TextWrappingModes.Normal;  // the server's text is long
+        bv.SpareSporeLabel.fontSizeMin = 8;
+        spore.gameObject.SetActive(false);
 
         var pill = Node("Turn", board);
         Anchor(pill, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 182), new Vector2(80, 25));
@@ -486,8 +502,8 @@ public static class ClientAssetBuilder
             f.LilitaOutline);
     }
 
-    /// <summary>A VP bar: navy track with 2 px padding; returns the fill, sized by BoardView.</summary>
-    static RectTransform VpBar(RectTransform track, Color fill, float trackRadius, float fillRadius, float shineHeight)
+    /// <summary>A health bar: navy track with 2 px padding; returns the fill, sized by BoardView.</summary>
+    static RectTransform Bar(RectTransform track, Color fill, float trackRadius, float fillRadius, float shineHeight)
     {
         Rounded(track, Palette.Outline, trackRadius);
         var size = track.sizeDelta;

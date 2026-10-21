@@ -12,8 +12,8 @@ namespace Tcg.Board
     /// <summary>
     /// The landscape board (docs/client-design.md, "Layout"), designed at 1280x720. Renders a
     /// server state as it is: card GameObjects are keyed by uid so they survive zone changes, and
-    /// what an action did (damage, defeats, VP, cards moving) is animated from the action
-    /// record's result, as the server reports it.
+    /// what an action did (damage, defeats, hero damage, cards moving) is animated from the
+    /// action record's result, as the server reports it.
     /// </summary>
     public class BoardView : MonoBehaviour
     {
@@ -34,22 +34,28 @@ namespace Tcg.Board
         public GameObject CardBackTemplate;
 
         [Header("Opponent bar")]
+        [Tooltip("The enemy hero's panel: the attack_hero target.")]
+        public RectTransform OpponentHero;
         public TMP_Text OpponentAvatarText;
         public TMP_Text OpponentInfoText;
-        public RectTransform OpponentVpFill;
-        public TMP_Text OpponentVpText;
-        public RectTransform OpponentGems;
-        public TMP_Text OpponentEnergyText;
+        public RectTransform OpponentHealthFill;
+        public TMP_Text OpponentHealthText;
+        public RectTransform OpponentCrystals;
+        public TMP_Text OpponentManaText;
 
         [Header("Your side")]
+        public RectTransform HumanHero;
         public TMP_Text HumanInfoText;
-        public RectTransform HumanVpFill;
-        public TMP_Text HumanVpText;
-        public RectTransform HumanGems;
-        public TMP_Text HumanEnergyText;
+        public RectTransform HumanHealthFill;
+        public TMP_Text HumanHealthText;
+        public RectTransform HumanCrystals;
+        public TMP_Text HumanManaText;
         public TMP_Text TurnText;
         public Button EndTurnButton;
         public TMP_Text EndTurnLabel;
+        [Tooltip("The second player's one-off +1 mana, shown while its action is legal.")]
+        public Button SpareSporeButton;
+        public TMP_Text SpareSporeLabel;
 
         [Header("Messages")]
         public TMP_Text MessageText;
@@ -60,7 +66,7 @@ namespace Tcg.Board
         public IReadOnlyDictionary<string, CardDef> Defs { get; private set; }
         public string OpponentName { get; private set; } = "";
         public RectTransform Root => (RectTransform)transform;
-        public int VpToWin => State != null && State.vp_to_win > 0 ? State.vp_to_win : 20;
+        public int HeroHealth => State != null && State.hero_health > 0 ? State.hero_health : 30;
 
         /// <summary>Above the cards: dragged cards, arrows and effects.</summary>
         public RectTransform TopLayer { get; private set; }
@@ -69,16 +75,18 @@ namespace Tcg.Board
         readonly Dictionary<int, string> _zoneOf = new Dictionary<int, string>();
         readonly Dictionary<int, Vector3> _spawnAt = new Dictionary<int, Vector3>();
         readonly List<GameObject> _backs = new List<GameObject>();
-        float _opponentVpWidth, _humanVpWidth;
-        RectTransform _ghost, _vpGain, _dashedGem;
+        float _opponentHealthWidth, _humanHealthWidth;
+        RectTransform _ghost;
+        Image _heroRing;
         CanvasGroup _handGroup;
         int _ghostSlots;
 
         void Awake()
         {
             Ui.Theme = Theme;
-            _opponentVpWidth = OpponentVpFill.sizeDelta.x;
-            _humanVpWidth = HumanVpFill.sizeDelta.x;
+            _opponentHealthWidth = OpponentHealthFill.sizeDelta.x;
+            _humanHealthWidth = HumanHealthFill.sizeDelta.x;
+            _heroRing = OpponentHero.Find("TargetRing").GetComponent<Image>();
             CardBackTemplate.SetActive(false);
             _handGroup = Hand.gameObject.AddComponent<CanvasGroup>();
 
@@ -90,18 +98,6 @@ namespace Tcg.Board
             Ui.Rounded(_ghost, Color.white.WithAlpha(0.28f), 12);
             _ghost.gameObject.SetActive(false);
 
-            var track = HumanVpFill.parent;
-            _vpGain = Ui.Box("Gain", track, 2, 2, 0, HumanVpFill.sizeDelta.y);
-            Ui.Img(_vpGain, Theme.Stripes, Color.white).type = Image.Type.Tiled;
-            _vpGain.SetSiblingIndex(HumanVpFill.GetSiblingIndex());
-            _vpGain.gameObject.SetActive(false);
-
-            _dashedGem = Ui.Node("NewGem", HumanGems.parent);
-            _dashedGem.sizeDelta = ((RectTransform)HumanGems.GetChild(0)).sizeDelta;
-            Ui.Img(Ui.Stretch("Fill", _dashedGem, 0, 0, 0, 0), Theme.GemFill, Palette.Energy.WithAlpha(0.35f));
-            Ui.Img(Ui.Stretch("Rim", _dashedGem, 0, 0, 0, 0), Theme.GemDashed, Color.white);
-            _dashedGem.SetSiblingIndex(HumanGems.GetSiblingIndex() + 1);
-            _dashedGem.gameObject.SetActive(false);
 
             ShowMessage(UiText.Connecting);
         }
@@ -139,13 +135,18 @@ namespace Tcg.Board
 
             OpponentAvatarText.text = Initials(opponentName);
             OpponentInfoText.text = $"{opponentName} <color=#B8C6E8>· {UiText.Deck} {opponent.deck_count} · {UiText.Hand} {opponent.hand_count}</color>";
-            SetVp(OpponentVpFill, _opponentVpWidth, OpponentVpText, opponent.vp, animate);
-            SetGems(OpponentGems, OpponentEnergyText, opponent);
+            SetHealth(OpponentHealthFill, _opponentHealthWidth, OpponentHealthText, opponent.health, animate);
+            SetCrystals(OpponentCrystals, OpponentManaText, opponent);
 
             HumanInfoText.text = $"{UiText.You}\n<size=12><color=#B8C6E8>{UiText.Deck} {human.deck_count}</color></size>";
-            SetVp(HumanVpFill, _humanVpWidth, HumanVpText, human.vp, animate);
-            SetGems(HumanGems, HumanEnergyText, human);
+            SetHealth(HumanHealthFill, _humanHealthWidth, HumanHealthText, human.health, animate);
+            SetCrystals(HumanCrystals, HumanManaText, human);
             TurnText.text = $"{UiText.Turn} {s.turn}";
+
+            var spore = Commands.Find(s, a => a.type == ActionTypes.SpareSpore);
+            SpareSporeButton.gameObject.SetActive(spore != null);
+            if (spore != null) SpareSporeLabel.text = spore.text.ToUpperInvariant();
+            SetHeroTarget(false, false);
         }
 
         /// <summary>Re-lays out the current state, e.g. to snap a dropped card back.</summary>
@@ -198,59 +199,50 @@ namespace Tcg.Board
             LayoutRow(HumanUnits, State.Human.play, "human_play", new HashSet<int>(), true, _ghostSlots);
         }
 
-        /// <summary>Outlines the ready gems a play would spend; 0 clears it.</summary>
-        public void PreviewEnergySpend(int spend)
+        /// <summary>Outlines the full crystals a play would spend; 0 clears it.</summary>
+        public void PreviewManaSpend(int spend)
         {
             var p = State.Human;
-            for (int i = 0; i < HumanGems.childCount; i++)
+            for (int i = 0; i < HumanCrystals.childCount; i++)
             {
-                var rim = HumanGems.GetChild(i).GetChild(1);
-                bool spent = i < spend && i < p.energy_ready;
+                var rim = HumanCrystals.GetChild(i).GetChild(1);
+                bool spent = i < spend && i < p.mana;
                 rim.GetComponent<Image>().color = spent ? Color.white : Palette.Outline;
                 rim.localScale = Vector3.one * (spent ? 1.1f : 1f);
             }
-            HumanEnergyText.text = spend > 0
-                ? $"{p.energy_ready} → {p.energy_ready - spend}"
-                : $"{p.energy_ready}/{p.energy_total}";
+            HumanManaText.text = spend > 0 ? $"{p.mana} → {p.mana - spend}" : $"{p.mana}/{p.crystals}";
         }
 
-        /// <summary>A dashed gem slot at the end of your energy bar.</summary>
-        public void PreviewNewGem(bool show) => _dashedGem.gameObject.SetActive(show);
-
-        /// <summary>Stripes on your VP bar for the VP a score would add; 0 clears it.</summary>
-        public void PreviewVp(int gain)
+        /// <summary>
+        /// The enemy hero as an attack target: a faint ring while it's an option, a bright one under
+        /// the finger with the health it would have left.
+        /// </summary>
+        public void SetHeroTarget(bool option, bool hovered, int damage = 0)
         {
-            int vp = State.Human.vp;
-            _vpGain.gameObject.SetActive(gain > 0);
-            float t = Mathf.Clamp01((vp + gain) / (float)VpToWin);
-            _vpGain.sizeDelta = new Vector2(_humanVpWidth * t, _vpGain.sizeDelta.y);
-            HumanVpText.text = gain > 0 ? $"{vp} → {vp + gain}" : $"{vp}/{VpToWin}";
+            _heroRing.gameObject.SetActive(option);
+            _heroRing.color = hovered ? Palette.GlowTarget : Palette.GlowTarget.WithAlpha(0.45f);
+            int health = State?.Opponent.health ?? 0;
+            OpponentHealthText.text = hovered && damage > 0 ? $"{health} → {Mathf.Max(health - damage, 0)}" : $"{health}/{HeroHealth}";
         }
 
         // --- the opponent's actions
 
-        /// <summary>What happens before the state changes: an arrow for a duel, a pulse for a score.</summary>
+        /// <summary>What happens before the state changes: the arrow of an attack, on a unit or your hero.</summary>
         public IEnumerator ShowAction(GameAction action, ArrowView arrow)
         {
             var actor = action.card.HasValue ? CardByUid(action.card.Value) : null;
-            if (action.type == ActionTypes.Duel && actor != null && action.target.HasValue)
-            {
-                var target = CardByUid(action.target.Value);
-                if (target == null) yield break;
-                actor.SetMark(CardMark.Selected);
-                target.SetTargetRing(TargetRing.Hovered);
-                arrow.Show(ToTop(actor.Rect.position), ToTop(target.Rect.position), Palette.GlowTarget, true);
-                yield return new WaitForSeconds(0.55f);
-                arrow.Hide();
-                actor.SetMark(CardMark.None);
-                target.SetTargetRing(TargetRing.None);
-            }
-            else if (action.type == ActionTypes.Score && actor != null)
-            {
-                actor.SetMark(CardMark.Selected);
-                yield return actor.Visual.DOPunchScale(Vector3.one * 0.15f, 0.4f, 6).WaitForCompletion();
-                actor.SetMark(CardMark.None);
-            }
+            if (actor == null || (action.type != ActionTypes.Attack && action.type != ActionTypes.AttackHero)) yield break;
+            var target = action.type == ActionTypes.Attack && action.target.HasValue ? CardByUid(action.target.Value) : null;
+            if (action.type == ActionTypes.Attack && target == null) yield break;
+            // The AI attacks your units or your hero (the panel bottom left).
+            Vector3 at = target != null ? target.Rect.position : HumanHealthText.transform.position;
+            actor.SetMark(CardMark.Selected);
+            target?.SetTargetRing(TargetRing.Hovered);
+            arrow.Show(ToTop(actor.Rect.position), ToTop(at), Palette.GlowTarget, true);
+            yield return new WaitForSeconds(0.55f);
+            arrow.Hide();
+            actor.SetMark(CardMark.None);
+            target?.SetTargetRing(TargetRing.None);
         }
 
         // --- layout
@@ -354,10 +346,6 @@ namespace Tcg.Board
             rt.DOLocalRotateQuaternion(rotation, Move).SetEase(Ease.OutCubic);
         }
 
-        /// <summary>
-        /// Plays out an action's result before the new layout: damage and defeats on the cards
-        /// involved, VP gains, and cards moving to energy, discard or from a deck or hidden hand.
-        /// </summary>
         bool HasAction(int uid, string type)
         {
             foreach (var a in State.legal_actions)
@@ -365,6 +353,11 @@ namespace Tcg.Board
             return false;
         }
 
+        /// <summary>
+        /// Plays out an action's result before the new layout: damage and defeats on the cards
+        /// involved, hero damage and healing, and cards moving to the discard pile or from a deck
+        /// or hidden hand.
+        /// </summary>
         void PlayResult(GameAction action, int humanSeat)
         {
             var r = action.result;
@@ -392,22 +385,27 @@ namespace Tcg.Board
                 var view = CardByUid(e.uid);
                 if (view != null) FloatEffect(view, e);
             }
-            foreach (var p in r.vp)
-                if (p.amount != 0)
-                    FloatText((p.player == humanSeat ? HumanVpText : OpponentVpText).transform.position,
-                        p.amount > 0 ? $"+{p.amount}" : $"−{-p.amount}", p.amount > 0 ? Palette.Gold : Palette.StatDown);
+            foreach (var p in r.hero_damage)
+            {
+                if (p.amount <= 0) continue;
+                var health = p.player == humanSeat ? HumanHealthText : OpponentHealthText;
+                FloatText(health.transform.position, $"−{p.amount}", Palette.Health);
+                (p.player == humanSeat ? HumanHero : OpponentHero).DOShakeAnchorPos(0.35f, 8f, 20);
+            }
+            foreach (var p in r.hero_healed)
+                if (p.amount > 0)
+                    FloatText((p.player == humanSeat ? HumanHealthText : OpponentHealthText).transform.position,
+                        $"+{p.amount}", Palette.StatUp);
+            foreach (var p in r.crystals)
+                if (p.amount > 0)
+                    FloatText((p.player == humanSeat ? HumanManaText : OpponentManaText).transform.position,
+                        $"+{p.amount}", Palette.Energy);
             foreach (var m in r.moves)
             {
                 bool human = m.player == humanSeat;
                 var view = m.uid.HasValue ? CardByUid(m.uid.Value) : null;
                 bool played = action.type == ActionTypes.Play && m.uid == action.card;
-                if (m.to == Zones.Energy)
-                {
-                    if (view != null) Leave(view, v => FlyInto(v, human ? HumanGems : OpponentGems));
-                    else FlyCardBack(m.from == Zones.Deck && human ? HumanInfoText.rectTransform : OpponentBacks,
-                        human ? HumanGems : OpponentGems);
-                }
-                else if (m.to == Zones.Discard)
+                if (m.to == Zones.Discard)
                 {
                     // An action card resolving, a unit defeated, or a card discarded from a hand.
                     if (view == null && m.card_id != null && Defs.TryGetValue(m.card_id, out var def))
@@ -476,11 +474,8 @@ namespace Tcg.Board
                 case "keyword":
                     FloatText(view.Rect.position, CardText.KeywordLabel(e.keyword, e.value), Palette.StatUp);
                     break;
-                case "cant_ready":
-                    FloatText(view.Rect.position, UiText.CantReady, Palette.StatDown);
-                    break;
-                case "barred":
-                    FloatText(view.Rect.position, UiText.Barred, Palette.StatDown);
+                case "freeze":
+                    FloatText(view.Rect.position, UiText.Frozen, Palette.Hex("#BDEBFF"));
                     break;
             }
         }
@@ -588,36 +583,35 @@ namespace Tcg.Board
 
         // --- HUD
 
-        void SetVp(RectTransform fill, float fullWidth, TMP_Text label, int vp, bool animate)
+        void SetHealth(RectTransform fill, float fullWidth, TMP_Text label, int health, bool animate)
         {
-            float t = Mathf.Clamp01(vp / (float)VpToWin);
+            float t = Mathf.Clamp01(health / (float)HeroHealth);
             var size = new Vector2(fullWidth * t, fill.sizeDelta.y);
             fill.DOKill();
             fill.gameObject.SetActive(t > 0f);
             if (animate) fill.DOSizeDelta(size, 0.5f).SetEase(Ease.OutCubic);
             else fill.sizeDelta = size;
-            label.text = $"{vp}/{VpToWin}";
-            if (fill == HumanVpFill) _vpGain.gameObject.SetActive(false);
+            label.text = $"{health}/{HeroHealth}";
         }
 
-        void SetGems(RectTransform gems, TMP_Text label, PlayerState p)
+        /// <summary>One gem per mana crystal: full ones bright, spent ones dark; "mana/crystals" beside them.</summary>
+        static void SetCrystals(RectTransform crystals, TMP_Text label, PlayerState p)
         {
-            var template = gems.GetChild(0).gameObject;
-            while (gems.childCount < p.energy_total)
-                Instantiate(template, gems);
-            for (int i = 0; i < gems.childCount; i++)
+            var template = crystals.GetChild(0).gameObject;
+            while (crystals.childCount < p.crystals)
+                Instantiate(template, crystals);
+            for (int i = 0; i < crystals.childCount; i++)
             {
-                var gem = gems.GetChild(i);
-                gem.gameObject.SetActive(i < p.energy_total);
-                bool ready = i < p.energy_ready;
-                gem.GetChild(0).GetComponent<Image>().color = ready ? Palette.Energy : Palette.EnergySpent;
+                var gem = crystals.GetChild(i);
+                gem.gameObject.SetActive(i < p.crystals);
+                bool full = i < p.mana;
+                gem.GetChild(0).GetComponent<Image>().color = full ? Palette.Energy : Palette.EnergySpent;
                 var rim = gem.GetChild(1);
                 rim.GetComponent<Image>().color = Palette.Outline;
                 rim.localScale = Vector3.one;
-                if (gem.childCount > 2) gem.GetChild(2).gameObject.SetActive(ready);
+                if (gem.childCount > 2) gem.GetChild(2).gameObject.SetActive(full);
             }
-            label.text = $"{p.energy_ready}/{p.energy_total}";
-            if (gems == HumanGems) _dashedGem.gameObject.SetActive(false);
+            label.text = $"{p.mana}/{p.crystals}";
         }
 
         static string Initials(string name)
