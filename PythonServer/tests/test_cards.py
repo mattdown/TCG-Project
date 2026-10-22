@@ -2,7 +2,7 @@ import random
 from collections import Counter
 
 from src.cards.schema import Card, load_card_set, save_card_set
-from src.cards.vanilla import generate_vanilla_set, stat_budget, stat_value
+from src.cards.vanilla import generate_keyword_set, generate_vanilla_set, stat_budget, stat_value
 from src.game.decks import DECK_SIZE, MAX_COPIES, random_deck
 
 
@@ -48,3 +48,17 @@ def test_random_decks_are_legal():
             assert max(Counter(c.id for c in deck).values()) <= MAX_COPIES
             if one_aspect:
                 assert len({a for c in deck for a in c.aspects}) <= 1  # one aspect plus neutral cards
+
+
+def test_decks_focus_on_two_jobs():
+    card_set = generate_keyword_set()  # 20 jobs
+    rng = random.Random(0)
+
+    def top_two_share(focus_jobs):
+        shares = []
+        for _ in range(100):
+            jobs = Counter(c.traits[0] for c in random_deck(card_set, rng, focus_jobs=focus_jobs) if c.traits)
+            shares.append(sum(n for _, n in jobs.most_common(2)) / sum(jobs.values()))
+        return sum(shares) / len(shares)
+
+    assert top_two_share(2) > 0.6 > top_two_share(0)

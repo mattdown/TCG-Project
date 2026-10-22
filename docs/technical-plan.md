@@ -41,7 +41,7 @@ module (`src/game/terms.py`), so a rename is a single change.
 | **⟳ ability** | A unit's activated ability, used *instead of* attacking that turn |
 | **Defeated** | Damage ≥ health: the unit goes to the discard pile |
 | **Aspects** (6) | Habitats. Planned: Hearthstone-style classes (a deck is one aspect's cards plus neutral cards; the hero takes the deck's aspect). For now only colours: decks draw from the whole set |
-| **Traits** | Unit tags that abilities can refer to: jobs (docs/theme.md) |
+| **Traits** | Unit tags that abilities can refer to: jobs (docs/theme.md). Decks focus on two jobs |
 | **Keywords** | Guard, Charge, Duelist +N, Armor +N, Elusive |
 
 ## 1. Design principles
@@ -66,7 +66,9 @@ module (`src/game/terms.py`), so a rename is a single change.
 
 - **Players and decks.** Two players, 30-card decks (up to 2 copies of a card). Planned: one
   aspect's cards plus neutral cards, the hero taking the deck's aspect. For now aspects are only
-  colours and decks draw from the whole set (`ONE_ASPECT` in `src/game/decks.py`).
+  colours and decks draw from the whole set (`ONE_ASPECT` in `src/game/decks.py`). Each deck
+  focuses on two jobs: 70% of its units have one of them (`FOCUS_JOBS`, `FOCUS_SHARE`), so job
+  synergies come up; actions are drawn as often as without the focus.
   Each player has a hero with 30 health. A hero at 0 health loses; if both reach 0 at once,
   it's a draw.
 - **Start.** The first player draws 3 cards, the second 5. Each player may replace any of

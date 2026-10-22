@@ -168,7 +168,9 @@ class AbilitySampler:
             if restrict:
                 t.fixed("Restrict the target?", "yes", "defeat always needs a restricted target")
         if restrict:
-            extra = t.weighted("Restriction", {"damaged": 2, "cost_max": 2, "trait": 2})
+            # A job filter on enemy units rarely has a target: decks focus on two of the jobs.
+            extra = t.weighted("Restriction", {"damaged": 2, "cost_max": 2, "trait": 2 if owner != "opponent" else 0},
+                               "no enemy jobs: decks focus on two jobs" if owner == "opponent" else "")
             if extra == "cost_max":
                 f["cost_max"] = t.choice("Cost at most", (2, 3, 4))
             elif extra == "trait":

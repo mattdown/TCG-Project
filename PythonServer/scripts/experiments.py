@@ -6,11 +6,15 @@ abilities: the same deck lists played against altered copies of themselves, by o
     actions for vanilla units of the same cost. If abilities matter, the real deck wins.
 luck: each deck pair is played four times (both agents on both decks, each going first),
     so a result can be put down to the player, the deck or going first.
+scale: the "refunded" and "no actions" tests with ability prices scaled: units pay
+    scale × the value table's price in stats, actions cost scale × their price in mana. The
+    scale where the real deck wins half its games is a fair global price.
 first: mirror matches under different compensations for the second player, each deck pair
     played twice so both decks go first once.
 """
 import argparse
 import dataclasses
+import math
 import random
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
@@ -22,8 +26,9 @@ from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.match import play_game
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
+from src.cards.costing import ability_value
 from src.cards.schema import Card, load_card_set
-from src.cards.vanilla import MAX_STATS, keyword_value, stat_budget
+from src.cards.vanilla import MAX_STATS, MIN_STATS_VALUE, keyword_value, stat_budget
 from src.game.decks import random_deck
 from src.game.engine import Game, GameConfig
 
@@ -56,6 +61,25 @@ def no_actions(card: Card) -> Card:
                                abilities=())
 
 
+def with_stats(card: Card, total: int) -> Card:
+    """The card with `total` stat points, split as its power and health were."""
+    total = max(MIN_STATS_VALUE, min(total, MAX_STATS["power"] + MAX_STATS["health"]))
+    power = min(MAX_STATS["power"], max(1, round(total * card.power / (card.power + card.health))))
+    health = min(MAX_STATS["health"], max(1, total - power))
+    return dataclasses.replace(card, power=total - health, health=health)
+
+
+def rescaled(card: Card, scale: float) -> Card:
+    """The card re-priced with ability values times `scale`, as the generator would: a unit
+    keeps its cost and pays in stats, an action pays in mana (one mana per two points)."""
+    if not card.abilities:
+        return card
+    value = scale * ability_value(card.abilities[0])
+    if card.type == "action":
+        return dataclasses.replace(card, cost=max(0, math.ceil(value / 2)))
+    return with_stats(card, stat_budget(card.cost) - keyword_value(dict(card.keywords)) - math.ceil(value))
+
+
 VARIANTS = {"stripped": stripped, "refunded": refunded, "no actions": no_actions}
 
 # Compensation for going second: opening hands (first, second) and Spare Spores.
@@ -80,10 +104,13 @@ def name(spec: str) -> str:
     return Path(spec).stem if spec.endswith(".pt") else spec
 
 
-def ability_job(cards: Path, agent_spec: str, variant: str, pairs: int, seed: int) -> dict:
-    """The real deck against its altered copy, with seats swapped. Returns the real deck's results."""
+def ability_job(cards: Path, agent_spec: str, variant: str, pairs: int, seed: int, scale: float = 1.0) -> dict:
+    """The real deck against its altered copy, with seats swapped. Returns the real deck's results.
+    With `scale`, the real deck's abilities are re-priced first (see `rescaled`)."""
     torch.set_num_threads(1)
     card_set = load_card_set(cards)
+    if scale != 1.0:
+        card_set = dataclasses.replace(card_set, cards=[rescaled(c, scale) for c in card_set.cards])
     agent = make_agent(agent_spec)
     alter = VARIANTS[variant]
     rng = random.Random(seed)
@@ -99,7 +126,7 @@ def ability_job(cards: Path, agent_spec: str, variant: str, pairs: int, seed: in
             wins += game.state.winner == real_seat if game.state.winner is not None else 0.5
     changed = sum(alter(c) != c for c in card_set.cards)
     return {"agent": name(agent_spec), "variant": variant, "win_rate": wins / games, "games": games,
-            "changed": changed / len(card_set.cards)}
+            "changed": changed / len(card_set.cards), "scale": scale}
 
 
 def first_job(cards: Path, agent_spec: str, rules: str, pairs: int, seed: int) -> dict:
@@ -180,13 +207,14 @@ def merge(results: list[dict], keys: tuple[str, ...]) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("experiment", choices=["abilities", "luck", "first"])
+    parser.add_argument("experiment", choices=["abilities", "luck", "first", "scale"])
     parser.add_argument("--cards", type=Path, default=Path("cardsets/set_200.json"))
     parser.add_argument("--agents", nargs="+", default=["heuristic", "models/tcgnet_league.pt"],
                         help="abilities: agents to test; luck: pairs of agents as a,b")
     parser.add_argument("--pairs", type=int, default=200, help="deck pairs per experiment")
     parser.add_argument("--chunks", type=int, default=4, help="parallel chunks per experiment")
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--scales", type=float, nargs="+", default=[0.25, 0.5, 0.75, 1.0])
     args = parser.parse_args()
 
     if args.experiment == "abilities":
@@ -198,6 +226,16 @@ def main():
         for g in range(len(groups)):
             r = merge(results[g * args.chunks:(g + 1) * args.chunks], ("win_rate",))
             print(f"{r['agent']:>16}  {r['variant']:<12} {r['changed']:13.0%}  {r['win_rate']:14.1%}  ({r['games']} games)")
+    elif args.experiment == "scale":
+        groups = [(agent, variant, scale) for agent in args.agents for variant in ("refunded", "no actions")
+                  for scale in args.scales]
+        jobs = [(args.cards, agent, variant, n, 1000 * i, scale)
+                for agent, variant, scale in groups for i, n in enumerate(split(args.pairs, args.chunks))]
+        results = run_parallel(ability_job, jobs, args.workers)
+        print(f"{'agent':>16}  {'real deck vs':<12} {'price scale':>11}  {'real deck wins':>14}")
+        for g in range(len(groups)):
+            r = merge(results[g * args.chunks:(g + 1) * args.chunks], ("win_rate",))
+            print(f"{r['agent']:>16}  {r['variant']:<12} {r['scale']:11.2f}  {r['win_rate']:14.1%}  ({r['games']} games)")
     elif args.experiment == "first":
         groups = [(agent, rules) for agent in args.agents for rules in FIRST_PLAYER_RULES]
         jobs = [(args.cards, agent, rules, n, 1000 * i)

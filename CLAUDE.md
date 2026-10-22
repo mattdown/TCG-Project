@@ -33,7 +33,9 @@ Decisions already made (don't re-open without a reason):
   assigned at random, and decks draw from the whole set (`ONE_ASPECT = False` in
   `src/game/decks.py`). Later they become Hearthstone-style classes (a deck is one aspect plus
   neutral cards), with an identity from clustering generated cards. Traits are jobs
-  (tribes that cross aspects), not yet tied to abilities.
+  (tribes that cross aspects). Decks focus on two jobs (70% of their units, `FOCUS_JOBS` in
+  `src/game/decks.py`), so abilities about your own jobs have something to work with; enemy-side
+  job filters aren't generated.
 - **Client:** the Unity client is a thin view. The Python server owns all rules and state.
 - **Ability generation:** generate and test with general tests on the tree's shape, never
   rules about particular cards; one ability per card for now. Keep

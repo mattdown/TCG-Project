@@ -246,3 +246,9 @@ for checking the engine and client. It uses the same pipeline.
   cards, with a duplicate stage for them; keyword subtitles; aspects random or neutral (decks are
   one aspect plus neutral cards, behind `ONE_ASPECT`, off for now). `--kind abilities` became
   `--kind set` (`set_200`).
+- **2026-10-22:** Measured with `scripts/experiments.py`: abilities were worth less than one stat
+  point on average, and actions lost to a vanilla unit even at cost 0. A big reason: 54 of 133
+  ability cards in `set_200` named a job, so with 6 jobs a filter like "enemy Baker unit" often
+  had no target. Decks now focus on two jobs (70% of their units), and target restrictions on
+  enemy units no longer use jobs (damaged or cost only). Next: price filters by how often they
+  match, bigger amounts, a higher complexity limit for actions, lasting buffs and summons.
