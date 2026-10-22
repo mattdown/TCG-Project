@@ -27,6 +27,12 @@ def load_model(path, device: str = "cpu") -> torch.nn.Module:
     old = state.get("action_type_emb.weight")
     if old is not None and old.shape[0] < rows.shape[0]:
         state["action_type_emb.weight"] = torch.cat([old, rows.detach()[old.shape[0]:].to(old.device)])
+    # New ability node features are appended (src/graph/abilities.py): zero weights for them, so
+    # an older model ignores them.
+    weight = net.ability_in[0].weight
+    old = state.get("ability_in.0.weight")
+    if old is not None and old.shape[1] < weight.shape[1]:
+        state["ability_in.0.weight"] = torch.cat([old, old.new_zeros(old.shape[0], weight.shape[1] - old.shape[1])], 1)
     net.load_state_dict(state)
     net.eval()
     return net

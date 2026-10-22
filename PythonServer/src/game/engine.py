@@ -625,6 +625,10 @@ class Game:
                     self._add_effect(ActiveEffect("freeze", t))
                 case "modify_stat":
                     self._add_effect(lasting(t, kind="stat", stat=step["stat"], value=step["delta"]))
+                case "buff":  # lasts until the unit leaves play
+                    for stat in ("power", "health"):
+                        if step[stat]:
+                            self._add_effect(ActiveEffect("stat", t, stat=stat, value=step[stat]))
                 case "grant_keyword":
                     self._add_effect(lasting(t, kind="keyword", keyword=step["keyword"], value=step.get("value", 1)))
                 case "draw":

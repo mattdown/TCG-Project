@@ -8,7 +8,7 @@ from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game, GameConfig, Move, deck_aspect
 from src.game.state import Phase, Zone
-from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit, filler_deck
+from tests.helpers import action, fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit, filler_deck
 
 END = Action(ActionType.END_TURN)
 
@@ -302,3 +302,20 @@ def test_hero_takes_the_decks_aspect():
     assert deck_aspect([neutral] * 30) is None
     game = Game([glow] * 10 + [neutral] * 20, filler_deck(), seed=0, first_player=0)
     assert [p.aspect for p in game.state.players] == ["aspect_5", "aspect_1"]
+
+
+def test_buff_lasts_until_the_unit_leaves_play():
+    game = started_game()
+    a = put_in_play(game, 0, unit(power=1, health=1, name="A"))
+    b = put_in_play(game, 0, unit(power=2, health=2, name="B"))
+    feast = action({"effect": "buff", "power": 2, "health": 1, "target": {"all": {"owner": "you"}}}, name="Feast")
+    uid = put_in_hand(game, 0, feast)
+    give_mana(game, 0, 1)
+    game.step(Action(ActionType.PLAY, uid))
+    assert [(game.stat(u, "power"), game.stat(u, "health")) for u in (a, b)] == [(3, 2), (4, 3)]
+    for _ in range(4):  # it doesn't wear off
+        game.step(END)
+    assert (game.stat(a, "power"), game.stat(a, "health")) == (3, 2)
+    game._move(a, Zone.HAND)
+    assert (game.stat(a, "power"), game.stat(a, "health")) == (1, 1)
+

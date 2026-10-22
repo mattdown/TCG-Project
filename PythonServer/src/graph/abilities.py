@@ -46,6 +46,8 @@ FEATURES = (
     + ["filter:damaged", "filter:exhausted", "filter:ready", "filter:cost_max", "filter:trait", "filter:not_this",
        "filter:hand", "count", "chooser:opponent", "options", "cost_reduction", "subject:this", "subject:all",
        "resolving"]
+    # Added later go at the end, so older models load with zero weights for them (registry.py).
+    + ["op:buff", "buff_power", "buff_health"]
 )
 INDEX = {name: i for i, name in enumerate(FEATURES)}
 NODE_DIM = len(FEATURES)
@@ -112,6 +114,10 @@ def _effect(vec: np.ndarray, step: dict) -> list[dict]:
     if "stat" in step:
         _set(vec, f"stat:{step['stat']}")
         _set(vec, "delta", step["delta"] / 3)
+    if step["effect"] == "buff":
+        _set(vec, "buff_power", step["power"] / 3)
+        _set(vec, "buff_health", step["health"] / 3)
+        _set(vec, "duration:permanent")
     if "keyword" in step:
         _set(vec, f"keyword:{step['keyword']}")
         _set(vec, "keyword_value", step.get("value", 1) / 3)

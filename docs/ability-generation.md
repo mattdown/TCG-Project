@@ -271,3 +271,11 @@ for checking the engine and client. It uses the same pipeline.
     for actions (`experiments.py scale` on a set built with the changes above). Before these
     changes a deck lost 70–81% to a copy with its abilities swapped for stats; after them,
     the even point moved from about 0.1 to 0.3–0.5 of the value table.
+- **2026-10-22:** Step 3a: lasting buffs. New effect `buff` (+power and/or +health on your
+  units until they leave play: "A chosen unit of yours gets +2 power and +2 health", "Your
+  units get +2 power"), weight 6. A buff on this unit when it's played is rejected (it's just
+  more stats). Costing: a lasting point is worth one budget point, like a unit's own stats,
+  and pays the full value: `PRICE_SCALE` now applies per effect, except to lasting stats
+  (`STAT_RATE`), since it corrects the table's overvalued one-shot effects. Network: `op:buff`,
+  `buff_power`, `buff_health` features, appended so older models still load (with zero weights
+  for them) until the next retrain.

@@ -170,3 +170,14 @@ def test_fast_hetero_collate_matches_pyg_batching():
     net = small("gnn")
     for a, b in zip(net(fast), net(reference)):
         assert torch.allclose(a.float(), b.float(), atol=1e-5)
+
+
+@pytest.mark.parametrize("arch", ARCHS)
+def test_older_checkpoints_load_with_zero_weights_for_new_ability_features(arch, tmp_path):
+    net = create_model(arch, hidden=32, num_layers=2)
+    save_model(net, tmp_path / "model.pt")
+    checkpoint = torch.load(tmp_path / "model.pt")
+    checkpoint["state_dict"]["ability_in.0.weight"] = checkpoint["state_dict"]["ability_in.0.weight"][:, :-3]
+    torch.save(checkpoint, tmp_path / "old.pt")
+    weight = load_model(tmp_path / "old.pt").ability_in[0].weight
+    assert torch.equal(weight[:, :-3], net.ability_in[0].weight[:, :-3]) and not weight[:, -3:].any()

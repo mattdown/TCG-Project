@@ -111,3 +111,11 @@ def test_static_modifiers_get_nodes_and_matches():
     modifier = next(i for i in range(enc.num_nodes) if enc.node_features[i, INDEX["kind:modifier"]])
     assert {uids[c] for n, c in enc.node_matches.T if n == modifier} == {chef}
     assert enc.node_features[modifier, INDEX["subject:all"]] == 1
+
+
+def test_buff_nodes_carry_both_amounts():
+    feast = action({"effect": "buff", "power": 2, "health": 1, "target": {"all": {"owner": "you"}}}, name="Feast")
+    g = card_ability_graph(feast)
+    node = next(r for r in g.features if r[INDEX["op:buff"]])
+    assert node[INDEX["buff_power"]] == 2 / 3 and node[INDEX["buff_health"]] == 1 / 3
+    assert node[INDEX["duration:permanent"]] == 1

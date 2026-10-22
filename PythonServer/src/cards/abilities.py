@@ -39,7 +39,8 @@ EFFECTS = {
     "defeat": ("unit", HURTS, None),
     "return_to_hand": ("unit", HURTS, None),
     "freeze": ("unit", HURTS, None),
-    "modify_stat": ("unit", None, (1, 3)),  # polarity follows the sign
+    "modify_stat": ("unit", None, (1, 3)),  # polarity follows the sign; a bonus or penalty that ends
+    "buff": ("unit", HELPS, None),  # lasting +power / +health ("+2/+2"), until the unit leaves play
     "grant_keyword": ("unit", HELPS, None),
     "draw": ("player", HELPS, (1, 3)),
     "discard": ("player", HURTS, (1, 2)),
@@ -48,7 +49,7 @@ EFFECTS = {
     "gain_crystal": ("player", HELPS, None),
 }
 EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "freeze": 4,
-                  "modify_stat": 8, "grant_keyword": 4, "draw": 8, "discard": 3, "heal_hero": 5, "damage_hero": 5,
+                  "modify_stat": 8, "buff": 6, "grant_keyword": 4, "draw": 8, "discard": 3, "heal_hero": 5, "damage_hero": 5,
                   "gain_crystal": 2}
 OWN_JOB = 0.75  # chance a job reference is the unit's own job
 GRANTABLE_KEYWORDS = (("guard", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
@@ -261,6 +262,12 @@ class AbilitySampler:
                                                         "an action spends a whole card" if self.card_type == "action" else ""),
                         duration="this_turn")
             pol = HELPS if sign > 0 else HURTS
+        elif op == "buff":
+            shape = t.weighted("Buff", {"power": 2, "health": 2, "both": 3})
+            big = strong or self.card_type == "action"
+            n = t.small("By", 1 + (self.card_type == "action"), 3 if big else 2,
+                        "an action spends a whole card" if self.card_type == "action" else "")
+            step.update(power=n if shape != "health" else 0, health=n if shape != "power" else 0)
         elif op == "grant_keyword":
             keyword, value = t.choice("Keyword", GRANTABLE_KEYWORDS)
             step.update(keyword=keyword, value=value, duration=GRANT_DURATION[keyword])
@@ -484,6 +491,8 @@ def card_problems(card_type: str, health: int, keywords: dict, abilities) -> lis
         if ability["kind"] == "triggered" and ability["trigger"]["event"] == "on_play":
             if any(e["effect"] == "remove_damage" for e in on_this):
                 problems.append("removes damage from a unit that was just played and has none")
+            if any(e["effect"] == "buff" for e in on_this):
+                problems.append("a lasting bonus to this unit when it's played is just more stats")
             for e in on_this:
                 if e["effect"] == "modify_stat" and e.get("duration", "this_turn") == "this_turn" and (
                         e["stat"] == "power" and not keywords.get("charge")):
@@ -624,6 +633,9 @@ class Renderer:
             sign = "+" if s["delta"] > 0 else "−"
             duration = DURATION_TEXT[s.get("duration", "this_turn")]
             return f"{_cap(t)} get{s_} {sign}{abs(s['delta'])} {s['stat']} {duration}."
+        if op == "buff":
+            gains = " and ".join(f"+{s[stat]} {stat}" for stat in ("power", "health") if s[stat])
+            return f"{_cap(t)} get{s_} {gains}."
         if op == "grant_keyword":
             duration = DURATION_TEXT[s.get("duration", "this_turn")]
             return f"{_cap(t)} gain{s_} {keyword_text(s['keyword'], s.get('value', 1))} {duration}."
