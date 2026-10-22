@@ -10,6 +10,7 @@ import pytest
 
 from src.cards.abilities import AbilitySampler
 from src.cards.schema import Card
+from src.cards.tokens import is_token
 from src.game.engine import Game
 from src.game.state import Continuation, Frame, Zone
 from src.game.terms import ASPECTS
@@ -44,7 +45,7 @@ def check_invariants(game: Game):
     s = game.state
     for p, ps in enumerate(s.players):
         zones = {Zone.DECK: ps.deck, Zone.HAND: ps.hand, Zone.PLAY: ps.play, Zone.DISCARD: ps.discard}
-        assert sum(len(z) for z in zones.values()) == 30
+        assert sum(not is_token(game.card(u).card) for z in zones.values() for u in z) == 30  # plus tokens
         assert len(ps.play) <= game.config.max_board and len(ps.hand) <= game.config.max_hand
         assert 0 <= ps.crystals <= game.config.max_mana and ps.mana >= 0
         assert ps.health <= game.config.hero_health and (ps.health > 0 or game.is_over)

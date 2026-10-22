@@ -42,6 +42,8 @@ SUBTITLES_BY_EFFECT = {
                    "Glued to the Spot", "Snowed In", "Lost the Key", "Web Spinner", "Molasses Trap"),
     "modify_stat": ("Pumped Up", "Growth Spurt", "Big Day", "Puffed Up", "Showing Off", "Second Helping",
                     "Stretching Out", "Heads Up", "Flexing", "On a Roll"),
+    "summon": ("Never Alone", "Brings Friends", "Big Family", "Crowd Pleaser", "Spore Spreader", "Party of Many",
+               "Full House", "Little Helpers", "Follow the Leader", "Plus Ones"),
     "buff": ("Fed Well", "Strong Roots", "Growing Season", "Fruiting Body", "Hearty Meal", "Thick Stalk",
              "Good Compost", "Full Bloom", "Sturdy Cap", "Coming Along"),
     "grant_keyword": ("Watchful Friend", "Lends a Hand", "Shield Bearer", "Good Advice", "Training Day",
@@ -101,6 +103,7 @@ ACTION_NOUNS = {
     "freeze": ("Snare", "Tangle", "Quagmire", "Bind", "Lockdown"),
     "modify_stat": ("Surge", "Bloom", "Flourish", "Swell", "Wither", "Boost"),
     "buff": ("Feeding", "Mulching", "Nurture", "Fortifying", "Growth"),
+    "summon": ("Gathering", "Spore Burst", "Sprouting", "Muster", "Colony"),
     "grant_keyword": ("Blessing", "Drill", "Training", "Ward", "Lesson"),
     "draw": ("Gossip", "Insight", "Almanac", "Scouting", "Letters", "Forecast"),
     "discard": ("Pilfering", "Distraction", "Scatter", "Mischief", "Fumble"),
@@ -108,3 +111,6 @@ ACTION_NOUNS = {
     "damage_hero": ("Raid", "Siege", "Onslaught", "Taunting", "Assault"),
     "gain_crystal": ("Harvest", "Sowing", "Spring Rain", "Compost", "Planting"),
 }
+# Names for summoned tokens: small mushroom folk (docs/theme.md).
+TOKEN_NAMES = ("Sporeling", "Puffling", "Sprout", "Button", "Spore Cloud", "Mycelium Mite", "Toadstool Tot",
+               "Gill Grub", "Cap Kid", "Fruiting Bud")

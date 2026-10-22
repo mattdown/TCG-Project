@@ -48,6 +48,7 @@ FEATURES = (
        "resolving"]
     # Added later go at the end, so older models load with zero weights for them (registry.py).
     + ["op:buff", "buff_power", "buff_health"]
+    + ["op:summon", "token_power", "token_health"]
 )
 INDEX = {name: i for i, name in enumerate(FEATURES)}
 NODE_DIM = len(FEATURES)
@@ -114,6 +115,13 @@ def _effect(vec: np.ndarray, step: dict) -> list[dict]:
     if "stat" in step:
         _set(vec, f"stat:{step['stat']}")
         _set(vec, "delta", step["delta"] / 3)
+    if step["effect"] == "summon":  # the amount is how many; a token keyword uses the keyword features
+        token = step["token"]
+        _set(vec, "token_power", token["power"] / 5)
+        _set(vec, "token_health", token["health"] / 5)
+        for keyword, value in token.get("keywords", {}).items():
+            _set(vec, f"keyword:{keyword}")
+            _set(vec, "keyword_value", value / 3)
     if step["effect"] == "buff":
         _set(vec, "buff_power", step["power"] / 3)
         _set(vec, "buff_health", step["health"] / 3)

@@ -279,3 +279,10 @@ for checking the engine and client. It uses the same pipeline.
   (`STAT_RATE`), since it corrects the table's overvalued one-shot effects. Network: `op:buff`,
   `buff_power`, `buff_health` features, appended so older models still load (with zero weights
   for them) until the next retrain.
+- **2026-10-22:** Step 3b: summons. New effect `summon` (weight 6): 1 or 2 tokens (2 only when
+  a token has 3 stats or fewer), each 2–5 stats (6 on actions), sometimes a keyword (Guard,
+  Charge, Armor +1, Duelist +1) and, on units, sometimes the unit's own job. Tokens are
+  described inside the ability, so cards stay data; `src/cards/tokens.py` turns a description
+  into a card with an id derived from it. Priced at the stat rate, like buffs: a token is a body
+  in play. Network: `op:summon`, `token_power`, `token_health` (a token keyword uses the keyword
+  features); the summoned unit is an ordinary card node.

@@ -25,7 +25,7 @@ import random
 
 from src.cards.quality import quality_problems
 from src.cards.trace import Tracer
-from src.cards.theme import JOBS
+from src.cards.theme import JOBS, TOKEN_NAMES
 from src.game.terms import KEYWORDS, keyword_text
 
 TRAITS = JOBS  # traits are jobs (docs/theme.md)
@@ -47,11 +47,13 @@ EFFECTS = {
     "heal_hero": ("player", HELPS, (2, 5)),
     "damage_hero": ("player", HURTS, (1, 3)),
     "gain_crystal": ("player", HELPS, None),
+    "summon": ("player", HELPS, None),  # puts tokens (src/cards/tokens.py) into play: the amount is how many
 }
 EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "freeze": 4,
                   "modify_stat": 8, "buff": 6, "grant_keyword": 4, "draw": 8, "discard": 3, "heal_hero": 5, "damage_hero": 5,
-                  "gain_crystal": 2}
+                  "gain_crystal": 2, "summon": 6}
 OWN_JOB = 0.75  # chance a job reference is the unit's own job
+TOKEN_KEYWORDS = (("guard", 1), ("charge", 1), ("armor", 1), ("duelist", 1))
 GRANTABLE_KEYWORDS = (("guard", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
 # Guard and Armor protect a unit during the opponent's turn, so a grant lasts until the start of
 # your next turn; Duelist only matters when you attack, so it lasts this turn. Charge is never
@@ -161,6 +163,21 @@ class AbilitySampler:
             return self.own_job
         return t.choice(label, [j for j in self.traits if j != self.own_job] or self.traits)
 
+    def _token(self) -> dict:
+        """A token to summon: 2–5 stats (one more on actions), sometimes a keyword or a job."""
+        t = self.trace
+        action = self.card_type == "action"
+        with t.section("token"):
+            size = t.small("Token stats (power + health)", 2, 5 + action)
+            power = t.randint("Token power", 1, size - 1)
+            token = {"name": t.choice("Token name", TOKEN_NAMES), "power": power, "health": size - power}
+            if t.chance("Token keyword?", 0.25):
+                keyword, value = t.choice("Token keyword", TOKEN_KEYWORDS)
+                token["keywords"] = {keyword: value}
+            if self.own_job is not None and t.chance("Token job? (its own job)", 0.5):
+                token["trait"] = self.own_job
+        return token
+
     def _condition(self) -> dict:
         t = self.trace
         kind = t.weighted("Condition", {"count": 3, "behind_on_health": 1})
@@ -268,6 +285,10 @@ class AbilitySampler:
             n = t.small("By", 1 + (self.card_type == "action"), 3 if big else 2,
                         "an action spends a whole card" if self.card_type == "action" else "")
             step.update(power=n if shape != "health" else 0, health=n if shape != "power" else 0)
+        elif op == "summon":
+            step["token"] = self._token()
+            small = step["token"]["power"] + step["token"]["health"] <= 3
+            step["amount"] = 2 if small and t.chance("Two of them?", 0.35) else 1
         elif op == "grant_keyword":
             keyword, value = t.choice("Keyword", GRANTABLE_KEYWORDS)
             step.update(keyword=keyword, value=value, duration=GRANT_DURATION[keyword])
@@ -574,6 +595,15 @@ def _amount_suffix(amount, unit_word: str = "") -> str:
     return ""
 
 
+def _token_text(token: dict, n: int) -> str:
+    """'a 2/2 Sporeling', 'two 1/1 Baker Sporelings with Guard'."""
+    name = " ".join(filter(None, (token.get("trait"), token["name"])))
+    keywords = " and ".join(keyword_text(k, v) for k, v in token.get("keywords", {}).items())
+    count = "two" if n == 2 else "a"
+    noun = f"{token['power']}/{token['health']} {name}{'s' if n == 2 else ''}"
+    return f"{count} {noun}{' with ' + keywords if keywords else ''}"
+
+
 class Renderer:
     def __init__(self, card_type: str):
         self.card_type = card_type
@@ -596,7 +626,7 @@ class Renderer:
 
     def effect(self, s: dict) -> str:
         op, amount = s["effect"], s.get("amount")
-        if op in ("draw", "discard", "heal_hero", "damage_hero", "gain_crystal"):
+        if op in ("draw", "discard", "heal_hero", "damage_hero", "gain_crystal", "summon"):
             you = s["target"] == "you"
             n = amount if isinstance(amount, int) else 1
             if op == "draw":
@@ -611,6 +641,8 @@ class Renderer:
                 return f"Heal your hero for {n if isinstance(amount, int) else 1}{_amount_suffix(amount)}."
             if op == "damage_hero":
                 return f"Deal {n} damage to {'your' if you else 'the enemy'} hero."
+            if op == "summon":
+                return f"Summon {_token_text(s['token'], n)}."
             return "Gain an empty mana crystal."
 
         t, plural = self.target(s["target"])

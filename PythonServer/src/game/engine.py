@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from src.cards.abilities import Renderer, render
 from src.cards.schema import Card
+from src.cards.tokens import is_token, token_card
 from src.game.actions import Action, ActionType
 from src.game.decision_graph import CompiledAbility, Node, compiled
 from src.game.state import ActiveEffect, CardInstance, Continuation, Frame, GameState, Phase, PlayerState, Zone
@@ -64,6 +65,7 @@ class StepResult:
     abilities: list[int] = field(default_factory=list)  # sources of abilities that started resolving
     healed: dict[int, int] = field(default_factory=dict)  # uid → damage removed
     effects: list[ActiveEffect] = field(default_factory=list)  # lasting changes abilities made
+    summoned: list[int] = field(default_factory=list)  # tokens that entered play
 
 
 class Game:
@@ -614,9 +616,9 @@ class Game:
                         self._result.healed[t] = self._result.healed.get(t, 0) + before - self.card(t).damage
                 case "defeat":
                     self._defeat(t)
-                case "return_to_hand":  # into a full hand, the card is discarded instead
+                case "return_to_hand":  # into a full hand, or for a token, the card is discarded instead
                     full = len(s.players[self.card(t).owner].hand) >= self.config.max_hand
-                    self._move(t, Zone.DISCARD if full else Zone.HAND)
+                    self._move(t, Zone.DISCARD if full or is_token(self.card(t).card) else Zone.HAND)
                 case "exhaust":
                     self.card(t).exhausted = True
                     if self._result:
@@ -648,6 +650,15 @@ class Game:
                         self._result.hero_healed[t] = self._result.hero_healed.get(t, 0) + healed
                 case "damage_hero":
                     self._damage_hero(t, amount)
+                case "summon":  # tokens enter play fresh, like a played unit; a full board stops them
+                    for _ in range(amount):
+                        if len(s.players[t].play) >= self.config.max_board:
+                            break
+                        uid = len(s.cards)
+                        s.cards.append(CardInstance(uid, token_card(step["token"]), t, Zone.PLAY, fresh=True))
+                        s.players[t].play.append(uid)
+                        if self._result:
+                            self._result.summoned.append(uid)
                 case "gain_crystal":
                     ps = s.players[t]
                     if ps.crystals < self.config.max_mana:  # an empty crystal: more mana from next turn

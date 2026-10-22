@@ -71,6 +71,9 @@ aspect word plus a noun for the main effect: "Ember Volley" (damage), "Frost For
 "Lichen Rally" (ready). Each aspect has its own words (Ember: Ember, Cinder, Smoulder,
 Bonfire; Frost: Frost, Rime, Snowdrift, Icicle; …).
 
+**Tokens** (units that abilities summon) are small mushroom folk: Sporeling, Puffling, Sprout,
+Cap Kid, Gill Grub and so on, sometimes with a job ("Baker Sporeling").
+
 The phrase banks are theme data in `PythonServer/src/cards/theme.py`, and
 `src/cards/names.py` picks from them. Names never affect rules or what the network sees. They
 can be replaced later by an LLM naming pass that reads the card text. Today's banks give about

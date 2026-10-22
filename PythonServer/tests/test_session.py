@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from src.cards.coverage import generate_coverage_set
@@ -125,7 +127,7 @@ def test_every_action_record_has_a_result(session):
             records = session.handle({"type": "ai_turn"})["actions"]
         for record in records:
             assert set(record["result"]) == {"damage", "defeated", "hero_damage", "hero_healed", "mana_spent", "crystals",
-                                             "exhausted", "readied", "moves", "abilities", "healed", "effects"}
+                                             "exhausted", "readied", "moves", "abilities", "healed", "effects", "summoned"}
 
 
 def test_ai_draws_and_put_backs_stay_hidden():
@@ -276,3 +278,20 @@ def test_results_include_healing_and_lasting_effects():
     them = state["players"][1]["play"][0]["uid"]
     assert result["effects"] == [{"uid": them, "kind": "stat", "stat": "power", "keyword": None, "value": -1,
                                   "this_turn": True, "lasts": "this_turn"}]
+
+
+def test_summons_send_their_tokens_and_report_them():
+    sprouts = Card("sprouts", "Sprouts", "action", (), 1, 0, 0, abilities=({"kind": "on_resolve", "steps": [
+        {"effect": "summon", "amount": 2, "target": "you", "token": {"name": "Sprout", "power": 1, "health": 1}}]},))
+    session = GameSession(CardSet("s", [sprouts] + [replace(unit(name=f"Filler {i}"), id=f"f{i}") for i in range(15)]))
+    cards = session.handle({"type": "card_set"})["cards"]
+    token = next(c for c in cards if c.get("token"))
+    assert (token["name"], token["power"], token["health"]) == ("Sprout", 1, 1)
+    state = session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1,
+                            "scenario": {"hand": ["sprouts"], "mana": 1}})["state"]
+    uid = next(c["uid"] for c in state["players"][0]["hand"] if c["card_id"] == "sprouts")
+    play = next(a for a in state["legal_actions"] if a["type"] == "play" and a["card"] == uid)
+    assert [s["card_id"] for s in play["preview"]["summoned"]] == [token["id"]] * 2
+    response = session.handle({"type": "act", "action_index": play["index"]})
+    assert [s["card_id"] for s in response["action"]["result"]["summoned"]] == [token["id"]] * 2
+    assert [c["card_id"] for c in response["state"]["players"][0]["play"]][-2:] == [token["id"]] * 2

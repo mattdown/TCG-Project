@@ -227,6 +227,8 @@ Step       := choose(count, chooser, Filter, optional?) as Name    // decision p
             | for_each(Target) Steps
 Effect     := op(Amount?, Target, [Duration])
             | buff(power +n, health +n, Target)              // lasting, until the unit leaves play
+            | summon(n, Token)                               // tokens enter play for you, fresh
+Token      := {name, power, health, keyword?, trait?}       // a unit defined inside the ability (src/cards/tokens.py)
 Target     := Name | this | all(Filter) | you | opponent | owner_of(Name)
 Trigger    := event + source (this | Filter)
 Cost       := exhaust_this [+ pay(n) | exhaust_another | discard]      // ⟳ (this unit's attack) is always part of it
@@ -280,6 +282,8 @@ card is accepted:
     they only matter before a unit first acts.
   - Giving a unit a keyword without a number that it already has does nothing.
   - A lasting buff on this unit when it's played is just more stats, so it isn't generated.
+  - Summoned tokens stop at a full board. A token that leaves play is gone: returned to hand,
+    it goes to the discard pile instead.
 - **Size.** At most 2 abilities per card, 4 steps per sequence, nesting depth 2, and 2
   choices per ability. The generator currently makes one ability per card and applies a
   stricter complexity budget, plus quality tests that look at the tree's shape: see
@@ -384,7 +388,7 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 | Node type | Features |
 |---|---|
 | `card` (each card instance that is visible) | card embedding from the card encoder + zone, exhausted, damage, fresh, hidden (Elusive), frozen, owner (relative: you / opponent) |
-| `ability` (`src/graph/abilities.py`): one per step of each visible card's abilities: `entry`, `choose`, `may`, `choose_one`, `if`, `effect`, `end`, and one `modifier` per static modifier | node kind + ability kind + trigger event + condition + parameters (op, amount, scaling, stat and delta, buff power and health, keyword, duration, target kind, count, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved. 87 features; new ones are appended, so older checkpoints load with zero weights for them |
+| `ability` (`src/graph/abilities.py`): one per step of each visible card's abilities: `entry`, `choose`, `may`, `choose_one`, `if`, `effect`, `end`, and one `modifier` per static modifier | node kind + ability kind + trigger event + condition + parameters (op, amount, scaling, stat and delta, buff power and health, token power and health, keyword, duration, target kind, count, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved. 90 features; new ones are appended, so older checkpoints load with zero weights for them |
 | `player` (you, opponent): the heroes | health, mana, crystals, hand size, deck size, units and how many can attack, Spare Spore, fatigue |
 | `global` | turn number, phase, whose turn |
 | `active_effect` (not yet built) | effect type + parameters + turns until it expires |

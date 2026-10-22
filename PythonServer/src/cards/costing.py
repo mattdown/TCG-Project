@@ -5,7 +5,7 @@ and the learned cost model replaces it later (docs/technical-plan.md section 8).
 point is one point of power or health (see vanilla.py).
 """
 from src.cards.quality import narrowing
-from src.cards.vanilla import KEYWORD_VALUE
+from src.cards.vanilla import KEYWORD_VALUE, keyword_value
 
 # Value of one use of each effect on one target, per point of its amount where it has one.
 EFFECT_VALUE = {
@@ -47,6 +47,10 @@ def effect_value(step: dict, card_type: str | None = None) -> float:
         value = STAT_VALUE[step["stat"]] * abs(step["delta"])
     elif op == "buff":
         value = BUFF_VALUE * (step["power"] + step["health"])
+    elif op == "summon":  # a body in play, like a unit's own stats and keywords
+        token = step["token"]
+        value = step["amount"] * (BUFF_VALUE * (token["power"] + token["health"])
+                                  + keyword_value(token.get("keywords", {})))
     elif op == "grant_keyword":
         value = KEYWORD_VALUE[step["keyword"]] * step.get("value", 1) * 0.5  # for one turn
     else:
@@ -113,7 +117,7 @@ def ability_value(ability: dict, card_type: str | None = None) -> float:
 # whose actions were swapped for vanilla units (actions) at about these shares. The learned cost
 # model replaces both.
 PRICE_SCALE = {"unit": 0.4, "action": 0.2}
-STAT_RATE = ("buff",)
+STAT_RATE = ("buff", "summon")
 
 
 def price(ability: dict, card_type: str) -> float:

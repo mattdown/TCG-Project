@@ -319,3 +319,36 @@ def test_buff_lasts_until_the_unit_leaves_play():
     game._move(a, Zone.HAND)
     assert (game.stat(a, "power"), game.stat(a, "health")) == (1, 1)
 
+
+
+SPROUT = {"name": "Sprout", "power": 1, "health": 2, "keywords": {"guard": 1}, "trait": "Baker"}
+
+
+def test_summon_puts_fresh_tokens_into_play_up_to_a_full_board():
+    game = started_game()
+    for i in range(5):
+        put_in_play(game, 0, unit(name=f"U{i}"))
+    sprouts = action({"effect": "summon", "amount": 3, "target": "you", "token": SPROUT}, name="Sprouts")
+    uid = put_in_hand(game, 0, sprouts)
+    give_mana(game, 0, 1)
+    result = game.step(Action(ActionType.PLAY, uid), record=True)
+    tokens = game.state.players[0].play[5:]
+    assert len(tokens) == 2 and result.summoned == tokens  # 7 units is a full board
+    token = game.card(tokens[0])
+    assert token.fresh and token.card.traits == ("Baker",) and game.keyword(tokens[0], "guard")
+    assert (game.stat(tokens[0], "power"), game.stat(tokens[0], "health")) == (1, 2)
+
+
+def test_a_token_returned_to_hand_is_gone():
+    game = started_game()
+    sprouts = action({"effect": "summon", "amount": 1, "target": "you", "token": SPROUT}, name="Sprouts")
+    uid = put_in_hand(game, 0, sprouts)
+    give_mana(game, 0, 1)
+    game.step(Action(ActionType.PLAY, uid))
+    token = game.state.players[0].play[-1]
+    gust = action({"effect": "return_to_hand", "target": {"all": {"owner": "opponent"}}}, name="Gust")
+    gust_uid = put_in_hand(game, 1, gust)
+    game.step(END)
+    give_mana(game, 1, 1)
+    game.step(Action(ActionType.PLAY, gust_uid))
+    assert game.card(token).zone == Zone.DISCARD and token not in game.state.players[0].hand

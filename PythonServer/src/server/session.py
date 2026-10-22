@@ -23,6 +23,7 @@ from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
 from src.cards.abilities import render
 from src.cards.schema import CardSet
+from src.cards.tokens import tokens_of
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game, Move, StepResult, describe_action
@@ -63,6 +64,9 @@ class GameSession:
 
     def _card_set(self, _):
         cards = [{**c.to_dict(), "ability_text": [render(a, c.type) for a in c.abilities]} for c in self.card_set.cards]
+        # Tokens the cards can summon, so the client can show them like any card.
+        tokens = {t.id: t for c in self.card_set.cards for t in tokens_of(c)}
+        cards += [{**t.to_dict(), "ability_text": [], "token": True} for t in tokens.values()]
         keywords = {k: {"name": KEYWORD_NAMES[k], "numbered": KEYWORDS[k], "rule": KEYWORD_RULES[k]} for k in KEYWORDS}
         return {"status": "ok", "name": self.card_set.name, "cards": cards, "keywords": keywords}
 
@@ -223,11 +227,12 @@ class GameSession:
         """
         if action.type not in (ActionType.PLAY, ActionType.ATTACK, ActionType.ATTACK_HERO):
             return None
-        result = self.game.clone().step(action, validate=False, record=True)
+        trial = self.game.clone()
+        result = trial.step(action, validate=False, record=True)
         result.moves = [m for m in result.moves if m.source == Zone.PLAY or m.uid == action.card]
-        return self._result_view(result)
+        return self._result_view(result, trial)
 
-    def _result_view(self, r: StepResult) -> dict:
+    def _result_view(self, r: StepResult, game: Game | None = None) -> dict:
         """A step result as the human may see it: hidden moves keep only who and where."""
         return {
             "damage": [{"uid": uid, "amount": n} for uid, n in r.damage.items()],
@@ -239,6 +244,8 @@ class GameSession:
             "exhausted": r.exhausted,
             "readied": r.readied,
             "moves": [self._move_view(m) for m in r.moves],
+            "summoned": [{"uid": uid, "player": (game or self.game).card(uid).owner,
+                          "card_id": (game or self.game).card(uid).card.id} for uid in r.summoned],
             "abilities": r.abilities,
             "healed": [{"uid": uid, "amount": n} for uid, n in r.healed.items()],
             "effects": [{"uid": e.uid, "kind": e.kind, "stat": e.stat, "keyword": e.keyword, "value": e.value,

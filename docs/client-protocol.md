@@ -101,6 +101,7 @@ stats and names here.
 | `keywords` | `{"guard": true, "duelist": 2}`: flags are `true`, Duelist and Armor carry a number. Show them as `Guard.`, `Duelist +2.` (see the keyword rules below) |
 | `abilities` | ability trees (the grammar in [technical-plan.md](technical-plan.md) section 3); the client doesn't need to read them |
 | `ability_text` | one line of card text per ability, e.g. `"When you play this unit, draw a card."`: show these in the text box |
+| `token` | `true` for a **token**: a unit an ability summons (`"Summon two 1/1 Sporelings."`), never in a deck. Tokens come after the set's cards, with ids like `"token:Sporeling-1/1"`, so a summoned unit's `card_id` is found like any other. They cost 0, are neutral, and may have a job and a keyword |
 
 The response also has `keywords`: each keyword's player-facing name, whether it carries a
 number, and its reminder text, for inspect panels (`N` is the number):
@@ -352,6 +353,7 @@ The engine records them while it applies the rules (`StepResult` in `src/game/en
 | `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `discard` |
 | `abilities` | uids of the cards whose abilities started resolving, in order (to highlight the card as its ability happens) |
 | `healed` | damage removed from each unit (uid, amount) |
+| `summoned` | tokens that entered play: `{"uid", "player", "card_id"}`, in order. They also appear in the player's `play` in the new state (fresh). Animate them appearing next to the card whose ability summoned them; a token that leaves play goes to the discard pile, even when returned to hand |
 | `effects` | lasting changes abilities made: `{"uid", "kind", "stat", "keyword", "value", "this_turn", "lasts"}`; `lasts` is `this_turn`, `until_your_next_turn` (e.g. a granted Guard or Armor, which lasts through the opponent's turn), `until_its_next_turn` (freeze), `while_in_play` or `permanent`; `this_turn` is true only for `this_turn`; `kind` is `stat` (e.g. `power` −1), `keyword` (granted) or `freeze` |
 
 **Hidden moves.** The AI's draws and mulligan put-backs keep only who and where:
