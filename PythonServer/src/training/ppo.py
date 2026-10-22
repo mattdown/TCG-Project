@@ -1,10 +1,17 @@
-"""PPO self-play.
+"""PPO self-play with a league.
 
-Each iteration plays a batch of games in lockstep with the current network in both seats,
-on fresh random decks. Every decision becomes one training step for the player who made
-it. The reward is +1 / -1 for a win / loss (0 for a draw) at the player's last decision,
-and advantages come from GAE over that player's own decisions.
+Each iteration plays a batch of games in lockstep, on fresh random decks from one or more card
+sets. Most games are self-play: the current network in both seats. A `league_share` of them
+put it against an opponent from the league instead: frozen snapshots of earlier versions
+(added every `snapshot_every` iterations, the newest `pool_size` kept) and the heuristic
+agent. Playing only against its current self, an agent can learn to beat itself and forget
+how to beat anything else; the league keeps old strategies in the mix.
+
+Every decision the learner makes becomes one training step. The reward is +1 / -1 for a win
+/ loss (0 for a draw) at the player's last decision, and advantages come from GAE over that
+player's own decisions.
 """
+import copy
 import random
 import time
 from dataclasses import asdict, dataclass
@@ -45,6 +52,9 @@ class PPOConfig:
     num_layers: int = 4
     seed: int = 0
     device: str = "cpu"
+    league_share: float = 0.3  # share of games against a league opponent (0: pure self-play)
+    snapshot_every: int = 10  # add a frozen copy of the network to the league this often
+    pool_size: int = 8  # snapshots kept (the heuristic agent is always in the league)
 
 
 @dataclass
@@ -57,37 +67,79 @@ class Step:
     ret: float = 0.0
 
 
-def collect_games(net: nn.Module, card_set: CardSet, num_games: int, rng: random.Random, device: str,
-                  gamma: float = 1.0, gae_lambda: float = 0.95):
-    """Plays num_games self-play games. Returns the training steps and the average game length in turns."""
-    games = [Game(random_deck(card_set, rng), random_deck(card_set, rng), seed=rng.randrange(2**31))
-             for _ in range(num_games)]
-    trajectories = [([], []) for _ in games]  # per game, per player
+@dataclass
+class LeagueGame:
+    """A game against a league opponent: who sits where, and who it is."""
+    seat: int  # the opponent's seat
+    opponent: int  # index into the league list
+
+
+def _sample(net: nn.Module, observations: list, device: str):
+    """One stochastic move per observation: (choices, log probs, values)."""
+    batch = net.collate([o.encoded for o in observations]).to(device)
+    with torch.no_grad():
+        logits, index, values = net(batch)
+        log_probs = segment_log_softmax(logits, index).cpu()
+    ptr = segment_ptr(index, len(observations)).cpu()
+    out = []
+    for i in range(len(observations)):
+        lp = log_probs[ptr[i]:ptr[i + 1]]
+        choice = int(torch.multinomial(lp.exp(), 1))
+        out.append((choice, float(lp[choice]), float(values[i])))
+    return out
+
+
+def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games: int, rng: random.Random,
+                  device: str, gamma: float = 1.0, gae_lambda: float = 0.95, league: list | None = None,
+                  league_share: float = 0.0):
+    """Plays num_games games, a league_share of them against league opponents (frozen networks or
+    agents). Returns the training steps, the average game length in turns, and the learner's
+    results against the league as (wins, games)."""
+    card_sets = card_sets if isinstance(card_sets, list) else [card_sets]
+    games, matchups = [], []
+    for _ in range(num_games):
+        cs = rng.choice(card_sets)
+        games.append(Game(random_deck(cs, rng), random_deck(cs, rng), seed=rng.randrange(2**31)))
+        matchups.append(LeagueGame(rng.randrange(2), rng.randrange(len(league)))
+                        if league and rng.random() < league_share else None)
+    trajectories = [([], []) for _ in games]  # per game, per player: the learner's decisions only
     active = list(range(num_games))
     net.eval()
     while active:
-        observations = [observe(games[g], games[g].state.decision_player) for g in active]
-        batch = net.collate([o.encoded for o in observations]).to(device)
-        with torch.no_grad():
-            logits, index, values = net(batch)
-            log_probs = segment_log_softmax(logits, index).cpu()
-        ptr = segment_ptr(index, len(active)).cpu()
-        for i, g in enumerate(active):
-            lp = log_probs[ptr[i]:ptr[i + 1]]
-            choice = int(torch.multinomial(lp.exp(), 1))
-            game = games[g]
-            trajectories[g][game.state.decision_player].append(
-                Step(observations[i].encoded, choice, float(lp[choice]), float(values[i])))
-            game.step(observations[i].actions[choice], validate=False)
+        learner, by_opponent = [], {}
+        for g in active:
+            m = matchups[g]
+            if m is not None and games[g].state.decision_player == m.seat:
+                by_opponent.setdefault(m.opponent, []).append(g)
+            else:
+                learner.append(g)
+        if learner:
+            observations = [observe(games[g], games[g].state.decision_player) for g in learner]
+            for g, obs, (choice, log_prob, value) in zip(learner, observations, _sample(net, observations, device)):
+                game = games[g]
+                trajectories[g][game.state.decision_player].append(Step(obs.encoded, choice, log_prob, value))
+                game.step(obs.actions[choice], validate=False)
+        for k, group in by_opponent.items():
+            opponent = league[k]
+            if isinstance(opponent, nn.Module):
+                observations = [observe(games[g], games[g].state.decision_player) for g in group]
+                for g, obs, (choice, _, _) in zip(group, observations, _sample(opponent, observations, device)):
+                    games[g].step(obs.actions[choice], validate=False)
+            else:
+                for g in group:
+                    games[g].step(opponent.choose(games[g]), validate=False)
         active = [g for g in active if not games[g].is_over]
 
-    steps = []
-    for game, per_player in zip(games, trajectories):
+    steps, league_wins, league_games = [], 0, 0
+    for game, per_player, m in zip(games, trajectories, matchups):
+        winner = game.state.winner
         for player, trajectory in enumerate(per_player):
-            winner = game.state.winner
             outcome = 0.0 if winner is None else (1.0 if winner == player else -1.0)
             steps.extend(_gae(trajectory, outcome, gamma, gae_lambda))
-    return steps, sum(g.state.turn for g in games) / num_games
+        if m is not None:
+            league_games += 1
+            league_wins += winner == 1 - m.seat
+    return steps, sum(g.state.turn for g in games) / num_games, (league_wins, league_games)
 
 
 def _gae(trajectory: list[Step], outcome: float, gamma: float, lam: float) -> list[Step]:
@@ -162,25 +214,36 @@ def evaluate(net: nn.Module, card_set: CardSet, num_games: int, seed: int, devic
     }
 
 
-def train(cfg: PPOConfig, card_set: CardSet, out_path, log=print) -> nn.Module:
+def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=print) -> nn.Module:
+    """Trains on games from the card sets (each game picks one); evaluates on the first."""
+    card_sets = card_sets if isinstance(card_sets, list) else [card_sets]
     torch.manual_seed(cfg.seed)
     rng = random.Random(cfg.seed)
     net = create_model(cfg.arch, hidden=cfg.hidden, num_layers=cfg.num_layers).to(cfg.device)
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr)
+    snapshots: list[nn.Module] = []
     best = -1.0
     for it in range(1, cfg.iterations + 1):
         t0 = time.time()
-        steps, avg_turns = collect_games(net, card_set, cfg.games_per_iteration, rng, cfg.device,
-                                        cfg.gamma, cfg.gae_lambda)
+        league = [HeuristicAgent(), *snapshots]
+        steps, avg_turns, (league_wins, league_games) = collect_games(
+            net, card_sets, cfg.games_per_iteration, rng, cfg.device, cfg.gamma, cfg.gae_lambda,
+            league, cfg.league_share)
         t1 = time.time()
         metrics = ppo_update(net, optimizer, steps, cfg)
         t2 = time.time()
+        league_text = f" | league {league_wins}/{league_games}" if league_games else ""
         log(f"it {it:4d} | {len(steps):6d} steps | {avg_turns:5.1f} turns/game | "
             f"pi {metrics['policy_loss']:+.3f} v {metrics['value_loss']:.3f} ent {metrics['entropy']:.3f} "
             f"kl {metrics['approx_kl']:+.4f} clip {metrics['clip_frac']:.2f} ep {metrics['epochs']} | "
-            f"play {t1 - t0:4.1f}s learn {t2 - t1:4.1f}s")
+            f"play {t1 - t0:4.1f}s learn {t2 - t1:4.1f}s{league_text}")
+        if cfg.league_share > 0 and it % cfg.snapshot_every == 0:
+            snapshot = copy.deepcopy(net).eval()
+            for p in snapshot.parameters():
+                p.requires_grad_(False)
+            snapshots = (snapshots + [snapshot])[-cfg.pool_size:]
         if it % cfg.eval_every == 0 or it == cfg.iterations:
-            result = evaluate(net, card_set, cfg.eval_games, seed=it, device=cfg.device)
+            result = evaluate(net, card_sets[0], cfg.eval_games, seed=it, device=cfg.device)
             log(f"     eval: {result['vs_random']:.1%} vs random, {result['vs_heuristic']:.1%} vs heuristic")
             save_model(net, out_path, {"config": asdict(cfg), "iteration": it, "eval": result})
             if result["vs_heuristic"] > best:
