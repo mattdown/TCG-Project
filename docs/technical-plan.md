@@ -69,9 +69,12 @@ module (`src/game/terms.py`), so a rename is a single change.
   colours and decks draw from the whole set (`ONE_ASPECT` in `src/game/decks.py`).
   Each player has a hero with 30 health. A hero at 0 health loses; if both reach 0 at once,
   it's a draw.
-- **Start.** The first player draws 3 cards, the second 4. Each player may replace any of
+- **Start.** The first player draws 3 cards, the second 5. Each player may replace any of
   their opening cards once (mulligan). The second player also gets the **Spare Spore**: once per
   game, gain 1 mana for that turn. This is Hearthstone's answer to the first player's tempo.
+  With Hearthstone's 4 cards, the first player won 58–59% of mirror games; with 5, 49% for the
+  league model and 54% for the heuristic agent (`scripts/experiments.py first`, 2026-10-22).
+  Re-measure once card costs are learned.
 - **Turn.** Start of turn: gain an empty mana crystal (up to 10), refill all crystals, units
   can attack again, "start of turn" effects trigger, draw a card. Then the main phase, then
   "end of turn" effects.

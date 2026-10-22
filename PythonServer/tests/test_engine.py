@@ -13,13 +13,13 @@ from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, star
 END = Action(ActionType.END_TURN)
 
 
-def test_new_game_deals_three_and_four_and_starts_with_mulligan():
+def test_new_game_deals_three_and_five_and_starts_with_mulligan():
     game = Game(filler_deck(), filler_deck(), seed=0, first_player=1)
     assert game.state.phase == Phase.MULLIGAN
     assert game.state.decision_player == 1
-    assert [len(p.hand) for p in game.state.players] == [4, 3]
-    assert [len(p.deck) for p in game.state.players] == [26, 27]
-    assert [p.spare_spore for p in game.state.players] == [True, False]
+    assert [len(p.hand) for p in game.state.players] == [5, 3]
+    assert [len(p.deck) for p in game.state.players] == [25, 27]
+    assert [p.spare_spore for p in game.state.players] == [1, 0]
     assert [p.health for p in game.state.players] == [30, 30]
 
 
@@ -42,7 +42,7 @@ def test_every_turn_draws_and_adds_a_mana_crystal():
     assert len(game.state.players[0].hand) == 4  # 3 + the first turn's draw
     assert (game.state.players[0].crystals, game.mana(0)) == (1, 1)
     game.step(END)
-    assert len(game.state.players[1].hand) == 5
+    assert len(game.state.players[1].hand) == 6  # 5 + the draw
     assert (game.state.players[1].crystals, game.mana(1)) == (1, 1)
     game.step(END)
     assert (game.state.players[0].crystals, game.mana(0)) == (2, 2)

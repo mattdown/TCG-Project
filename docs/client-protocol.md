@@ -382,7 +382,7 @@ loop:
   animate the action's result, then render the returned state
 ```
 
-- **Mulligan:** the first player starts with 3 cards, the second with 4. Both mulligan before
+- **Mulligan:** the first player starts with 3 cards, the second with 5. Both mulligan before
   turn 1, the first player first. The human picks
   `mulligan` actions (each marks one card, shown in `mulligan_marked`) and then `keep_hand`.
   The AI's mulligan happens through `ai_move` / `ai_turn` like any other AI decision.

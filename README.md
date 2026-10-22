@@ -50,7 +50,7 @@ uv sync
 Rules v2, Hearthstone-style ([docs/technical-plan.md](docs/technical-plan.md) section 2).
 Two players, each with a hero on 30 health and a 30-card deck (up to 2 copies of a card).
 Aspects are only colours for now; later a deck will be one aspect's cards plus neutral cards,
-like a Hearthstone class. The first player starts with 3 cards, the second with 4 and the **Spare
+like a Hearthstone class. The first player starts with 3 cards, the second with 5 and the **Spare
 Spore** (once per game: +1 mana that turn); both may mulligan once. Each turn: gain a mana
 crystal (up to 10) and refill them all, your units can attack again, draw a card, then any
 number of actions:

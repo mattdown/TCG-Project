@@ -176,7 +176,7 @@ class GameSession:
                 "health": ps.health,
                 "mana": ps.mana,
                 "crystals": ps.crystals,
-                "spare_spore": ps.spare_spore,
+                "spare_spore": ps.spare_spore > 0,
                 "fatigue": ps.fatigue,
                 "deck_count": len(ps.deck),
                 "hand_count": len(ps.hand),

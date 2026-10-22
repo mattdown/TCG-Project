@@ -30,7 +30,8 @@ ZONES = {"play": Zone.PLAY, "hand": Zone.HAND, "discard": Zone.DISCARD}
 class GameConfig:
     hero_health: int = 30
     max_mana: int = 10
-    opening_hand: tuple[int, int] = (3, 4)  # first player, second player
+    opening_hand: tuple[int, int] = (3, 5)  # first player, second player (4 left the first player winning 59%)
+    spare_spores: int = 1  # the second player's one-off +1 mana, this many times
     max_board: int = 7
     max_hand: int = 10  # a card drawn into a full hand is discarded
     max_turns: int = 100  # safety cap: the game is a draw after this many turns
@@ -81,7 +82,7 @@ class Game:
             players.append(PlayerState(deck=uids, health=config.hero_health, aspect=deck_aspect(deck)))
         first = self.rng.randrange(2) if first_player is None else first_player
         self.state = GameState(cards, players, first_player=first, active_player=first, decision_player=first)
-        players[1 - first].spare_spore = True
+        players[1 - first].spare_spore = config.spare_spores
         for p in (first, 1 - first):
             for _ in range(config.opening_hand[p != first]):
                 self._draw(p)
@@ -247,7 +248,7 @@ class Game:
             case ActionType.PLAY:
                 self._play(p, action.card)
             case ActionType.SPARE_SPORE:
-                ps.spare_spore = False
+                ps.spare_spore -= 1
                 ps.mana += 1
             case ActionType.ATTACK | ActionType.ATTACK_HERO:
                 unit = self.card(action.card)

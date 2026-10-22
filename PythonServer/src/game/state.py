@@ -74,7 +74,7 @@ class PlayerState:
     crystals: int = 0  # mana crystals: one more each turn, up to GameConfig.max_mana
     mana: int = 0  # unspent mana this turn
     fatigue: int = 0  # damage the next draw from an empty deck deals
-    spare_spore: bool = False  # the second player's one-off +1 mana
+    spare_spore: int = 0  # the second player's one-off +1 mana: how many are left
     aspect: str | None = None  # the hero's aspect: the deck's aspect, None if it has only neutral cards
     mulligan_done: bool = False
     mulligan_marked: list[int] = field(default_factory=list)

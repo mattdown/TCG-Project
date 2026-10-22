@@ -26,7 +26,7 @@ def test_card_set():
 def test_state_hides_ai_hand(session):
     state = session.handle({"type": "state"})["state"]
     assert state["players"][0]["hand"] is not None and state["players"][1]["hand"] is None
-    assert state["players"][1]["hand_count"] in (3, 4)
+    assert state["players"][1]["hand_count"] in (3, 5)
 
 
 def test_neural_opponent_without_model_is_an_error():
