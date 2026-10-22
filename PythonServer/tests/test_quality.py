@@ -1,4 +1,6 @@
+import json
 import random
+import re
 from collections import Counter
 
 from scripts.card_lab import one, run
@@ -135,7 +137,8 @@ def test_trace_records_every_decision_with_its_options():
         for d in steps:
             chosen = next(o for o in d["options"] if o["name"] == d["chosen"])
             assert chosen["p"] > 0
-            assert abs(sum(o["p"] for o in d["options"]) - 1) < 5e-3  # each p is rounded
+            # each p is rounded to 4 places
+            assert abs(sum(o["p"] for o in d["options"]) - 1) <= max(5e-3, 5e-5 * len(d["options"]))
         assert 0 < path_probability(a.trace) <= 1
 
 
@@ -203,3 +206,14 @@ def test_plain_cards_fall_back_to_ability_units_when_every_stat_line_is_taken():
     generator = CardGenerator(random.Random(9), vanilla_share=1.0, action_share=0.0)
     kept = [generator.card() for _ in range(120)]  # there are only about 70 fair vanilla stat lines
     assert sum(a.kind == "vanilla" for a in kept) < 80 and any(a.kind == "unit" for a in kept)
+
+
+def test_units_mostly_refer_to_their_own_job():
+    generator = CardGenerator(random.Random(3), jobs=("Baker", "Chef", "Miner", "Scholar", "Fisher", "Burglar"))
+    own = other = 0
+    for _ in range(150):
+        card = generator.card("unit").card
+        jobs = re.findall(r'"trait": "(\w+)"', json.dumps(card.abilities[0]))
+        own += sum(j == card.traits[0] for j in jobs)
+        other += sum(j != card.traits[0] for j in jobs)
+    assert own > 2 * other

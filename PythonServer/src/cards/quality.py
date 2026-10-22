@@ -8,6 +8,9 @@ measurements and the learned cost model take over later.
 import json
 
 MAX_COMPLEXITY = 4
+ACTION_COMPLEXITY = 2  # extra nodes for actions: an action is only its ability
+MAX_NARROWING = 1
+RESTRICTIONS = ("damaged", "cost_max", "trait")
 
 
 def complexity(ability: dict) -> int:
@@ -29,6 +32,24 @@ def complexity(ability: dict) -> int:
     if ability["kind"] == "activated":
         total += sum(1 for c in ability["cost"] if not c.get("exhaust_this"))
     return total + steps(ability["steps"])
+
+
+def narrowing(ability: dict) -> int:
+    """Things that must line up before the ability does anything: a condition, and each
+    restriction (damaged, cost, job) on a filter that picks cards. Each roughly halves how often
+    an ability hits in self-play (`scripts/experiments.py fire`). Filters inside a condition or
+    a "for each" count aren't counted again: they don't stop the ability, only size it."""
+    def walk(node, key=None) -> int:
+        if key in ("condition", "per", "if"):
+            return 0
+        if isinstance(node, list):
+            return sum(walk(n) for n in node)
+        if not isinstance(node, dict):
+            return 0
+        total = sum(1 for r in RESTRICTIONS if node.get(r)) if "owner" in node else 0
+        return total + sum(walk(v, k) for k, v in node.items())
+
+    return (1 if ability.get("condition") else 0) + walk(ability)
 
 
 def _touches(step: dict) -> set[str]:
@@ -129,6 +150,8 @@ def quality_problems(ability: dict, max_complexity: int = MAX_COMPLEXITY) -> lis
     size = complexity(ability)
     if size > max_complexity:
         problems.append(f"too complex: {size} nodes (budget {max_complexity})")
+    if (n := narrowing(ability)) > MAX_NARROWING:
+        problems.append(f"too narrow: {n} conditions or restrictions (budget {MAX_NARROWING})")
     problems += disconnected_steps(ability.get("steps", []))
     problems += dominated_options(ability)
     return problems

@@ -60,16 +60,17 @@ or by another generator are checked in the same way.
 
 ### 3. Quality tests (`src/cards/quality.py`)
 
-Legal isn't the same as worth generating. Three tests, each a general property of the tree:
+Legal isn't the same as worth generating. Four tests, each a general property of the tree:
 
 | Test | Rule | Catches |
 |---|---|---|
 | **Complexity budget** | At most `MAX_COMPLEXITY` = 4 nodes. A node is each step (choice, effect, if, may, choose one), the condition, each activated cost beyond ⟳ and each static modifier. | Long abilities that stack a condition, a "you may", a choice and a follow-up |
+| **Narrowing budget** | At most `MAX_NARROWING` = 1 condition or restriction (damaged, cost ≤ n, job) on a filter that picks cards. Filters inside a condition or a "for each" count aren't counted again. In self-play each one roughly halved how often an ability hit; with two or more, abilities almost never fired (`experiments.py fire`). | "When this unit is defeated, if you have 2 or more other Chef units, chosen damaged enemy unit gets −2 power" (fired 0 times in 122 plays) |
 | **Connected steps** | Every step after the first must act on a card that an earlier step acted on, or ask about it ("if it was defeated"). Choices only name a card and aren't counted. "You may … if you do" and choose one connect their parts by construction. | Unrelated effects glued together: "+1 health this turn. Your opponent loses 1 VP." |
 | **No dominated options** | In a choose one, an option with the same shape as another (the same tree apart from its numbers) that is no bigger in any number is never worth picking. Every number in the grammar is better bigger for whoever chooses it, so no knowledge of particular effects is needed. | "Choose one: draw 2 cards, or draw a card." Also the same option twice. |
 
 The complexity budget is the main lever on how wild the set is. 4 rejects about 6% of raw
-draws. Raising it later (by rarity, for example) is a one-line change.
+draws. Actions get 2 more nodes (`ACTION_COMPLEXITY`): an action is only its ability. Raising it later (by rarity, for example) is a one-line change.
 
 Trade-offs worth knowing:
 
@@ -104,9 +105,12 @@ at least 1 and at most 12.
 - **Aspect:** random, or neutral 10% of the time. Aspects have no identity yet (it should
   later come from clustering generated cards, technical plan section 2), so for now decks
   ignore them.
-- **Cost and stats:** from the rough ability value in `src/cards/costing.py`. Units also get an
-  archetype (how stats are spread) and sometimes a keyword. The stat budget is 2 × cost + 1
-  (Hearthstone players' rule of thumb), minus the ability's rough value.
+- **Cost and stats:** from the ability's price in `src/cards/costing.py`: its rough value times
+  a measured share (`PRICE_SCALE`: 0.4 for units, 0.2 for actions), the share at which a deck
+  tied with a copy whose abilities were swapped for stats. Units also get an archetype (how
+  stats are spread) and sometimes a keyword. The stat budget is 2 × cost + 1 (Hearthstone
+  players' rule of thumb), minus the ability's price. An action costs half its price in mana,
+  rounded up.
 
 Then the card-level checks run (`card_problems`). They reject abilities that could never
 matter *on this card*:
@@ -252,3 +256,18 @@ for checking the engine and client. It uses the same pipeline.
   had no target. Decks now focus on two jobs (70% of their units), and target restrictions on
   enemy units no longer use jobs (damaged or cost only). Next: price filters by how often they
   match, bigger amounts, a higher complexity limit for actions, lasting buffs and summons.
+- **2026-10-22:** Step 2, from the fire check (`experiments.py fire`: how often a played ability
+  card's ability hits a target). Only 53% of played ability cards ever did anything; each
+  narrowing about halved the hits; triggers fired far less often than the value table assumed
+  (start of turn 2.5 uses assumed, about 0.8 measured). Changes:
+  - **Own job:** a unit's job is chosen before its ability, and job references are its own job
+    75% of the time (`OWN_JOB`), so tribes reward their own members and focused decks meet them.
+  - **Narrowing budget** quality test (at most 1).
+  - **Costing:** `TRIGGER_USES` from the measurements; `NARROW_FACTOR` 0.5 per narrowing replaces
+    the condition factor and also covers restricted filters, which were free before.
+  - **Actions:** amounts start one higher and may go one higher, and actions get 2 more nodes of
+    complexity.
+  - **Prices** (`costing.price`): the rough value times a measured share, 0.4 for units and 0.2
+    for actions (`experiments.py scale` on a set built with the changes above). Before these
+    changes a deck lost 70–81% to a copy with its abilities swapped for stats; after them,
+    the even point moved from about 0.1 to 0.3–0.5 of the value table.

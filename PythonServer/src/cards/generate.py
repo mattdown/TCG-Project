@@ -13,9 +13,9 @@ from collections import Counter
 from dataclasses import dataclass, field, replace
 
 from src.cards.abilities import AbilitySampler, render, validate
-from src.cards.costing import ability_value
+from src.cards.costing import price
 from src.cards.names import Namer
-from src.cards.quality import MAX_COMPLEXITY, complexity, quality_problems, skeleton
+from src.cards.quality import ACTION_COMPLEXITY, MAX_COMPLEXITY, complexity, quality_problems, skeleton
 from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
 from src.cards.vanilla import (ARCHETYPES, ARCHETYPE_KEYWORDS, COST_WEIGHTS, KEYWORD_RANGE, MIN_STATS_VALUE,
@@ -35,7 +35,7 @@ class Attempt:
     ability: dict | None  # None for vanilla and keyword-only units
     text: str
     complexity: int
-    value: float  # rough ability value in budget points (costing.py)
+    value: float  # what the card pays for its ability, in budget points (costing.price)
     kind: str = "unit"
     stopped_at: str | None = None  # None: the card was kept
     problems: list[str] = field(default_factory=list)
@@ -107,13 +107,15 @@ class CardGenerator:
             return a
 
         with t.section("ability"):
+            # A unit's job comes first, so its ability can refer to it.
+            self.sampler.own_job = t.choice("Job", self.jobs) if card_type == "unit" else None
             ability = self.sampler.raw(card_type, reset=False)
         a = Attempt(self._next, card_type, ability, render(ability, card_type), complexity(ability),
-                    round(ability_value(ability), 2), kind)
+                    round(price(ability, card_type), 2), kind)
         self._register(a)
         if problems := validate(ability, card_type):
             a.stopped_at, a.problems = "grammar", problems
-        elif problems := quality_problems(ability, self.max_complexity):
+        elif problems := quality_problems(ability, self.max_complexity + (ACTION_COMPLEXITY if card_type == "action" else 0)):
             a.stopped_at, a.problems = "quality", problems
         else:
             try:
@@ -162,9 +164,10 @@ class CardGenerator:
             return ()
         return (t.choice("Aspect", ASPECTS, "at random: aspects have no identity yet"),)
 
-    def _name(self, ability: dict | None, keywords: dict | None = None) -> tuple[str, str, str]:
+    def _name(self, ability: dict | None, keywords: dict | None = None, job: str | None = None) -> tuple[str, str, str]:
         t = self.sampler.trace
-        species, job = t.choice("Species", SPECIES), t.choice("Job", self.jobs)
+        species = t.choice("Species", SPECIES)
+        job = job or t.choice("Job", self.jobs)
         name = f"{species} {job}"
         return name, job, self.namer.subtitle(name, ability, keywords)
 
@@ -197,10 +200,10 @@ class CardGenerator:
         if card_type == "action":
             name = self.namer.action(aspect[0] if aspect else None, ability)
             cost = max(0, math.ceil(value / 2))
-            t.fixed("Cost", cost, f"half the ability's rough value ({value:g}), rounded up")
+            t.fixed("Cost", cost, f"half the ability's price ({value:g}), rounded up")
             return Card(f"gen-{index}", name, "action", aspect, cost, 0, 0, abilities=(ability,)), None
 
-        name, job, subtitle = self._name(ability)
+        name, job, subtitle = self._name(ability, job=self.sampler.own_job)
         archetype = t.choice("Archetype", list(ARCHETYPES))
         keywords = {}
         if t.chance("Add a keyword?", 0.35):
@@ -239,5 +242,5 @@ def generate_card_set(count: int, seed: int = 0, jobs: int = 6, action_share: fl
     notes = {"generator": "set", "seed": seed, "jobs": list(job_list),
              "shares": {"vanilla": vanilla_share, "keywords": keyword_share, "action": action_share},
              "kinds": dict(Counter(a.kind for a in kept)), "variety": variety, "draws": len(generator.attempts),
-             "stopped_at": dict(stopped), "costing": "rough ability values from src/cards/costing.py"}
+             "stopped_at": dict(stopped), "costing": "ability prices from src/cards/costing.py (price)"}
     return CardSet(f"set_{count}", cards, notes)

@@ -4,6 +4,7 @@ This is a hand-written first guess, not data: it's a prior about how much things
 and the learned cost model replaces it later (docs/technical-plan.md section 8). One budget
 point is one point of power or health (see vanilla.py).
 """
+from src.cards.quality import narrowing
 from src.cards.vanilla import KEYWORD_VALUE
 
 # Value of one use of each effect on one target, per point of its amount where it has one.
@@ -16,11 +17,13 @@ STAT_VALUE = {"power": 0.5, "health": 0.5}  # per point, for one turn
 ALL_TARGETS = 2.0  # hitting everything that matches, instead of one chosen card
 REMOVE_ALL_DAMAGE = 3  # treated as removing this much
 
-# How often an ability gets used, roughly.
-TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.7, "on_attack_hero": 1.5, "on_attack": 1.5, "start_of_turn": 2.5,
-                "end_of_turn": 2.5, "another_played": 1.5, "opposing_defeated": 1.5}
+# How often an ability gets used per card played, relative to "when played". Measured in self-play
+# (`scripts/experiments.py fire`, 2026-10-22, league model): most triggers fire far less often than
+# first guessed (start of turn was 2.5, attacking the hero 1.5).
+TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.85, "on_attack_hero": 0.7, "on_attack": 1.2, "start_of_turn": 1.1,
+                "end_of_turn": 2.0, "another_played": 0.8, "opposing_defeated": 1.0}
 ACTIVATED_USES = 2.0
-CONDITION_FACTOR = 0.6  # an ability that only works sometimes
+NARROW_FACTOR = 0.5  # per condition or restriction (quality.narrowing): each about halved the hits measured
 IF_FACTOR = 0.5  # "if it was defeated, …"
 
 
@@ -76,9 +79,7 @@ def static_value(ability: dict) -> float:
         else:
             value = STAT_VALUE[m["stat"]] * 2 * abs(_amount(m["amount"]))  # lasting, not one turn
         total += value * (ALL_TARGETS if many else 1)
-    if ability.get("condition"):
-        total *= CONDITION_FACTOR
-    return total
+    return total * NARROW_FACTOR ** narrowing(ability)
 
 
 def ability_value(ability: dict) -> float:
@@ -87,12 +88,25 @@ def ability_value(ability: dict) -> float:
     if kind == "static":
         return static_value(ability)
     value = steps_value(ability["steps"])
-    if kind == "triggered":
-        value *= TRIGGER_USES[ability["trigger"]["event"]]
-        if ability.get("condition"):
-            value *= CONDITION_FACTOR
+    if kind == "on_resolve":
+        value *= NARROW_FACTOR ** narrowing(ability)
+    elif kind == "triggered":
+        value *= TRIGGER_USES[ability["trigger"]["event"]] * NARROW_FACTOR ** narrowing(ability)
     elif kind == "activated":
         value *= ACTIVATED_USES
         for cost in ability["cost"]:
             value -= 0.5 * cost.get("pay", 0) + (1.0 if "exhaust_another" in cost or "discard" in cost else 0.0)
     return max(value, 0.5)
+
+
+# What a card pays for its ability, as a share of the rough value above: units pay in stats,
+# actions in mana (one mana per two points). Measured in self-play (`scripts/experiments.py
+# scale`, 2026-10-22): a deck tied with a copy whose abilities were swapped for stats (units) or
+# whose actions were swapped for vanilla units (actions) at about these shares. The learned cost
+# model replaces both.
+PRICE_SCALE = {"unit": 0.4, "action": 0.2}
+
+
+def price(ability: dict, card_type: str) -> float:
+    """What a card with this ability pays for it, in budget points."""
+    return PRICE_SCALE[card_type] * ability_value(ability)

@@ -50,6 +50,7 @@ EFFECTS = {
 EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to_hand": 3, "freeze": 4,
                   "modify_stat": 8, "grant_keyword": 4, "draw": 8, "discard": 3, "heal_hero": 5, "damage_hero": 5,
                   "gain_crystal": 2}
+OWN_JOB = 0.75  # chance a job reference is the unit's own job
 GRANTABLE_KEYWORDS = (("guard", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
 # Guard and Armor protect a unit during the opponent's turn, so a grant lasts until the start of
 # your next turn; Duelist only matters when you attack, so it lasts this turn. Charge is never
@@ -82,6 +83,7 @@ class AbilitySampler:
         self.rng = rng
         self.trace = Tracer(rng)
         self.traits = traits  # the jobs abilities may refer to
+        self.own_job = None  # the unit's own job, when it's known before the ability (CardGenerator)
 
     def ability(self, card_type: str = "unit") -> dict:
         """A random ability that passes validate() and the quality tests (src/cards/quality.py).
@@ -131,7 +133,7 @@ class AbilitySampler:
             event = t.weighted("Trigger", TRIGGERS)
             trigger = {"event": event}
             if event == "another_played":
-                trigger["filter"] = {"owner": "you", "trait": t.choice("Which job", self.traits), "not_this": True}
+                trigger["filter"] = {"owner": "you", "trait": self._job("Which job"), "not_this": True}
         return trigger
 
     def _cost(self) -> list:
@@ -148,11 +150,21 @@ class AbilitySampler:
                 cost.append({extra: 1})
         return cost
 
+    def _job(self, label: str) -> str:
+        """A job to refer to: usually the unit's own, since decks focus on two jobs and tribes
+        reward their own members."""
+        t = self.trace
+        if self.own_job is None:
+            return t.choice(label, self.traits)
+        if t.chance(f"{label}: its own ({self.own_job})?", OWN_JOB):
+            return self.own_job
+        return t.choice(label, [j for j in self.traits if j != self.own_job] or self.traits)
+
     def _condition(self) -> dict:
         t = self.trace
         kind = t.weighted("Condition", {"count": 3, "behind_on_health": 1})
         if kind == "count":
-            return {"count": {"owner": "you", "trait": t.choice("Count which job", self.traits), "not_this": True},
+            return {"count": {"owner": "you", "trait": self._job("Count which job"), "not_this": True},
                     "at_least": t.choice("At least", (2, 3))}
         return {"behind_on_health": True}
 
@@ -174,7 +186,7 @@ class AbilitySampler:
             if extra == "cost_max":
                 f["cost_max"] = t.choice("Cost at most", (2, 3, 4))
             elif extra == "trait":
-                f["trait"] = t.choice("Job", self.traits)
+                f["trait"] = self._job("Job")
             else:
                 f[extra] = True
         return f
@@ -244,7 +256,10 @@ class AbilitySampler:
             if sign < 0:
                 stat = "power"
                 t.fixed("Stat", "power", "only power is ever lowered")
-            step.update(stat=stat, delta=sign * t.small("By", 1, 3 if strong else 2), duration="this_turn")
+            big = strong or self.card_type == "action"
+            step.update(stat=stat, delta=sign * t.small("By", 1 + (self.card_type == "action"), 3 if big else 2,
+                                                        "an action spends a whole card" if self.card_type == "action" else ""),
+                        duration="this_turn")
             pol = HELPS if sign > 0 else HURTS
         elif op == "grant_keyword":
             keyword, value = t.choice("Keyword", GRANTABLE_KEYWORDS)
@@ -254,12 +269,15 @@ class AbilitySampler:
 
         if rng_ and op != "modify_stat":
             lo, hi = rng_
-            step["amount"] = t.small("Amount", lo + (1 if strong else 0), hi, "a reward is at least 2" if strong else "")
+            # An action spends a whole card, so its effects start one higher (as rewards do).
+            bump = 1 if strong or self.card_type == "action" else 0
+            why = "a reward is at least 2" if strong else "an action spends a whole card" if bump else ""
+            step["amount"] = t.small("Amount", min(lo + bump, hi), hi + (self.card_type == "action"), why)
             if op == "remove_damage" and t.chance("Remove all damage instead?", 0.3):
                 step["amount"] = "all"
             elif op in ("deal_damage", "draw", "heal_hero") and t.chance("Scale with a count instead?", 0.15):
                 step["amount"] = {"per": {"owner": t.choice("Count whose units", ("you", "any")),
-                                          "trait": t.choice("Count which job", self.traits)},
+                                          "trait": self._job("Count which job")},
                                   "k": 1, "cap": t.choice("Up to", (3, 4, 5))}
 
         side = "you" if pol == HELPS else "opponent"
@@ -306,7 +324,7 @@ class AbilitySampler:
     def _static(self) -> dict:
         t = self.trace
         kind = t.weighted("Static kind", {"self_situational": 4, "lord": 3, "self_keyword": 2, "discount": 1, "debuff": 1})
-        trait = t.choice("Job", self.traits)
+        trait = self._job("Job")
         if kind == "self_situational":
             if t.chance("Fixed amount? (else scale with a count)", 0.5):
                 amount = t.small("Amount", 1, 2)
