@@ -109,8 +109,10 @@ at least 1 and at most 12.
   a measured share (`PRICE_SCALE`: 0.4 for units, 0.2 for actions), the share at which a deck
   tied with a copy whose abilities were swapped for stats. Units also get an archetype (how
   stats are spread) and sometimes a keyword. The stat budget is 2 × cost + 1 (Hearthstone
-  players' rule of thumb), minus the ability's price. An action costs half its price in mana,
-  rounded up.
+  players' rule of thumb), minus the ability's price rounded to the nearest point. An action
+  costs half its price in mana, to the nearest, and **an action worth less than 1 mana is
+  rejected** (`MIN_ACTION_PRICE`): it isn't worth a card. That uses the measured prices now and
+  the cost network once it's reliable.
 
 Then the card-level checks run (`card_problems`). They reject abilities that could never
 matter *on this card*:
@@ -286,3 +288,23 @@ for checking the engine and client. It uses the same pipeline.
   into a card with an id derived from it. Priced at the stat rate, like buffs: a token is a body
   in play. Network: `op:summon`, `token_power`, `token_health` (a token keyword uses the keyword
   features); the summoned unit is an ordinary card node.
+- **2026-10-23:** Step 4: per-effect prices. `experiments.py effects` re-prices one group of cards
+  (card type + main effect) at 0.5, 1 and 1.5 times its price, with 10 of each deck's 30 cards
+  from the group, and fits where the deck ties with the same deck refunded (`costing.GROUP_SCALE`,
+  measured with `tcgnet_v3`, retrained on summons and buffs). Damage, discard, bounce and freeze
+  were underpriced (×1.2–2.3); unit draw (×0.35) and unit summons (×0.15) overpriced. Several
+  groups lost even at the lowest price: buffs, heals, mana crystals, "this turn" stat and keyword
+  grants, damage removal and statics. On units they now get ×0.1, and unit prices round to the
+  nearest point (they rounded up), so these are mostly free extras. As actions they lose to a
+  vanilla 1-mana unit at any price: open decision (stronger effects, or fewer of them as actions).
+  Result on a fresh `set_200` (tcgnet_v3 / heuristic): real vs refunded 41% / 44% → 55% / 59%;
+  real vs no actions 48% / 34% → 37% / 37%.
+- **2026-10-23:** Stronger actions. Action amounts run from one above the effect's range to
+  `ACTION_EXTRA` = 2 above it (the validator allowed only the base range, so since step 2 about
+  10% of action draws had been rejected for "amount outside range"); stat bonuses and buffs on
+  actions go to +4; summon actions get 3–7 stat tokens and pairs more often. Actions priced
+  under 1 mana are rejected, and action costs round to the nearest mana. With today's prices
+  that removes almost all heal, "this turn" grant, remove-damage, mana-crystal and hero-damage
+  actions (each was worth less than a 1-mana vanilla unit in `experiments.py effects`); kept
+  actions are mostly damage, summon, draw and buff. Weak unit groups go from 0.1 to 0.3
+  (`GROUP_SCALE`): 0.1 overshot.

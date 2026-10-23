@@ -53,6 +53,9 @@ EFFECT_WEIGHTS = {"deal_damage": 10, "remove_damage": 3, "defeat": 2, "return_to
                   "modify_stat": 8, "buff": 6, "grant_keyword": 4, "draw": 8, "discard": 3, "heal_hero": 5, "damage_hero": 5,
                   "gain_crystal": 2, "summon": 6}
 OWN_JOB = 0.75  # chance a job reference is the unit's own job
+# An action is only its ability and spends a whole card, so its numbers run higher: amounts start
+# one above the effect's range and go ACTION_EXTRA above it; stat bonuses and tokens grow too.
+ACTION_EXTRA = 2
 TOKEN_KEYWORDS = (("guard", 1), ("charge", 1), ("armor", 1), ("duelist", 1))
 GRANTABLE_KEYWORDS = (("guard", 1), ("duelist", 1), ("duelist", 2), ("armor", 1))
 # Guard and Armor protect a unit during the opponent's turn, so a grant lasts until the start of
@@ -164,11 +167,11 @@ class AbilitySampler:
         return t.choice(label, [j for j in self.traits if j != self.own_job] or self.traits)
 
     def _token(self) -> dict:
-        """A token to summon: 2–5 stats (one more on actions), sometimes a keyword or a job."""
+        """A token to summon: 2–5 stats (more on actions), sometimes a keyword or a job."""
         t = self.trace
         action = self.card_type == "action"
         with t.section("token"):
-            size = t.small("Token stats (power + health)", 2, 5 + action)
+            size = t.small("Token stats (power + health)", 2 + action, 5 + ACTION_EXTRA * action)
             power = t.randint("Token power", 1, size - 1)
             token = {"name": t.choice("Token name", TOKEN_NAMES), "power": power, "health": size - power}
             if t.chance("Token keyword?", 0.25):
@@ -275,20 +278,22 @@ class AbilitySampler:
                 stat = "power"
                 t.fixed("Stat", "power", "only power is ever lowered")
             big = strong or self.card_type == "action"
-            step.update(stat=stat, delta=sign * t.small("By", 1 + (self.card_type == "action"), 3 if big else 2,
+            step.update(stat=stat, delta=sign * t.small("By", 1 + (self.card_type == "action"),
+                                                        (3 if big else 2) + (self.card_type == "action"),
                                                         "an action spends a whole card" if self.card_type == "action" else ""),
                         duration="this_turn")
             pol = HELPS if sign > 0 else HURTS
         elif op == "buff":
             shape = t.weighted("Buff", {"power": 2, "health": 2, "both": 3})
             big = strong or self.card_type == "action"
-            n = t.small("By", 1 + (self.card_type == "action"), 3 if big else 2,
+            n = t.small("By", 1 + (self.card_type == "action"), (3 if big else 2) + (self.card_type == "action"),
                         "an action spends a whole card" if self.card_type == "action" else "")
             step.update(power=n if shape != "health" else 0, health=n if shape != "power" else 0)
         elif op == "summon":
             step["token"] = self._token()
-            small = step["token"]["power"] + step["token"]["health"] <= 3
-            step["amount"] = 2 if small and t.chance("Two of them?", 0.35) else 1
+            action = self.card_type == "action"
+            small = step["token"]["power"] + step["token"]["health"] <= 3 + action
+            step["amount"] = 2 if small and t.chance("Two of them?", 0.5 if action else 0.35) else 1
         elif op == "grant_keyword":
             keyword, value = t.choice("Keyword", GRANTABLE_KEYWORDS)
             step.update(keyword=keyword, value=value, duration=GRANT_DURATION[keyword])
@@ -300,7 +305,7 @@ class AbilitySampler:
             # An action spends a whole card, so its effects start one higher (as rewards do).
             bump = 1 if strong or self.card_type == "action" else 0
             why = "a reward is at least 2" if strong else "an action spends a whole card" if bump else ""
-            step["amount"] = t.small("Amount", min(lo + bump, hi), hi + (self.card_type == "action"), why)
+            step["amount"] = t.small("Amount", min(lo + bump, hi), hi + ACTION_EXTRA * (self.card_type == "action"), why)
             if op == "remove_damage" and t.chance("Remove all damage instead?", 0.3):
                 step["amount"] = "all"
             elif op in ("deal_damage", "draw", "heal_hero") and t.chance("Scale with a count instead?", 0.15):
@@ -464,7 +469,8 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
         if side != wanted and not cost_context:
             problems.append(f"{op} {polarity(step)} its target but targets {side}")
         amount = step.get("amount")
-        if isinstance(amount, int) and rng_ and not rng_[0] <= amount <= rng_[1]:
+        top = rng_[1] + ACTION_EXTRA * (card_type == "action") if rng_ else None
+        if isinstance(amount, int) and rng_ and not rng_[0] <= amount <= top:
             problems.append(f"{op} amount {amount} outside {rng_}")
         if isinstance(amount, dict) and "cap" not in amount:
             problems.append("scaling amount without a cap")

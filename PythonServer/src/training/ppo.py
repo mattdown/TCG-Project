@@ -28,7 +28,7 @@ from src.game.decks import random_deck
 from src.game.engine import Game
 from src.graph.encode import EncodedObs, observe
 from src.model.common import segment_entropy, segment_log_softmax, segment_ptr
-from src.model.registry import create_model, save_model
+from src.model.registry import create_model, load_model, save_model
 
 
 @dataclass
@@ -55,6 +55,7 @@ class PPOConfig:
     league_share: float = 0.3  # share of games against a league opponent (0: pure self-play)
     snapshot_every: int = 10  # add a frozen copy of the network to the league this often
     pool_size: int = 8  # snapshots kept (the heuristic agent is always in the league)
+    init: str = ""  # checkpoint to start from (its arch and size win over the fields above)
 
 
 @dataclass
@@ -219,7 +220,9 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
     card_sets = card_sets if isinstance(card_sets, list) else [card_sets]
     torch.manual_seed(cfg.seed)
     rng = random.Random(cfg.seed)
-    net = create_model(cfg.arch, hidden=cfg.hidden, num_layers=cfg.num_layers).to(cfg.device)
+    net = (load_model(cfg.init, cfg.device) if cfg.init
+           else create_model(cfg.arch, hidden=cfg.hidden, num_layers=cfg.num_layers).to(cfg.device))
+    net.train()
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr)
     snapshots: list[nn.Module] = []
     best = -1.0

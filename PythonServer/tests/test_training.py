@@ -7,6 +7,7 @@ import torch
 from src.cards.schema import CardSet
 from src.cards.vanilla import generate_vanilla_set
 from src.model.registry import create_model
+from src.model.registry import load_model
 from src.training.ppo import PPOConfig, Step, _gae, collect_games, ppo_update, train
 from tests.test_fuzz import ability_pool
 
@@ -71,3 +72,11 @@ def test_train_runs_with_a_league(tmp_path):
                     league_share=0.5, snapshot_every=1)
     train(cfg, [generate_vanilla_set(seed=1)], tmp_path / "net.pt", log=lambda _: None)
     assert (tmp_path / "net.pt").exists() and (tmp_path / "net_best.pt").exists()
+
+
+def test_train_can_start_from_a_checkpoint(tmp_path):
+    cfg = PPOConfig(iterations=1, games_per_iteration=2, eval_every=1, eval_games=2, hidden=32, num_layers=1)
+    train(cfg, [generate_vanilla_set(seed=1)], tmp_path / "first.pt", log=lambda _: None)
+    cfg = PPOConfig(iterations=1, games_per_iteration=2, eval_every=1, eval_games=2, init=str(tmp_path / "first.pt"))
+    train(cfg, [generate_vanilla_set(seed=1)], tmp_path / "second.pt", log=lambda _: None)
+    assert load_model(tmp_path / "second.pt").hparams["hidden"] == 32  # the checkpoint's size, not the default

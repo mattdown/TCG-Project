@@ -9,6 +9,10 @@ luck: each deck pair is played four times (both agents on both decks, each going
 scale: the "refunded" and "no actions" tests with ability prices scaled: units pay
     scale × their price (costing.price) in stats, actions cost scale × their price in mana. The
     scale where the real deck wins half its games is a fair global price.
+effects: the scale test per group of cards with the same type and main effect ("unit,
+    deal_damage", "action, summon", "unit, static lord"). Decks get 10 of their 30 cards from
+    the group, and only the group's cards are re-priced and swapped, so each group gets its own
+    fair scale.
 fire: how often abilities do something. For every ability card played: did any of its
     effects hit a target (fired), and how many effects that hit did it resolve (uses)?
 first: mirror matches under different compensations for the second player, each deck pair
@@ -29,8 +33,8 @@ from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.match import play_game
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
-from src.cards.costing import price
-from src.cards.schema import Card, load_card_set
+from src.cards.costing import price, price_group, round_points
+from src.cards.schema import Card, CardSet, load_card_set
 from src.cards.vanilla import MAX_STATS, MIN_STATS_VALUE, keyword_value, stat_budget
 from src.game.decks import random_deck
 from src.game.engine import Game, GameConfig
@@ -66,11 +70,12 @@ def no_actions(card: Card) -> Card:
 
 
 def with_stats(card: Card, total: int) -> Card:
-    """The card with `total` stat points, split as its power and health were."""
+    """The card with `total` stat points, split as its power and health were. Health stays at 2
+    or more if it was (some abilities need a unit that survives 1 damage)."""
     total = max(MIN_STATS_VALUE, min(total, MAX_STATS["power"] + MAX_STATS["health"]))
     power = min(MAX_STATS["power"], max(1, round(total * card.power / (card.power + card.health))))
-    health = min(MAX_STATS["health"], max(1, total - power))
-    return dataclasses.replace(card, power=total - health, health=health)
+    health = min(MAX_STATS["health"], max(1, min(card.health, 2), total - power))
+    return dataclasses.replace(card, power=max(0, total - health), health=health)
 
 
 def rescaled(card: Card, scale: float) -> Card:
@@ -81,7 +86,7 @@ def rescaled(card: Card, scale: float) -> Card:
     value = scale * price(card.abilities[0], card.type)
     if card.type == "action":
         return dataclasses.replace(card, cost=max(0, math.ceil(value / 2)))
-    return with_stats(card, stat_budget(card.cost) - keyword_value(dict(card.keywords)) - math.ceil(value))
+    return with_stats(card, stat_budget(card.cost) - keyword_value(dict(card.keywords)) - round_points(value))
 
 
 VARIANTS = {"stripped": stripped, "refunded": refunded, "no actions": no_actions}
@@ -106,6 +111,48 @@ def make_agent(spec: str):
 
 def name(spec: str) -> str:
     return Path(spec).stem if spec.endswith(".pt") else spec
+
+
+GROUP_CARDS = 10  # of a deck's 30, in the effects experiment
+MIN_GROUP = 8  # cards a group needs to be tested
+
+
+def effect_group(card: Card) -> str | None:
+    return price_group(card.abilities[0], card.type) if card.abilities else None
+
+
+def effect_job(cards: Path, agent_spec: str, group: str, scale: float, pairs: int, seed: int) -> dict:
+    """Decks with GROUP_CARDS cards from the group, re-priced by `scale`, against the same decks
+    with those cards refunded (units) or swapped for vanilla units (actions)."""
+    torch.set_num_threads(1)
+    card_set = load_card_set(cards)
+    members = [rescaled(c, scale) for c in card_set.cards if effect_group(c) == group]
+    rest = CardSet("rest", [c for c in card_set.cards if effect_group(c) != group])
+    alter = no_actions if group.startswith("action") else refunded
+    agent = make_agent(agent_spec)
+    rng = random.Random(seed)
+    wins = games = 0
+    for _ in range(pairs):
+        picked = random_deck(CardSet("group", members), rng, deck_size=GROUP_CARDS, focus_jobs=0)
+        deck = random_deck(rest, rng, deck_size=30 - GROUP_CARDS) + picked
+        altered = [alter(c) if c in picked else c for c in deck]
+        game_seed = rng.randrange(2**31)
+        for real_seat in (0, 1):
+            decks = (deck, altered) if real_seat == 0 else (altered, deck)
+            game = play_game((agent, agent), Game(*decks, seed=game_seed, first_player=0))
+            games += 1
+            wins += game.state.winner == real_seat if game.state.winner is not None else 0.5
+    return {"agent": name(agent_spec), "group": group, "scale": scale, "win_rate": wins / games, "games": games,
+            "cards": len(members)}
+
+
+def fair_scale(points: list[tuple[float, float]]) -> float | None:
+    """The scale where the win rate crosses 50%, by linear interpolation (None if it doesn't)."""
+    points = sorted(points)
+    for (s0, w0), (s1, w1) in zip(points, points[1:]):
+        if (w0 - 0.5) * (w1 - 0.5) <= 0 and w0 != w1:
+            return s0 + (0.5 - w0) * (s1 - s0) / (w1 - w0)
+    return None
 
 
 def ability_job(cards: Path, agent_spec: str, variant: str, pairs: int, seed: int, scale: float = 1.0) -> dict:
@@ -271,7 +318,7 @@ def merge(results: list[dict], keys: tuple[str, ...]) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("experiment", choices=["abilities", "luck", "first", "scale", "fire"])
+    parser.add_argument("experiment", choices=["abilities", "luck", "first", "scale", "fire", "effects"])
     parser.add_argument("--cards", type=Path, default=Path("cardsets/set_200.json"))
     parser.add_argument("--agents", nargs="+", default=["heuristic", "models/tcgnet_league.pt"],
                         help="abilities: agents to test; luck: pairs of agents as a,b")
@@ -300,6 +347,24 @@ def main():
         for g in range(len(groups)):
             r = merge(results[g * args.chunks:(g + 1) * args.chunks], ("win_rate",))
             print(f"{r['agent']:>16}  {r['variant']:<12} {r['scale']:11.2f}  {r['win_rate']:14.1%}  ({r['games']} games)")
+    elif args.experiment == "effects":
+        card_set = load_card_set(args.cards)
+        sizes = Counter(effect_group(c) for c in card_set.cards if effect_group(c))
+        groups = sorted(g for g, n in sizes.items() if n >= MIN_GROUP)
+        jobs = [(args.cards, agent, group, scale, n, 1000 * i) for agent in args.agents for group in groups
+                for scale in args.scales for i, n in enumerate(split(args.pairs, args.chunks))]
+        results = run_parallel(effect_job, jobs, args.workers)
+        merged = defaultdict(list)
+        for r in results:
+            merged[(r["agent"], r["group"], r["scale"])].append(r)
+        for agent in args.agents:
+            print(f"{name(agent)}: the real deck's win rate at each price scale; fair = where it crosses 50%")
+            print(f"{'group':>32} {'cards':>5} " + " ".join(f"{s:>6.2f}" for s in args.scales) + "   fair")
+            for group in groups:
+                rates = [merge(merged[(name(agent), group, s)], ("win_rate",))["win_rate"] for s in args.scales]
+                fair = fair_scale(list(zip(args.scales, rates)))
+                print(f"{group:>32} {sizes[group]:5} " + " ".join(f"{r:6.1%}" for r in rates)
+                      + f"   {'—' if fair is None else f'{fair:.2f}'}")
     elif args.experiment == "fire":
         jobs = [(args.cards, agent, n, 1000 * i) for agent in args.agents for i, n in enumerate(split(args.pairs, args.chunks))]
         results = run_parallel(fire_job, jobs, args.workers)

@@ -13,7 +13,7 @@ from collections import Counter
 from dataclasses import dataclass, field, replace
 
 from src.cards.abilities import AbilitySampler, render, validate
-from src.cards.costing import price
+from src.cards.costing import price, round_points
 from src.cards.names import Namer
 from src.cards.quality import ACTION_COMPLEXITY, MAX_COMPLEXITY, complexity, quality_problems, skeleton
 from src.cards.schema import Card, CardSet
@@ -47,6 +47,9 @@ class Attempt:
 def identity(card: Card) -> tuple:
     """What makes a card without an ability different from another: name and aspect don't."""
     return card.cost, card.power, card.health, card.keywords
+
+
+MIN_ACTION_PRICE = 2  # budget points: an action worth less than 1 mana isn't worth a card
 
 
 class CardGenerator:
@@ -199,8 +202,10 @@ class CardGenerator:
         aspect = self._aspect()
         if card_type == "action":
             name = self.namer.action(aspect[0] if aspect else None, ability)
-            cost = max(0, math.ceil(value / 2))
-            t.fixed("Cost", cost, f"half the ability's price ({value:g}), rounded up")
+            if value < MIN_ACTION_PRICE:
+                raise ValueError(f"gen-{index}: worth less than 1 mana (price {value:g}): too weak to be a card")
+            cost = round_points(value / 2)
+            t.fixed("Cost", cost, f"half the ability's price ({value:g}), to the nearest")
             return Card(f"gen-{index}", name, "action", aspect, cost, 0, 0, abilities=(ability,)), None
 
         name, job, subtitle = self._name(ability, job=self.sampler.own_job)
@@ -210,7 +215,7 @@ class CardGenerator:
             keyword = t.weighted("Keyword", ARCHETYPE_KEYWORDS[archetype], f"weighted for a {archetype}")
             lo, hi = KEYWORD_RANGE.get(keyword, (1, 1))
             keywords[keyword] = t.randint("Keyword value", lo, hi)
-        spend = math.ceil(value) + keyword_value(keywords)
+        spend = round_points(value) + keyword_value(keywords)
         cost = t.randint("Starting cost", 1, 5)
         start = cost
         while stat_budget(cost) - spend < MIN_STATS_VALUE and cost < 10:

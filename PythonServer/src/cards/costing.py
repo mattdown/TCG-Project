@@ -4,6 +4,9 @@ This is a hand-written first guess, not data: it's a prior about how much things
 and the learned cost model replaces it later (docs/technical-plan.md section 8). One budget
 point is one point of power or health (see vanilla.py).
 """
+import math
+
+from src.cards.names import main_effect, static_kind
 from src.cards.quality import narrowing
 from src.cards.vanilla import KEYWORD_VALUE, keyword_value
 
@@ -120,6 +123,36 @@ PRICE_SCALE = {"unit": 0.4, "action": 0.2}
 STAT_RATE = ("buff", "summon")
 
 
+# Each group's own correction on top (`experiments.py effects`, 2026-10-23, tcgnet_v3 on set_1000):
+# the price at which a deck with 10 cards of the group tied with the same deck with them
+# refunded (units) or swapped for vanilla units (actions), as a share of the price above, from
+# a straight-line fit through 0.5, 1 and 1.5. Unit groups that lost even at the lowest price
+# get 0.3 (0.1 overshot: decks then beat their refunded copies 55–59%), so with prices rounded to
+# the nearest point their abilities are cheap extras.
+# Action groups that lost at any price aren't listed: they need stronger effects, not prices.
+# Groups not listed keep 1.
+GROUP_SCALE: dict[str, float] = {
+    "action, deal_damage": 2.3, "action, draw": 1.7,
+    "unit, deal_damage": 1.45, "unit, discard": 1.55, "unit, return_to_hand": 1.3, "unit, damage_hero": 1.2,
+    "unit, freeze": 2.0,  # won 58% even at the lowest price: worth at least double
+    "unit, draw": 0.35, "unit, summon": 0.15,
+    **{f"unit, {g}": 0.3 for g in ("buff", "gain_crystal", "heal_hero", "grant_keyword", "modify_stat",
+                                    "remove_damage", "static self_keyword", "static self_situational")},
+}
+
+
+def round_points(value: float) -> int:
+    """A unit's price in whole stat points: to the nearest, halves up, so a small ability can be free."""
+    return math.floor(value + 0.5)
+
+
+def price_group(ability: dict, card_type: str) -> str:
+    """Cards are calibrated in groups: card type and main effect ("unit, deal_damage", "action,
+    summon"), or the kind of static ability ("unit, static lord")."""
+    what = f"static {static_kind(ability)}" if ability["kind"] == "static" else main_effect(ability)
+    return f"{card_type}, {what}"
+
+
 def price(ability: dict, card_type: str) -> float:
     """What a card with this ability pays for it, in budget points."""
-    return ability_value(ability, card_type)
+    return ability_value(ability, card_type) * GROUP_SCALE.get(price_group(ability, card_type), 1.0)
