@@ -20,7 +20,8 @@ from urllib.parse import parse_qs, urlparse
 
 from src.cards.abilities import validate
 from src.cards.generate import STAGES, Attempt, CardGenerator
-from src.cards.quality import MAX_COMPLEXITY, complexity, disconnected_steps, dominated_options, skeleton
+from src.cards.quality import (ACTION_COMPLEXITY, MAX_COMPLEXITY, MAX_NARROWING, complexity, disconnected_steps,
+                                dominated_options, narrowing, skeleton)
 from src.cards.theme import JOBS
 from src.cards.trace import decisions, path_probability
 from src.game.terms import ASPECT_NAMES, keyword_text
@@ -43,16 +44,21 @@ def _checks(a: Attempt) -> list[dict]:
                [{"test": "card", "name": "Fits a card", "problems": a.problems}]
     grammar = validate(a.ability, a.card_type)
     size = complexity(a.ability)
+    budget = MAX_COMPLEXITY + (ACTION_COMPLEXITY if a.card_type == "action" else 0)
+    narrow = narrowing(a.ability)
     steps = a.ability.get("steps", [])
     checks = [
         {"test": "grammar", "name": "Legal under the grammar", "problems": grammar},
-        {"test": "complexity", "name": f"Complexity {size} of {MAX_COMPLEXITY}",
-         "problems": [f"{size} nodes is over the budget of {MAX_COMPLEXITY}"] if size > MAX_COMPLEXITY else []},
+        {"test": "complexity", "name": f"Complexity {size} of {budget}",
+         "problems": [f"{size} nodes is over the budget of {budget}"] if size > budget else []},
+        {"test": "narrowing", "name": f"Narrowing {narrow} of {MAX_NARROWING}",
+         "problems": [f"{narrow} conditions or restrictions is over the budget of {MAX_NARROWING}"]
+         if narrow > MAX_NARROWING else []},
         {"test": "connected", "name": "Steps connected", "problems": disconnected_steps(steps)},
         {"test": "dominated", "name": "No dominated options", "problems": dominated_options(a.ability)},
     ]
     if a.card is not None or a.stopped_at == "card":
-        checks.append({"test": "card", "name": "Can matter on this card",
+        checks.append({"test": "card", "name": "Can matter on this card, worth a card",
                        "problems": a.problems if a.stopped_at == "card" else []})
     if a.stopped_at == "variety" or a.card is not None:
         checks.append({"test": "variety", "name": "Adds variety",

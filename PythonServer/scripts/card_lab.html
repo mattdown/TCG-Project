@@ -133,13 +133,13 @@ pre { background: var(--outline); border-radius: 10px; padding: 12px; font: 12px
 
 <script>
 const STAGE_TEXT = {
-  grammar: ["Grammar", "illegal trees"], quality: ["Quality", "complex, unconnected or fake choices"],
-  card: ["Card", "couldn't matter or doesn't fit"], duplicate: ["Duplicate", "same stats as a card in the set"],
+  grammar: ["Grammar", "illegal trees"], quality: ["Quality", "complex, narrow, unconnected or fake choices"],
+  card: ["Card", "couldn't matter, doesn't fit or too weak"], duplicate: ["Duplicate", "same stats as a card in the set"],
   variety: ["Variety", "too similar to earlier cards"],
 };
 const TEST_TEXT = {
-  grammar: "Illegal under the grammar", complexity: "Too complex", connected: "Steps not connected",
-  dominated: "Dominated choose-one option", card: "Couldn't matter on the card", variety: "Too similar to earlier cards",
+  grammar: "Illegal under the grammar", complexity: "Too complex", narrowing: "Too narrow", connected: "Steps not connected",
+  dominated: "Dominated choose-one option", card: "Couldn't matter, doesn't fit or too weak", variety: "Too similar to earlier cards",
   duplicate: "Duplicate stats",
 };
 const KIND_TEXT = { triggered: "Triggered ability", activated: "Activated ability", static: "Static ability",
@@ -168,7 +168,7 @@ function renderSummary() {
     `<span>${TEST_TEXT[k] || k}</span><div class="bar" style="width:${(100 * n) / max}%"></div><span>${n}</span>`).join("");
   const p = d.params;
   $("status").textContent = `Seed ${p.seed} · ${p.count} cards · jobs: ${d.job_list.join(", ")} · ` +
-    `complexity budget ${d.max_complexity} nodes · variety: best of ${p.variety}` + (window.LAB_DATA ? " · saved snapshot" : "");
+    `complexity budget ${d.max_complexity} nodes (+2 for actions) · variety: best of ${p.variety}` + (window.LAB_DATA ? " · saved snapshot" : "");
 }
 
 function visible() {
@@ -206,7 +206,7 @@ function renderDetail(i) {
   if (!a.checks.some((ch) => ch.test === "card")) checks += `<li class="skip">Card building and costing: not reached</li>`;
   const costing = c ? `<dl class="kv">
       <dt>Card type</dt><dd>${c.type}${c.archetype ? ` (${c.archetype})` : ""}</dd>
-      ${a.tree ? `<dt>Ability value</dt><dd>${a.value} budget points (rough, from costing.py)</dd>` : ""}
+      ${a.tree ? `<dt>Ability price</dt><dd>${a.value} budget points (measured prices, from costing.py)</dd>` : ""}
       <dt>Cost</dt><dd>${c.cost} mana</dd>
       ${c.type === "unit" ? `<dt>Stats</dt><dd>${c.power} power · ${c.health} health</dd>` : ""}
       ${c.keywords.length ? `<dt>Keywords</dt><dd>${c.keywords.map(esc).join(", ")}</dd>` : ""}
