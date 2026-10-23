@@ -7,6 +7,9 @@ scratch. The rules are written by hand; agents trained through self-play judge t
 2. **Part b:** self-play agent.
 3. **Part c:** card set generation.
 
+Stage 2 (balancing against the best decks, not the average) is planned in
+[docs/stage-2-research-plan.md](docs/stage-2-research-plan.md).
+
 The rules follow Hearthstone's broad structure (rules v2: mana, heroes, attacks; the earlier
 Lorcana-style v1 is recorded in docs/technical-plan.md section 2b). The card pool is entirely synthetic: never use real cards, names or text from any
 existing game. Read [docs/technical-plan.md](docs/technical-plan.md)
