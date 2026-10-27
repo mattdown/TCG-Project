@@ -161,6 +161,22 @@ From memory, to verify before relying on it:
   game solving.
 - Legends of Code and Magic: a research card game with competitions on drafting and playing.
 
+Read in full:
+- **AI Playtesting** (<https://aiplaytesting.github.io/>), a 14-week project: an AI playtester for
+  Slay the Spire, with 32 reimplemented cards and fixed 12–13 card decks against one scripted
+  boss. The rules run in Python with Unity as a front end (the same split as ours), plus a
+  designer app to build decks, train the agent with one click and chart playtest statistics.
+  The agent is Deep Q-learning on a hand-made state vector with one output per card, so new
+  cards mean retraining; action masking took it from a few percent to about 60%, and to 87–90%
+  on two test decks a human always wins. Balancing is a designer reading the statistics.
+  Useful for us:
+  - **Decks with a known answer** to judge the agent: the same idea as our planted synergies.
+  - **The agent missed the designers' combo** (playing Flex before attacks): a concrete case of
+    section 4F, where an agent that can't execute a synergy undervalues its cards.
+  - **The differences** are the point of this project: an agent that reads cards it has never
+    seen (generated cards), two-player self-play instead of a scripted boss, and a closed loop
+    that re-prices and regenerates cards instead of handing a designer a chart.
+
 ## 9. Blog part 2
 
 The frame: **average-case balance versus worst-case balance.** Stage 1 is the average case,
