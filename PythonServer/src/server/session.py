@@ -28,7 +28,8 @@ from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game, Move, StepResult, describe_action
 from src.game.state import Phase, Zone
-from src.game.terms import KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS
+from src.game.terms import (ASPECT_DESCRIPTIONS, ASPECT_NAMES, ASPECTS, KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS,
+                            NEUTRAL, NEUTRAL_DESCRIPTION, NEUTRAL_NAME)
 
 # Zones whose cards both players see. A card burned from a full hand goes to the discard pile face up.
 PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD)
@@ -68,7 +69,9 @@ class GameSession:
         tokens = {t.id: t for c in self.card_set.cards for t in tokens_of(c)}
         cards += [{**t.to_dict(), "ability_text": [], "token": True} for t in tokens.values()]
         keywords = {k: {"name": KEYWORD_NAMES[k], "numbered": KEYWORDS[k], "rule": KEYWORD_RULES[k]} for k in KEYWORDS}
-        return {"status": "ok", "name": self.card_set.name, "cards": cards, "keywords": keywords}
+        aspects = {a: {"name": ASPECT_NAMES[a], "description": ASPECT_DESCRIPTIONS[a]} for a in ASPECTS}
+        aspects[NEUTRAL] = {"name": NEUTRAL_NAME, "description": NEUTRAL_DESCRIPTION}
+        return {"status": "ok", "name": self.card_set.name, "cards": cards, "keywords": keywords, "aspects": aspects}
 
     def _new_game(self, request):
         seed = request.get("seed")

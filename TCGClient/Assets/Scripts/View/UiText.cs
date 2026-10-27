@@ -52,6 +52,29 @@ namespace Tcg.View
         public const string DevClose = "CLOSE";
         public const string DevDefault = "mana: 5\nopponent_health: 10\nseed: 1";
 
+        // Help screen. Keyword rules and class names come from the server's card_set.
+        public const string HelpTitle = "How to read a card";
+        public const string HelpKeywords = "Keywords";
+        public const string HelpClasses = "Classes";
+        public const string HelpCost = "Cost";
+        public const string HelpCostText = "Mana to play it";
+        public const string HelpColour = "Class colour";
+        public const string HelpColourText = "The frame shows its habitat";
+        public const string HelpName = "Name";
+        public const string HelpNameText = "and its subtitle";
+        public const string HelpRules = "Rules text";
+        public const string HelpRulesText = "Keywords first, then what it does";
+        public const string HelpAttack = "Attack";
+        public const string HelpAttackText = "Damage it deals when it fights";
+        public const string HelpHealth = "Health";
+        public const string HelpHealthText = "Damage it can take. Red means hurt";
+        public const string HelpJob = "Job";
+        public const string HelpJobText = "Other cards can count or boost a job";
+        // {0}, {1}: the raised / lowered stat colours; {2}: the Charge keyword's name.
+        public const string HelpNoteStats = "<color=#{0}><b>Green</b></color> numbers are raised, <color=#{1}><b>red</b></color> are lowered.";
+        public const string HelpNoteFresh = "A unit can’t attack the turn it’s played (unless it has {0}).";
+        public const string HelpNoteFrozen = "<color=#BFE9FF><b>❄ Frozen</b></color> units skip their next attack.";
+
         // Mulligan and game over.
         public const string MulliganTitle = "Choose cards to put back";
         public const string MulliganText = "Tap the cards to put back (tap again to keep one). You draw a new card for each.";

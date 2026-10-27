@@ -48,6 +48,14 @@ namespace Tcg.Protocol
         public string name;
         public List<CardDef> cards;
         public Dictionary<string, KeywordInfo> keywords;  // by keyword key, e.g. "duelist"
+        public Dictionary<string, AspectInfo> aspects;    // aspect_1 … aspect_6, and "neutral"
+    }
+
+    /// <summary>A habitat's player-facing name and its feel in one line.</summary>
+    public class AspectInfo
+    {
+        public string name;
+        public string description;
     }
 
     /// <summary>A keyword's player-facing name and reminder text (N stands for its number).</summary>

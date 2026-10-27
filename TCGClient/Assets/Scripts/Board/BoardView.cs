@@ -54,6 +54,8 @@ namespace Tcg.Board
         public TMP_Text EndTurnLabel;
         [Tooltip("Pulses behind END TURN when there's nothing else left to do.")]
         public Image EndTurnGlow;
+        [Tooltip("Opens the help screen: how to read a card, the keywords and the classes.")]
+        public Button HelpButton;
         [Tooltip("The second player's one-off +1 mana, shown while its action is legal.")]
         public Button SpareSporeButton;
         public TMP_Text SpareSporeLabel;

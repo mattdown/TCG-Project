@@ -16,6 +16,9 @@ namespace Tcg.View
         /// <summary>Keyword names and rules from card_set, by key.</summary>
         public static IReadOnlyDictionary<string, KeywordInfo> Keywords = new Dictionary<string, KeywordInfo>();
 
+        /// <summary>Aspect (class) names and descriptions from card_set, by aspect ID and "neutral".</summary>
+        public static IReadOnlyDictionary<string, AspectInfo> Aspects = new Dictionary<string, AspectInfo>();
+
         public static string Build(CardDef def, CardInstance instance)
         {
             var sb = new StringBuilder();

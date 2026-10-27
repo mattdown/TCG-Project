@@ -32,6 +32,8 @@ namespace Tcg.View
         public GameObject HiddenOverlay;
         public TMP_Text NameText, SubtitleText, BodyText, TraitText, CostText, PowerText, HealthText;
         public Image TargetOutline;
+        [Tooltip("The card's parts, for the help screen's callouts.")]
+        public RectTransform CostGem, PowerIcon, HealthIcon, TraitTag;
         public CanvasGroup Group;
         [Tooltip("Power and health: hidden on action cards, which have no stats.")]
         public GameObject[] UnitOnly;

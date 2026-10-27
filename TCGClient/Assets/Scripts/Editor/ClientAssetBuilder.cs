@@ -26,7 +26,7 @@ public static class ClientAssetBuilder
     const float SpritePpu = 400f;   // 4 texture px per canvas unit
     const float SliceRadius = 16f;  // corner radius baked into rounded.png
     const string Charset =
-        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…’→⟳❄−•";
+        " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·…’→⟳❄−•✕";
     static readonly string[] ArtNames = { "knight", "beast", "mage", "golem" };
 
     class Fonts
@@ -275,12 +275,14 @@ public static class ClientAssetBuilder
         cv.TraitText = Text(Node("Text", tag), "Unit", f.NunitoBlack, 9, Palette.TraitText, TextAlignmentOptions.Center);
         cv.TraitText.margin = new Vector4(0, 0, 0, 1);
         cv.TraitText.characterSpacing = 4f;
+        cv.TraitTag = tag;
 
         var cost = Box("Cost", visual, -7, -7, 36, 39);
         Img(Stretch("Fill", cost, 0, 0, 0, 0), Sprite("gem_fill"), Palette.Energy);
         Img(Stretch("Rim", cost, 0, 0, 0, 0), Sprite("gem_rim"), Palette.Outline);
         Img(Stretch("Shine", cost, 0, 0, 0, 0), Sprite("gem_shine"), Color.white.WithAlpha(0.6f));
         cv.CostText = Number(Stretch("Value", cost, 0, 0, 0, 1), f, 20);
+        cv.CostGem = cost;
 
         // Power and health sit above the name banner, clear of the card name.
         var sword = Img(Box("Power", visual, 67.78f, 40.02f, 68, 68), Sprite("sword"), Color.white);
@@ -288,6 +290,8 @@ public static class ClientAssetBuilder
 
         var heart = Img(Box("Health", visual, 117.68f, 57.22f, 36, 33), Sprite("heart"), Color.white);
         cv.HealthText = Number(Box("HealthValue", visual, 117.68f, 57.22f, 36, 29), f, 18);
+        cv.PowerIcon = sword.rectTransform;
+        cv.HealthIcon = heart.rectTransform;
         cv.UnitOnly = new[] { sword.gameObject, cv.PowerText.gameObject, heart.gameObject, cv.HealthText.gameObject };
 
         // A unit with a usable ⟳ ability: a small gold disc on the top edge.
@@ -406,8 +410,13 @@ public static class ClientAssetBuilder
         bv.OpponentHealthText = Number(Box("OpponentHealthText", board, 246, 26, 80, 21), f, 15);
         bv.OpponentHealthText.alignment = TextAlignmentOptions.Left;
 
+        // The help button takes the top-right corner; the enemy's mana sits to its left.
+        var help = Node("Help", board);
+        Anchor(help, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -8), new Vector2(44, 44));
+        bv.HelpButton = Ui.Button(help, "?", Palette.HumanAccent, Palette.HumanLip, 24, out _, 12);
+
         var mana = Node("OpponentMana", board);
-        Anchor(mana, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -14), new Vector2(400, 22));
+        Anchor(mana, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-80, -14), new Vector2(400, 22));
         bv.OpponentCrystals = GemRow(mana, new Vector2(18, 20), false);
         bv.OpponentManaText = Number(Node("Count", mana), f, 16);
         bv.OpponentManaText.rectTransform.sizeDelta = new Vector2(46, 22);

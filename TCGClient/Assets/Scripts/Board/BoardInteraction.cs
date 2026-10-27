@@ -38,6 +38,7 @@ namespace Tcg.Board
         GameOverView _gameOver;
         ChoiceBanner _choice;
         DevPanel _dev;
+        HelpView _help;
         DropZone _field;
         RectTransform _finger;
 
@@ -76,6 +77,8 @@ namespace Tcg.Board
             _gameOver.NewGameRequested += () => NewGameRequested?.Invoke();
             _choice = ChoiceBanner.Create(root);
             _choice.AnswerChosen += a => CommandIssued?.Invoke(new ActionCommand(a));
+            _help = HelpView.Create(root, Board.CardPrefab);
+            Board.HelpButton.onClick.AddListener(() => _help.Show(Board.Defs));
             _dev = DevPanel.Create(root);
             _dev.ScenarioRequested += (scenario, seed) => ScenarioRequested?.Invoke(scenario, seed);
         }
@@ -96,6 +99,7 @@ namespace Tcg.Board
                 if (a.type == ActionTypes.ChooseTarget && a.target.HasValue)
                     Board.CardByUid(a.target.Value)?.SetChoiceRing(true);
             _dev.transform.SetAsLastSibling();
+            if (_help.IsOpen) _help.transform.SetAsLastSibling();  // the AI may move while you read it
         }
 
         // --- taps

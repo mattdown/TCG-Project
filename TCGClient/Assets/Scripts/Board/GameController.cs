@@ -62,6 +62,7 @@ namespace Tcg.Board
             _cards.Clear();
             foreach (var c in r.cards) _cards[c.id] = c;
             CardText.Keywords = r.keywords ?? new Dictionary<string, KeywordInfo>();
+            CardText.Aspects = r.aspects ?? new Dictionary<string, AspectInfo>();
             Debug.Log($"Card set {r.name}: {_cards.Count} cards");
             NewGame(Opponent);
         }

@@ -107,6 +107,11 @@ The response also has `keywords`: each keyword's player-facing name, whether it 
 number, and its reminder text, for inspect panels (`N` is the number):
 `"keywords": {"duelist": {"name": "Duelist", "numbered": true, "rule": "+N power while attacking."}, …}`.
 
+It also has `aspects`: each habitat's player-facing name and a one-line description, keyed
+like the cards' `aspects` field, plus `neutral` for cards with no aspect (an empty `aspects`
+list). The client's help screen shows them; colours stay in the client.
+`"aspects": {"aspect_1": {"name": "Ember", "description": "Burnt-woodland toadstools: fire and ash."}, …, "neutral": {"name": "Neutral", "description": "No habitat: any deck can use it."}}`.
+
 **Keyword rules** (the server already applies them; the client only shows them):
 
 | Keyword | Rule |

@@ -152,5 +152,23 @@ Drag previews come from each legal action's server-side `preview`
   - *Dev panel:* the DEV button, bottom left, starts a `scenario` from text such as
     `hand: C1-004; opponent_play: C1-018, C1-036 exhausted; energy: 2; seed: 1`.
 
+## Help screen
+
+Mockup: the canvas's UX flows page, artboard "6 · Help: how to read a card". A blue **?** button
+(44 px, top right; the enemy's mana sits to its left) opens it over the dimmed board; the red ✕
+or a tap outside closes it. Built in `Board/HelpView.cs`; the button in `ClientAssetBuilder`.
+
+- **How to read a card:** the real card prefab at 2×, showing a unit from the loaded set (one with
+  a keyword, ability text and a subtitle if there is one). Gold callouts with leader lines: Cost,
+  Class colour, Name, Rules text on the left; Attack, Health, Job on the right. Their targets are
+  worked out from the card's own parts (`CardView.CostGem`, `FrameEdge`, `NameText`, `BodyText`,
+  `PowerIcon`, `HealthIcon`, `TraitTag`), so they follow layout changes. Attack's label sits above
+  the heart with its line running down to the sword's blade, so it isn't read as the health.
+  Three notes under the card: green / red numbers, no attacking on the turn a unit is played
+  (unless Charge), Frozen units skip their next attack.
+- **Keywords:** a box per keyword from `card_set`'s `keywords` (numbered ones as "Duelist +N").
+- **Classes:** the six habitats and Neutral, with names and one-line descriptions from
+  `card_set`'s `aspects`; the colours are the client's (Neutral is `#8A93AD`).
+
 ## Not designed yet
 - Phone sizes: board text is ~9 px at 86%, readable on tablets and desktop but small on phones.

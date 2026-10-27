@@ -224,6 +224,14 @@ def test_card_set_has_keyword_rules():
     assert set(response["keywords"]) == {"guard", "elusive", "charge", "duelist", "armor"}
 
 
+def test_card_set_has_aspect_names_and_descriptions():
+    response = GameSession(generate_vanilla_set()).handle({"type": "card_set"})
+    aspects = response["aspects"]
+    assert set(aspects) == {"aspect_1", "aspect_2", "aspect_3", "aspect_4", "aspect_5", "aspect_6", "neutral"}
+    assert aspects["aspect_1"]["name"] == "Ember" and aspects["neutral"]["name"] == "Neutral"
+    assert all(a["description"] for a in aspects.values())
+
+
 def test_card_instances_show_current_stats_and_keywords():
     # WEAKENER: "When you play this unit, choose one: • Deal 1 damage to the enemy hero. • All enemy units get −1 power this turn."
     session, state = coverage_scenario({"hand": ["WEAKENER"], "opponent_play": ["BRUISER"], "mana": 5})

@@ -47,7 +47,10 @@ namespace Tcg.View
                    n >= 1 && n <= Aspects.Length ? n : 0;
         }
 
-        public static Color Aspect(int number) => number >= 1 ? Aspects[number - 1] : Hex("#7A88A8");
+        /// <summary>Neutral cards (no aspect): grey (docs/theme.md).</summary>
+        public static readonly Color Neutral = Hex("#8A93AD");
+
+        public static Color Aspect(int number) => number >= 1 ? Aspects[number - 1] : Neutral;
 
         public static Color Hex(string hex) => ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
 
