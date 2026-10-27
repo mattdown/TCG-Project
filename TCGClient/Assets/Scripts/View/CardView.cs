@@ -18,7 +18,6 @@ namespace Tcg.View
     public class CardView : MonoBehaviour
     {
         public const float Width = 150f, Height = 210f;
-        static readonly float[] TextSizes = { 11.5f, 10.5f, 9.5f, 8.5f };
         const float SelectedLift = 10f;
         const float StatsClearance = 50f;  // banner width kept clear of the power and health badges
 
@@ -127,19 +126,13 @@ namespace Tcg.View
         }
 
         /// <summary>
-        /// Rich text for the box (keywords and triggers in &lt;b&gt;, flavour in &lt;i&gt;). Shrinks in
-        /// four steps so the box never resizes.
+        /// Rich text for the box (keywords and triggers in &lt;b&gt;, flavour in &lt;i&gt;). The prefab
+        /// auto-sizes it so the box never resizes.
         /// </summary>
         public void SetBodyText(string richText)
         {
             BodyText.text = richText;
             BodyText.overflowMode = TextOverflowModes.Ellipsis;  // the full text is in the inspect panel
-            var box = BodyText.rectTransform.rect.size;
-            foreach (float size in TextSizes)
-            {
-                BodyText.fontSize = size;
-                if (BodyText.GetPreferredValues(richText, box.x, 0f).y <= box.y) break;
-            }
         }
 
         public void SetMark(CardMark mark)

@@ -76,7 +76,7 @@ inspected. Every card on the field shows its full text.
 - **Cost:** a hexagonal gem, top left. A gold rim means it's an energy source; a dark rim means it isn't.
 - **Score:** one crown per VP, top right of the art.
 - **Name:** a banner in the aspect colour across the bottom of the art.
-- **Text box:** keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and shrinks in four steps (11.5 → 8.5 px) so the box never resizes. Vanilla cards show flavour text in italics.
+- **Text box:** keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is aligned top left and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
 - **Traits:** a small navy tag at the bottom centre.
 - **Power:** an orange circle with a sword through it, bottom left.
 - **Health:** a heart, bottom right, showing health *left* (damage lowers the number).
