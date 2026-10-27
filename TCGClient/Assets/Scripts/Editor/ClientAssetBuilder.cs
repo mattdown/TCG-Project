@@ -255,13 +255,16 @@ public static class ClientAssetBuilder
         cv.SubtitleText.fontSizeMin = 6.5f;
         cv.SubtitleText.fontSizeMax = 8.5f;
 
-        cv.BodyText = Text(Box("Text", frame, 8, 108, 122, 64), "", f.Nunito, 11.5f, Palette.BodyText,
-            TextAlignmentOptions.Center);
+        cv.BodyText = Text(Box("Text", frame, 8, 108, 122, 64), "", f.Nunito, 10, Palette.BodyText,
+            TextAlignmentOptions.TopLeft);
         cv.BodyText.textWrappingMode = TextWrappingModes.Normal;
         cv.BodyText.lineSpacing = -12f;
+        cv.BodyText.enableAutoSizing = true;
+        cv.BodyText.fontSizeMin = 5;
+        cv.BodyText.fontSizeMax = 10;
 
         var tag = Node("Traits", frame);
-        Anchor(tag, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 4), new Vector2(40, 14));
+        Anchor(tag, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 4), new Vector2(0, 14));
         Rounded(tag, Palette.CardNavy, 6);
         var tagLayout = tag.gameObject.AddComponent<HorizontalLayoutGroup>();
         tagLayout.padding = new RectOffset(8, 8, 0, 0);
@@ -279,11 +282,12 @@ public static class ClientAssetBuilder
         Img(Stretch("Shine", cost, 0, 0, 0, 0), Sprite("gem_shine"), Color.white.WithAlpha(0.6f));
         cv.CostText = Number(Stretch("Value", cost, 0, 0, 0, 1), f, 20);
 
-        var sword = Img(Box("Power", visual, 70.3f, 48.5f, 68, 68), Sprite("sword"), Color.white);
-        cv.PowerText = Number(Box("PowerValue", visual, 95.3f, 69.5f, 22, 22), f, 17);
+        // Power and health sit above the name banner, clear of the card name.
+        var sword = Img(Box("Power", visual, 67.78f, 40.02f, 68, 68), Sprite("sword"), Color.white);
+        cv.PowerText = Number(Box("PowerValue", visual, 92.78f, 61.02f, 22, 22), f, 17);
 
-        var heart = Img(Box("Health", visual, 120.2f, 65.7f, 36, 33), Sprite("heart"), Color.white);
-        cv.HealthText = Number(Box("HealthValue", visual, 120.2f, 65.7f, 36, 29), f, 18);
+        var heart = Img(Box("Health", visual, 117.68f, 57.22f, 36, 33), Sprite("heart"), Color.white);
+        cv.HealthText = Number(Box("HealthValue", visual, 117.68f, 57.22f, 36, 29), f, 18);
         cv.UnitOnly = new[] { sword.gameObject, cv.PowerText.gameObject, heart.gameObject, cv.HealthText.gameObject };
 
         // A unit with a usable ⟳ ability: a small gold disc on the top edge.
