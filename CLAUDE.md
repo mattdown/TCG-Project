@@ -61,7 +61,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/agents/   random, heuristic, neural agents; match runner
   src/training/ PPO self-play
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
-  scripts/      generate_cards, card_lab, train, benchmark, server (run as `python -m scripts.<name>`)
+  scripts/      generate_cards, card_lab, tree_video, train, benchmark, server (run as `python -m scripts.<name>`)
   cardsets/     generated card sets (JSON, one card per line)
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
@@ -76,6 +76,7 @@ uv sync
 uv run pytest
 uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
 uv run python -m scripts.card_lab           # card lab web page, /explorer for one card's path (--text, --export)
+uv run python -m scripts.tree_video         # one card's path through the grammar as a 15 s animation (--seed, --render)
 uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
 uv run python -m scripts.benchmark [--models a.pt b.pt]
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
