@@ -61,14 +61,13 @@ namespace Tcg.View
         }
 
         /// <summary>
-        /// Splits off the lead-in: an activated ability's cost up to its first colon ("⟳, 2 energy:"),
-        /// or a trigger up to its first comma ("When you play this unit,"). Otherwise none.
+        /// Splits off the lead-in: a trigger up to its first comma ("When you play this unit,").
+        /// Otherwise none.
         /// </summary>
         public static (string lead, string rest) SplitLeadIn(string line)
         {
             int cut = -1;
-            if (line.StartsWith("⟳")) cut = line.IndexOf(':');
-            else if (line.StartsWith("When ") || line.StartsWith("Whenever ") || line.StartsWith("At "))
+            if (line.StartsWith("When ") || line.StartsWith("Whenever ") || line.StartsWith("At "))
                 cut = line.IndexOf(',');
             return cut < 0 ? ("", line) : (line.Substring(0, cut + 1), line.Substring(cut + 1));
         }

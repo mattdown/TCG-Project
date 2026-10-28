@@ -16,7 +16,7 @@ import random
 from collections import Counter
 from dataclasses import dataclass, field
 
-from src.cards.abilities import Renderer, render
+from src.cards.abilities import Renderer
 from src.cards.schema import Card
 from src.cards.tokens import is_token, token_card
 from src.game.actions import Action, ActionType
@@ -213,9 +213,6 @@ class Game:
         if ps.spare_spore:
             actions.append(Action(ActionType.SPARE_SPORE))
         for uid in ps.play:
-            unit = s.cards[uid]
-            if not unit.exhausted and not unit.fresh:
-                actions.extend(Action(ActionType.ACTIVATE, uid, option=i) for i in self._activatable(uid))
             if self.can_attack(uid):
                 units, hero = self.attack_targets(uid)
                 actions.extend(Action(ActionType.ATTACK, uid, t) for t in units)
@@ -261,8 +258,6 @@ class Game:
                 self._trigger(action.card, "on_attack")
                 if action.type == ActionType.ATTACK_HERO:
                     self._trigger(action.card, "on_attack_hero")
-            case ActionType.ACTIVATE:
-                self._activate(p, action.card, action.option)
             case ActionType.END_TURN:
                 s.pending.append(Continuation("end_turn", (p,)))
                 for uid in ps.play:
@@ -371,35 +366,6 @@ class Game:
         for other in self.state.players[p].play:
             if other != uid:
                 self._trigger(other, "another_played", played=uid)
-
-    def _activate(self, p: int, uid: int, index: int):
-        self.card(uid).exhausted = True
-        if self._result:
-            self._result.exhausted.append(uid)
-        for cost in self._ability_of(uid, index).tree["cost"]:
-            if "pay" in cost:
-                self._pay(p, cost["pay"])
-        self.state.queue.append(Frame(uid, p, index))
-
-    def _activatable(self, uid: int) -> list[int]:
-        """Indexes of this unit's ⟳ abilities whose other costs can be paid now."""
-        c = self.card(uid)
-        out = []
-        for i, ability in enumerate(compiled(c.card)):
-            if ability.kind != "activated":
-                continue
-            payable = True
-            for cost in ability.tree["cost"]:
-                if "pay" in cost and cost["pay"] > self.mana(c.owner):
-                    payable = False
-                if "exhaust_another" in cost and not any(
-                        u != uid and not self.card(u).exhausted for u in self.state.players[c.owner].play):
-                    payable = False
-                if "discard" in cost and not self.state.players[c.owner].hand:
-                    payable = False
-            if payable:
-                out.append(i)
-        return out
 
     # ------------------------------------------------------------------ abilities
 
@@ -776,10 +742,6 @@ def deck_aspect(deck: list[Card]) -> str | None:
     return counts.most_common(1)[0][0] if counts else None
 
 
-def ability_text(card: Card, index: int) -> str:
-    return render(card.abilities[index], card.type)
-
-
 def describe_action(game: Game, action: Action) -> str:
     """Short player-facing description, e.g. for the Unity client or logs."""
     name = game.card(action.card).card.name if action.card is not None else None
@@ -798,8 +760,6 @@ def describe_action(game: Game, action: Action) -> str:
             return f"{TERMS['attack'].capitalize()}: {name} → the enemy {TERMS['hero']}"
         case ActionType.END_TURN:
             return "End turn"
-        case ActionType.ACTIVATE:
-            return f"{name}: {ability_text(game.card(action.card).card, action.option)}"
         case ActionType.CHOOSE_TARGET:
             return f"Choose {game.card(action.target).card.name}"
         case ActionType.ACCEPT:

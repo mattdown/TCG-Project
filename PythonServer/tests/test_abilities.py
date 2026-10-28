@@ -61,22 +61,6 @@ def test_self_harm_is_allowed_only_as_a_may_cost():
     assert validate({"kind": "on_resolve", "steps": as_cost}, "action") == []
 
 
-def test_activated_abilities_must_cost_exhaust_this():
-    ability = {"kind": "activated", "cost": [{"pay": 2}],
-               "steps": [{"effect": "draw", "amount": 1, "target": "you"}]}
-    assert any("must cost ⟳" in p for p in validate(ability))
-    ability["cost"] = [{"exhaust_this": True}, {"pay": 2}]
-    assert validate(ability) == []
-    assert render(ability) == "⟳, 2 mana: Draw a card."
-
-
-def test_activated_abilities_have_no_may():
-    may = {"may": [{"effect": "discard", "amount": 1, "target": "you"}],
-           "if_you_do": [{"effect": "draw", "amount": 2, "target": "you"}]}
-    ability = {"kind": "activated", "cost": [{"exhaust_this": True}], "steps": [may]}
-    assert any("before the colon" in p for p in validate(ability))
-
-
 def test_defensive_keywords_last_until_your_next_turn():
     grant = {"effect": "grant_keyword", "keyword": "guard", "value": 1, "target": "this"}
     ability = {"kind": "triggered", "trigger": {"event": "on_attack_hero"}, "condition": None, "steps": [grant]}
@@ -134,8 +118,8 @@ def test_on_play_self_healing_is_rejected():
 
 
 def test_sampler_follows_rules_v2():
-    """Units only attack (no ⟳ abilities), and nothing refers to the v1 rules."""
+    """Nothing refers to the v1 rules."""
     for ability, _ in sample(3000, seed=12):
-        assert ability["kind"] != "activated"
+        assert ability["kind"] in ("triggered", "static", "on_resolve")
         effects = {e["effect"] for e in _effects_in(ability.get("steps", []))}
         assert not effects & {"ready", "exhaust", "gain_vp", "lose_vp", "add_energy", "cant_ready"}

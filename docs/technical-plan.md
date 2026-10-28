@@ -37,8 +37,7 @@ module (`src/game/terms.py`), so a rename is a single change.
 | **Unit** | A card that stays in play: cost, power, health, traits (jobs) |
 | **Action** | A one-shot card: its ability resolves, then it goes to the discard pile |
 | **Attack** | A unit fights an enemy unit or the enemy hero, once per turn. Both sides deal their power as damage (heroes deal none back) |
-| **Fresh** | Played this turn: can't attack or use ⟳ yet |
-| **⟳ ability** | A unit's activated ability, used *instead of* attacking that turn |
+| **Fresh** | Played this turn: can't attack yet |
 | **Defeated** | Damage ≥ health: the unit goes to the discard pile |
 | **Aspects** (6) | Habitats. Planned: Hearthstone-style classes (a deck is one aspect's cards plus neutral cards; the hero takes the deck's aspect). For now only colours: decks draw from the whole set |
 | **Traits** | Unit tags that abilities can refer to: jobs (docs/theme.md). Decks focus on two jobs |
@@ -83,7 +82,6 @@ module (`src/game/terms.py`), so a rename is a single change.
 - **Main phase actions:**
   - play a card by paying its cost in mana
   - attack with a unit
-  - use a unit's ⟳ ability instead of attacking with it
   - end the turn
 - **Attacks.**
   - A unit can attack once per turn, but not on the turn it is played (Charge allows it).
@@ -105,7 +103,7 @@ module (`src/game/terms.py`), so a rename is a single change.
   | Charge | Can attack the turn it's played |
   | Duelist +N | +N power while attacking |
   | Armor +N | Takes N less damage from attacks |
-  | Elusive | Can't be attacked or chosen by enemy abilities until it attacks or uses ⟳ |
+  | Elusive | Can't be attacked or chosen by enemy abilities until it attacks |
 
 **Aspects and jobs.** Aspects are classes (deckbuilding and, later, a strategic identity);
 jobs are tribes that cross aspects (the synergies abilities refer to). Vanilla and keyword-only
@@ -123,7 +121,7 @@ followed by a bootstrapping round (section 8):
 
 1. Vanilla units (stats only).
 2. Keywords.
-3. Simple triggered and activated abilities.
+3. Simple triggered and static abilities.
 4. Actions and items.
 5. The twist: a mechanic of our own (section 2b).
 
@@ -215,7 +213,6 @@ produce.
 
 ```
 Ability    := triggered(Trigger, [Condition], Steps)
-            | activated(Cost, [Condition], Steps)            // "⟳ …": in the engine, not generated in v2
             | on_resolve(Steps)                              // action cards
             | static([Condition], Modifier+)                 // declarative, not compiled to a flow
 Steps      := Step+                                          // 1–4 steps, run in order
@@ -231,7 +228,6 @@ Effect     := op(Amount?, Target, [Duration])
 Token      := {name, power, health, keyword?, trait?}       // a unit defined inside the ability (src/cards/tokens.py)
 Target     := Name | this | all(Filter) | you | opponent | owner_of(Name)
 Trigger    := event + source (this | Filter)
-Cost       := exhaust_this [+ pay(n) | exhaust_another | discard]      // ⟳ (this unit's attack) is always part of it
 Condition  := defeated(Name) | in_play(Name) | count(Filter) ≥ n | behind_on_health | your_turn
             | this_is(attacking | defending | exhausted | damaged)
 Modifier   := Subject gets stat ±Amount [while Condition]
@@ -264,9 +260,8 @@ card is accepted:
 - **Polarity.** Every effect either helps or hurts its target. Helpful effects target your
   side, harmful ones the opponent's. The reverse is allowed only inside `may … if_you_do`,
   as a cost ("You may deal 2 damage to one of your units. If you do, draw 2 cards.").
-- **No runaway abilities.** In v2 abilities are static or triggered; units only attack. (The
-  engine still runs activated abilities that cost ⟳, this unit's attack for the turn, so a
-  later mechanic can bring them back.) There is no `ready` effect, so no unit attacks twice.
+- **No runaway abilities.** Abilities are static or triggered (on-resolve for actions); units
+  only attack. There is no `ready` effect, so no unit attacks twice.
   Attack loops end by themselves, because units take damage.
 - **Abilities must be able to matter.** These checks look at the whole card, not just the
   ability, and also run whenever a card is created:

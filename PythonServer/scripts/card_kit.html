@@ -59,10 +59,9 @@ const SWORD = `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#F0
 const HEART = `<svg viewBox="0 0 40 40"><path d="M20 35 C8 26 3 19 3 12.5 C3 7 7.5 3.5 12 3.5 C15.5 3.5 18.5 5.5 20 8.5 C21.5 5.5 24.5 3.5 28 3.5 C32.5 3.5 37 7 37 12.5 C37 19 32 26 20 35 Z" fill="#E8364F" stroke="#0E1733" stroke-width="3" stroke-linejoin="round"/></svg>`;
 
 function abilityHtml(a) {
-  // Bold the trigger ("When you play this unit,") or the cost ("⟳, 1 mana:"), like the client.
+  // Bold the trigger ("When you play this unit,"), like the client.
   const t = esc(a.text);
   if (a.kind === "triggered") { const i = t.indexOf(", "); return `<b>${t.slice(0, i + 1)}</b>${t.slice(i + 1)}`; }
-  if (a.kind === "activated") { const i = t.indexOf(":"); return `<b>${t.slice(0, i + 1)}</b>${t.slice(i + 1)}`; }
   return t;
 }
 

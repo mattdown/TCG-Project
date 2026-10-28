@@ -26,7 +26,6 @@ REMOVE_ALL_DAMAGE = 3  # treated as removing this much
 # first guessed (start of turn was 2.5, attacking the hero 1.5).
 TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.85, "on_attack_hero": 0.7, "on_attack": 1.2, "start_of_turn": 1.1,
                 "end_of_turn": 2.0, "another_played": 0.8, "opposing_defeated": 1.0}
-ACTIVATED_USES = 2.0
 NARROW_FACTOR = 0.5  # per condition or restriction (quality.narrowing): each about halved the hits measured
 IF_FACTOR = 0.5  # "if it was defeated, …"
 
@@ -105,10 +104,6 @@ def ability_value(ability: dict, card_type: str | None = None) -> float:
         value *= NARROW_FACTOR ** narrowing(ability)
     elif kind == "triggered":
         value *= TRIGGER_USES[ability["trigger"]["event"]] * NARROW_FACTOR ** narrowing(ability)
-    elif kind == "activated":
-        value *= ACTIVATED_USES
-        for cost in ability["cost"]:
-            value -= 0.5 * cost.get("pay", 0) + (1.0 if "exhaust_another" in cost or "discard" in cost else 0.0)
     return max(value, 0.5)
 
 

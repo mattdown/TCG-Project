@@ -74,8 +74,7 @@ Keywords:
 
 **Abilities** follow the grammar in [docs/technical-plan.md](docs/technical-plan.md)
 section 3: triggered (when played, attacks, attacks the enemy hero, is defeated, start or end
-of turn, …), on-resolve (action cards) and static. Units have no activated abilities in v2:
-they only attack. The engine compiles each ability to a decision graph and resolves it on a
+of turn, …), on-resolve (action cards) and static. The engine compiles each ability to a decision graph and resolves it on a
 stack; choices inside abilities (choose a target, "you may", "choose one") are ordinary
 decisions. The default card set has no abilities yet; `set_200`, the coverage set, the
 tests and the fuzz test (`FUZZ_GAMES=2000 uv run pytest tests/test_fuzz.py`) use generated ones.

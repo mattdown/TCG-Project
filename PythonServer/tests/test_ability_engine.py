@@ -118,7 +118,7 @@ def test_choose_one():
     assert game.state.players[1].health == 28
 
 
-# ------------------------------------------------------------------ action cards and activated abilities
+# ------------------------------------------------------------------ action cards
 
 
 def test_action_card_affects_all_matching_units_and_goes_to_discard():
@@ -130,45 +130,6 @@ def test_action_card_affects_all_matching_units_and_goes_to_discard():
     uid = play(game, heal)
     assert game.card(baker).damage == 0 and game.card(knight).damage == 3
     assert game.card(uid).zone == Zone.DISCARD
-
-
-def test_activated_ability_costs_the_attack_and_mana():
-    """Not generated in rules v2, but the engine keeps them for a later mechanic."""
-    wizard = unit(name="Wizard", abilities=[{"kind": "activated", "cost": [{"exhaust_this": True}, {"pay": 2}],
-                                             "steps": [effect("draw", "you", amount=1)]}])
-    game = started_game()
-    uid = put_in_play(game, 0, wizard)
-    activate = Action(ActionType.ACTIVATE, uid, option=0)
-    give_mana(game, 0, 1)
-    assert activate not in game.legal_actions()  # not enough mana
-    give_mana(game, 0, 2)
-    hand = len(game.state.players[0].hand)
-    game.step(activate)
-    assert game.card(uid).exhausted and game.mana(0) == 0
-    assert len(game.state.players[0].hand) == hand + 1
-    assert activate not in game.legal_actions()
-
-
-def test_fresh_units_cant_activate():
-    wizard = unit(name="Wizard", abilities=[{"kind": "activated", "cost": [{"exhaust_this": True}],
-                                             "steps": [effect("draw", "you", amount=1)]}])
-    game = started_game()
-    uid = put_in_play(game, 0, wizard, fresh=True)
-    assert ActionType.ACTIVATE not in {a.type for a in game.legal_actions()}
-
-
-def test_exhaust_another_cost_is_a_choice():
-    general = unit(name="General", abilities=[{"kind": "activated",
-                                               "cost": [{"exhaust_this": True}, {"exhaust_another": 1}],
-                                               "steps": [effect("damage_hero", "opponent", amount=2)]}])
-    game = started_game()
-    uid = put_in_play(game, 0, general)
-    a = put_in_play(game, 0, unit(name="A"))
-    b = put_in_play(game, 0, unit(name="B"))
-    game.step(Action(ActionType.ACTIVATE, uid, option=0))
-    assert {x.target for x in game.legal_actions()} == {a, b}
-    game.step(Action(ActionType.CHOOSE_TARGET, uid, a))
-    assert game.card(a).exhausted and not game.card(b).exhausted and game.state.players[1].health == 28
 
 
 # ------------------------------------------------------------------ triggers

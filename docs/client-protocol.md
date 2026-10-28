@@ -20,7 +20,7 @@ index of the one the player picks. It never applies rules itself.
 ## Status and checking cards
 
 Client milestones 1–3 were built for protocol v1: the board, playing a full game, and
-abilities (card text, action cards, the choice prompt, ⟳ buttons, ability feedback, the dev
+abilities (card text, action cards, the choice prompt, ability feedback, the dev
 scenario panel). **Milestone 4 (2026-10-21) moved the client to protocol v2**, as listed below.
 The protocol below is complete for everything the server does today.
 
@@ -33,7 +33,6 @@ Milestone 4, rules v2 (done):
   Any enemy unit can be attacked, not only exhausted ones. A unit that has attacked is
   `exhausted` (show it dimmed, as before); `can_attack` says whether it can still attack.
 - **The Spare Spore:** the second player's one-off +1 mana, a button while `spare_spore` is true.
-- **No ⟳ buttons:** units only attack (rules v2 generates no activated abilities).
 - **Card:** no score crowns and no energy-source rim. Cards have a `subtitle`: show it under
   the name in the name banner, smaller and in italics ("Porcini Baker" / "Up Before Dawn").
   Action cards have event names ("Ember Volley") and an empty subtitle. The card lab's card
@@ -317,7 +316,6 @@ unit or chosen card, `option` the ability or option index. Action types:
 | `attack_hero` | a unit attacks the enemy hero, who takes its power as damage | unit | — |
 | `spare_spore` | the second player's one-off +1 mana for this turn | — | — |
 | `end_turn` | pass the turn | — | — |
-| `activate` | use a ⟳ ability instead of attacking (not generated in rules v2; kept for a later mechanic) | unit | — |
 | `choose_target` | while an ability resolves: pick a card for it | the ability's source | the chosen card |
 | `accept` / `decline` | answer a "you may …" | the ability's source | — |
 | `choose_option` | pick one option of a "choose one"; `option` = which, `text` describes it | the ability's source | — |

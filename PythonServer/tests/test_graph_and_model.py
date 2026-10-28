@@ -11,6 +11,7 @@ from src.cards.generate import generate_card_set
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game
+from src.graph.abilities import FEATURES
 from src.graph.builder import collate_hetero, to_hetero_data
 from src.graph.dense import NUM_FIXED_TOKENS, REL, bucket, collate_dense, relation_matrix
 from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, observe
@@ -181,3 +182,20 @@ def test_older_checkpoints_load_with_zero_weights_for_new_ability_features(arch,
     torch.save(checkpoint, tmp_path / "old.pt")
     weight = load_model(tmp_path / "old.pt").ability_in[0].weight
     assert torch.equal(weight[:, :-3], net.ability_in[0].weight[:, :-3]) and not weight[:, -3:].any()
+
+
+@pytest.mark.parametrize("arch", ARCHS)
+def test_checkpoints_from_before_names_drop_the_activated_feature_and_action(arch, tmp_path):
+    """Older checkpoints had an "ability:activated" feature and an ACTIVATE action, and saved no names."""
+    net = create_model(arch, hidden=32, num_layers=2)
+    state = net.state_dict()
+    features = FEATURES.index("ability:triggered") + 1
+    weight = state["ability_in.0.weight"]
+    state["ability_in.0.weight"] = torch.cat([weight[:, :features], torch.ones(32, 1), weight[:, features:]], 1)
+    rows = state["action_type_emb.weight"]
+    actions = ActionType.SPARE_SPORE + 1
+    state["action_type_emb.weight"] = torch.cat([rows[:actions], torch.ones(1, 32), rows[actions:]])
+    torch.save({"arch": arch, "hparams": net.hparams, "state_dict": state}, tmp_path / "old.pt")
+    loaded = load_model(tmp_path / "old.pt")
+    assert torch.equal(loaded.ability_in[0].weight, net.ability_in[0].weight)
+    assert torch.equal(loaded.action_type_emb.weight, net.action_type_emb.weight)

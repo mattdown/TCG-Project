@@ -12,8 +12,7 @@ cloned, saved or sent to the client mid-ability.
   choose_one  one branch per option                                       (decision)
   end         done
 
-Costs that need a choice are desugared into choose + effect steps: an activated ability's
-"exhaust another of your ready units" and "discard a card", and a chosen discard.
+A chosen discard is desugared into choose + effect steps.
 Static abilities aren't flows: they compile to an entry node only and are applied whenever
 the engine calculates stats or keywords.
 """
@@ -36,7 +35,7 @@ class Node:
 
 @dataclass(frozen=True)
 class CompiledAbility:
-    kind: str  # triggered | activated | on_resolve | static
+    kind: str  # triggered | on_resolve | static
     tree: dict
     nodes: tuple[Node, ...]
 
@@ -62,18 +61,6 @@ def _desugar(steps: list) -> list:
         else:
             out.append(step)
     return out
-
-
-def _cost_steps(cost: list) -> list:
-    steps = []
-    for c in cost:
-        if "exhaust_another" in c:
-            steps += [{"choose": {"count": 1, "filter": {"owner": "you", "exhausted": False, "not_this": True}},
-                       "as": "_cost_unit"},
-                      {"effect": "exhaust", "target": {"ref": "_cost_unit"}}]
-        if "discard" in c:
-            steps += [_hand_card("_cost_card"), {"effect": "discard_card", "target": {"ref": "_cost_card"}}]
-    return steps
 
 
 def compile_ability(tree: dict) -> CompiledAbility:
@@ -107,7 +94,7 @@ def compile_ability(tree: dict) -> CompiledAbility:
 
     if tree["kind"] != "static":
         end = add("end")
-        steps = _cost_steps(tree.get("cost", [])) + _desugar(tree["steps"])
+        steps = _desugar(tree["steps"])
         nodes[0]["next"] = sequence(steps, end)
     frozen = tuple(Node(n["kind"], n.get("data"), n.get("next"), tuple(n.get("branches", ())), n.get("name"))
                    for n in nodes)

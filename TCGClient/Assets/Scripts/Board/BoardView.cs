@@ -301,9 +301,8 @@ namespace Tcg.Board
                 view.Rect.SetSiblingIndex(i);
                 // Your units that can still do something glow, like playable cards in your hand.
                 bool ready = zone == "human_play" && (HasAction(c.uid, ActionTypes.Attack) ||
-                    HasAction(c.uid, ActionTypes.AttackHero) || HasAction(c.uid, ActionTypes.Activate));
+                    HasAction(c.uid, ActionTypes.AttackHero));
                 view.SetMark(ready ? CardMark.Playable : CardMark.None);
-                view.SetAbilityReady(zone == "human_play" && HasAction(c.uid, ActionTypes.Activate));
                 _zoneOf[c.uid] = zone;
             }
             if (extraSlots > 0)
@@ -336,7 +335,6 @@ namespace Tcg.Board
                 Place(view, centre, Vector3.one, Quaternion.Euler(0f, 0f, angle), animate);
                 view.Rect.SetSiblingIndex(i);
                 view.SetMark(playable.Contains(c.uid) ? CardMark.Playable : CardMark.None);
-                view.SetAbilityReady(false);
                 _zoneOf[c.uid] = "hand";
             }
         }

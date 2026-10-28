@@ -3,7 +3,6 @@
 Abilities use the authoring form from docs/technical-plan.md section 3: plain dicts and lists.
 
     ability = {"kind": "triggered", "trigger": {...}, "condition": None, "steps": [...]}
-            | {"kind": "activated", "cost": [...], "steps": [...]}
             | {"kind": "on_resolve", "steps": [...]}
             | {"kind": "static", "condition": None, "modifiers": [...]}
     step    = {"choose": {"count": 1, "filter": F}, "as": "it"}
@@ -108,8 +107,7 @@ class AbilitySampler:
             t.fixed("Ability kind", "on_resolve", "action cards only have on-resolve abilities")
             kind = "on_resolve"
         else:
-            kind = t.weighted("Ability kind", {"triggered": 5, "activated": 0, "static": 3},
-                              "units only attack: no ⟳ abilities in rules v2")
+            kind = t.weighted("Ability kind", {"triggered": 5, "static": 3})
         self.card_type = card_type
         self.names = []  # (name, side) of choices made so far
         if kind == "static":
@@ -121,8 +119,6 @@ class AbilitySampler:
             has_condition = t.chance("Add a condition?", 0.2)
             with t.section("condition"):
                 ability["condition"] = self._condition() if has_condition else None
-        elif kind == "activated":
-            ability["cost"] = self._cost()
         with t.section("steps"):
             ability["steps"] = self._steps(ability)
         if kind == "triggered" and ability["trigger"]["event"] == "end_of_turn":
@@ -141,20 +137,6 @@ class AbilitySampler:
             if event == "another_played":
                 trigger["filter"] = {"owner": "you", "trait": self._job("Which job"), "not_this": True}
         return trigger
-
-    def _cost(self) -> list:
-        # ⟳ is always part of the cost, so an activated ability can't run away: it's used at most once
-        # per turn unless something readies the unit (and readied units can't use ⟳ that turn).
-        t = self.trace
-        with t.section("cost"):
-            t.fixed("Cost", "⟳", "every activated ability exhausts its card, so it can't run away")
-            cost = [{"exhaust_this": True}]
-            extra = t.weighted("Extra cost", {"none": 4, "pay": 4, "exhaust_another": 1, "discard": 1})
-            if extra == "pay":
-                cost.append({"pay": t.small("Energy", 1, 3)})
-            elif extra != "none":
-                cost.append({extra: 1})
-        return cost
 
     def _job(self, label: str) -> str:
         """A job to refer to: usually the unit's own, since decks focus on two jobs and tribes
@@ -214,10 +196,7 @@ class AbilitySampler:
 
     def _steps(self, ability: dict) -> list:
         t = self.trace
-        # Activated abilities put every cost before the colon, so they never use "you may … if you do".
-        may = 0 if ability["kind"] == "activated" else 3
-        pattern = t.weighted("Step pattern", {"single": 7, "double": 3, "follow_up": 3, "may": may, "choose_one": 2},
-                             "activated abilities can't use 'you may'" if not may else "")
+        pattern = t.weighted("Step pattern", {"single": 7, "double": 3, "follow_up": 3, "may": 3, "choose_one": 2})
         if pattern == "single":
             with t.section("effect"):
                 return self._effect(ability)
@@ -401,11 +380,6 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
         return problems
     if card_type == "action" and ability["kind"] != "on_resolve":
         problems.append("action cards only have on-resolve abilities")
-    if ability["kind"] == "activated":
-        if not any(c.get("exhaust_this") for c in ability["cost"]):
-            problems.append("activated abilities must cost ⟳ (exhaust this card)")
-        if any("may" in step for step in ability["steps"]):
-            problems.append("activated abilities put their costs before the colon, not in 'you may'")
     choices = 0
 
     def walk(steps, scope, depth, cost_context):
@@ -750,18 +724,6 @@ def render(ability: dict, card_type: str = "unit") -> str:
     body = Renderer(card_type).steps(ability["steps"])
     if kind == "on_resolve":
         return body
-    if kind == "activated":
-        costs = []
-        for c in ability["cost"]:
-            if c.get("exhaust_this"):
-                costs.append("⟳")
-            if "pay" in c:
-                costs.append(f"{c['pay']} mana")
-            if "discard" in c:
-                costs.append("discard a card")
-            if "exhaust_another" in c:
-                costs.append("exhaust another of your ready units")
-        return f"{', '.join(costs)}: {body}"
     lead = _trigger_text(ability["trigger"])
     cond = ability.get("condition")
     if cond:

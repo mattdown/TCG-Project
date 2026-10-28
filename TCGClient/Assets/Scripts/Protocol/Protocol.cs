@@ -143,7 +143,7 @@ namespace Tcg.Protocol
         public string type;
         public int? card;
         public int? target;
-        public int? option;    // activate: which ability; choose_option: which option
+        public int? option;    // choose_option: which option
         public int? player;    // action records only
         public string text;
         public ActionResult preview;   // legal actions: what play, score or duel would do
@@ -270,7 +270,6 @@ namespace Tcg.Protocol
         public const string AttackHero = "attack_hero";
         public const string SpareSpore = "spare_spore";
         public const string EndTurn = "end_turn";
-        public const string Activate = "activate";
         public const string ChooseTarget = "choose_target";
         public const string Accept = "accept";
         public const string Decline = "decline";

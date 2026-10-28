@@ -38,8 +38,6 @@ def test_complexity_counts_every_node():
     assert complexity(on_play(gain(1))) == 1
     assert complexity(on_play(choose(), damage(2), {"if": {"defeated": "it"}, "then": [gain(1)]})) == 4
     assert complexity(on_play(gain(1), condition={"behind_on_health": True})) == 2
-    activated = {"kind": "activated", "cost": [{"exhaust_this": True}, {"pay": 2}], "steps": [gain(1)]}
-    assert complexity(activated) == 2
 
 
 def test_steps_must_connect():

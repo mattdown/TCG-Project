@@ -37,8 +37,6 @@ namespace Tcg.View
         public CanvasGroup Group;
         [Tooltip("Power and health: hidden on action cards, which have no stats.")]
         public GameObject[] UnitOnly;
-        [Tooltip("Shown while the unit has a usable ⟳ ability.")]
-        public GameObject AbilityMarker;
 
         [Header("Art")]
         [Tooltip("Placeholder art: 4 silhouettes per aspect, aspect-major (aspect_1 first).")]
@@ -110,12 +108,6 @@ namespace Tcg.View
                 ? string.Join(" · ", def.traits)
                 : TitleCase(def.type);
             SetBodyText(CardText.Build(def, null));
-        }
-
-        /// <summary>A subtle marker for a unit with a usable ⟳ ability.</summary>
-        public void SetAbilityReady(bool ready)
-        {
-            if (AbilityMarker != null) AbilityMarker.SetActive(ready);
         }
 
         /// <summary>A quick gold pulse: this card's ability is happening.</summary>

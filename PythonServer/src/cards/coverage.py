@@ -95,9 +95,6 @@ def card_features(card: Card) -> set[str]:
             out.add(f"trigger: {ability['trigger']['event']}")
             if "filter" in ability["trigger"]:
                 _filter_features(ability["trigger"]["filter"], out)
-        if ability["kind"] == "activated":
-            for cost in ability["cost"]:
-                out.update(f"cost: {k}" for k in cost)
         if ability["kind"] == "static":
             for m in ability["modifiers"]:
                 if "cost_reduction" in m:

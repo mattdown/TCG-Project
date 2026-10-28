@@ -27,7 +27,7 @@ from src.game.state import Frame
 from src.game.terms import KEYWORDS
 
 NODE_KINDS = ("entry", "choose", "effect", "if", "may", "choose_one", "end", "modifier")
-ABILITY_KINDS = ("triggered", "activated", "on_resolve", "static")
+ABILITY_KINDS = ("triggered", "on_resolve", "static")
 CONDITIONS = ("count", "behind_on_health", "defeated", "in_play", "turn",
               "attacking", "defending", "exhausted", "damaged")
 OPS = ("deal_damage", "remove_damage", "defeat", "return_to_hand", "freeze", "modify_stat", "grant_keyword",
@@ -46,7 +46,7 @@ FEATURES = (
     + ["filter:damaged", "filter:exhausted", "filter:ready", "filter:cost_max", "filter:trait", "filter:not_this",
        "filter:hand", "count", "chooser:opponent", "options", "cost_reduction", "subject:this", "subject:all",
        "resolving"]
-    # Added later go at the end, so older models load with zero weights for them (registry.py).
+    # Added later go at the end: checkpoints from before feature names were saved rely on it (registry.py).
     + ["op:buff", "buff_power", "buff_health"]
     + ["op:summon", "token_power", "token_health"]
 )

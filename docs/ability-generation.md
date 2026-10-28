@@ -42,8 +42,7 @@ what was kept.
 ### 1. Sample a tree
 
 `AbilitySampler.raw()` walks the grammar: ability kind (triggered or static for units,
-on-resolve for actions; activated abilities are closed off in rules v2, where units only
-attack), then trigger, condition, step pattern, effects, targets and
+on-resolve for actions), then trigger, condition, step pattern, effects, targets and
 numbers. The weights are hand-set placeholders (`EFFECT_WEIGHTS`, `TRIGGERS`, the step
 patterns in `_steps`).
 
@@ -64,7 +63,7 @@ Legal isn't the same as worth generating. Four tests, each a general property of
 
 | Test | Rule | Catches |
 |---|---|---|
-| **Complexity budget** | At most `MAX_COMPLEXITY` = 4 nodes. A node is each step (choice, effect, if, may, choose one), the condition, each activated cost beyond ⟳ and each static modifier. | Long abilities that stack a condition, a "you may", a choice and a follow-up |
+| **Complexity budget** | At most `MAX_COMPLEXITY` = 4 nodes. A node is each step (choice, effect, if, may, choose one), the condition and each static modifier. | Long abilities that stack a condition, a "you may", a choice and a follow-up |
 | **Narrowing budget** | At most `MAX_NARROWING` = 1 condition or restriction (damaged, cost ≤ n, job) on a filter that picks cards. Filters inside a condition or a "for each" count aren't counted again. In self-play each one roughly halved how often an ability hit; with two or more, abilities almost never fired (`experiments.py fire`). | "When this unit is defeated, if you have 2 or more other Chef units, chosen damaged enemy unit gets −2 power" (fired 0 times in 122 plays) |
 | **Connected steps** | Every step after the first must act on a card that an earlier step acted on, or ask about it ("if it was defeated"). Choices only name a card and aren't counted. "You may … if you do" and choose one connect their parts by construction. | Unrelated effects glued together: "+1 health this turn. Your opponent loses 1 VP." |
 | **No dominated options** | In a choose one, an option with the same shape as another (the same tree apart from its numbers) that is no bigger in any number is never worth picking. Every number in the grammar is better bigger for whoever chooses it, so no knowledge of particular effects is needed. | "Choose one: draw 2 cards, or draw a card." Also the same option twice. |
@@ -206,8 +205,7 @@ The **card explorer** (<http://localhost:8765/explorer>, linked from the lab) ge
 button press and shows its *derivation*: the path the sampler took through the grammar. Every
 random decision is listed in its section (trigger, steps, effect, target, card), with:
 - all the options it had, as a bar whose segment widths are their probabilities, and the one it took
-- the options the rules had closed at that point (for example activated abilities in rules
-  v2), and forced steps with the reason
+- the options the rules had closed at that point, and forced steps with the reason
 - how likely the whole path was ("1 in 7,831" for the ability)
 - the draws thrown away on the way to the card, each with its own path and the test it failed
 
@@ -308,3 +306,8 @@ for checking the engine and client. It uses the same pipeline.
   actions (each was worth less than a 1-mana vanilla unit in `experiments.py effects`); kept
   actions are mostly damage, summon, draw and buff. Weak unit groups go from 0.1 to 0.3
   (`GROUP_SCALE`): 0.1 overshot.
+- **2026-10-28:** Activated (⟳) abilities removed from the code, not just closed off: the
+  sampler, validator, card text, costing, complexity, coverage, engine (`ACTIVATE`), graph
+  feature and client. Generated sets are unchanged (the option had weight 0). Checkpoints now
+  save their feature and action names, and older ones load without the dropped column and row,
+  with identical outputs.

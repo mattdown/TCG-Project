@@ -14,8 +14,8 @@ RESTRICTIONS = ("damaged", "cost_max", "trait")
 
 
 def complexity(ability: dict) -> int:
-    """Nodes in the tree: each step (choice, effect, if, may, choose one), the condition, each
-    activated cost beyond ⟳, and each static modifier."""
+    """Nodes in the tree: each step (choice, effect, if, may, choose one), the condition and
+    each static modifier."""
     def steps(seq: list) -> int:
         total = 0
         for step in seq:
@@ -29,8 +29,6 @@ def complexity(ability: dict) -> int:
     total = 1 if ability.get("condition") else 0
     if ability["kind"] == "static":
         return total + len(ability["modifiers"])
-    if ability["kind"] == "activated":
-        total += sum(1 for c in ability["cost"] if not c.get("exhaust_this"))
     return total + steps(ability["steps"])
 
 

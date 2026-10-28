@@ -16,8 +16,7 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 >   turn. No "add as energy" drop zone, no energy-source rim on the cost gem.
 > - **No score crowns** on cards, and no score drop zone.
 > - **The Spare Spore:** a small button for the second player's one-off +1 mana.
-> - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero; no ⟳
->   buttons. A unit that has attacked is dimmed (no "Zz" since 2026-10-22); a frozen one shows ice; a
+> - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero. A unit that has attacked is dimmed (no "Zz" since 2026-10-22); a frozen one shows ice; a
 >   hidden (Elusive) one can't be targeted by enemies.
 > - **Subtitles** under card names.
 >
@@ -134,8 +133,8 @@ Drag previews come from each legal action's server-side `preview`
 
 - **Abilities** (milestone 3):
   - *Card text:* keywords first (`Guard.`, a granted one in green), then one paragraph per
-    ability line. The lead-in is bold: an activated ability up to its first colon
-    (`⟳, 2 energy:`), a trigger up to its first comma (`When you play this unit,`). Choose-one
+    ability line. The lead-in is bold: a trigger up to its first comma
+    (`When you play this unit,`). Choose-one
     options go on their own lines. Long text ends in "…" on the card; the inspect panel has it all.
   - *Action cards:* no power, health or crowns. Played by dragging onto the field; the card
     shows large in the middle while it resolves, then fades to the discard pile.
@@ -143,10 +142,8 @@ Drag previews come from each legal action's server-side `preview`
   - *Choices:* a banner across the divider with the source card's name and the ability text.
     Cards that can be chosen get a gold ring and are tapped; Yes / No and choose-one options are
     buttons. The AI's choices show the banner too ("heuristic is choosing"), a little longer.
-  - *⟳ abilities:* a small gold ⟳ disc on a unit that can use one; the inspect panel has a
-    button per ability, labelled with its cost and effect.
   - *Inspect:* a box per keyword with the server's reminder text, the full card text, and chips
-    for "can't ready" and "can't score or ⟳".
+    for exhausted, fresh, damage, frozen and hidden.
   - *Feedback:* the cards in `result.abilities` pulse gold in order; healing, stat changes,
     granted keywords and VP lost float up from the card.
   - *Dev panel:* the DEV button, bottom left, starts a `scenario` from text such as

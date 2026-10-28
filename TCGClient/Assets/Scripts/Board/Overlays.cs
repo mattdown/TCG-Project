@@ -118,21 +118,6 @@ namespace Tcg.Board
                 Tip(string.Format(UiText.HealthTitle, health - instance.damage, health),
                     string.Format(UiText.HealthText, instance.damage), index++);
 
-            // ⟳ abilities this unit can use now, labelled with the action's text minus the card name.
-            foreach (var a in s.legal_actions)
-            {
-                if (a.type != ActionTypes.Activate || a.card != instance?.uid) continue;
-                string label = a.text.StartsWith(def.name + ": ") ? a.text.Substring(def.name.Length + 2) : a.text;
-                var rt = Ui.Node("Activate", _column);
-                rt.SetSiblingIndex(index++);
-                var size = rt.gameObject.AddComponent<LayoutElement>();
-                size.minHeight = size.preferredHeight = 60;
-                var action = a;
-                Ui.Button(rt, label, Palette.Gold, Palette.GoldLip, 16, out var text).onClick.AddListener(() => Choose(action));
-                text.textWrappingMode = TextWrappingModes.Normal;
-                _built.Add(rt.gameObject);
-            }
-
             _buttons.gameObject.SetActive(inHand);
             _note.SetActive(inHand);
             if (inHand)
