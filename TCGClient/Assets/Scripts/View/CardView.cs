@@ -2,6 +2,7 @@ using DG.Tweening;
 using Tcg.Protocol;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Tcg.View
@@ -25,7 +26,8 @@ namespace Tcg.View
         public RectTransform Visual;
         public Image GlowHalo, GlowRing;
         public Image FrameEdge, BannerFill, Art;
-        public GameObject ExhaustedOverlay;
+        [Tooltip("Dims the art once the unit has attacked."), FormerlySerializedAs("ExhaustedOverlay")]
+        public GameObject AttackedOverlay;
         [Tooltip("Ice over the art: frozen, so it can't attack on its next turn.")]
         public GameObject FrozenOverlay;
         [Tooltip("A veil over the art: Elusive and hasn't attacked, so enemies can't target it.")]
@@ -61,7 +63,7 @@ namespace Tcg.View
             Def = def;
             Uid = instance?.uid ?? -1;
             bool frozen = instance != null && instance.frozen;
-            ExhaustedOverlay.SetActive(instance != null && instance.exhausted && !frozen);
+            AttackedOverlay.SetActive(instance != null && instance.attacked && !frozen);
             FrozenOverlay.SetActive(frozen);
             HiddenOverlay.SetActive(instance != null && instance.hidden);
 

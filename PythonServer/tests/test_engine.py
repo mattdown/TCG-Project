@@ -89,11 +89,11 @@ def test_spare_spore_gives_one_mana_once():
 
 def test_units_can_attack_again_at_start_of_owners_turn():
     game = started_game()
-    uid = put_in_play(game, 0, unit(), exhausted=True, fresh=True)
+    uid = put_in_play(game, 0, unit(), attacked=True, fresh=True)
     game.step(END)
-    assert game.card(uid).exhausted  # still the opponent's turn
+    assert game.card(uid).attacked  # still the opponent's turn
     game.step(END)
-    assert not game.card(uid).exhausted and not game.card(uid).fresh
+    assert not game.card(uid).attacked and not game.card(uid).fresh
     assert Action(ActionType.ATTACK_HERO, uid) in game.legal_actions()
 
 
@@ -101,9 +101,9 @@ def test_attack_any_enemy_unit_or_the_hero():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=2, health=3))
     ready = put_in_play(game, 1, unit())
-    exhausted = put_in_play(game, 1, unit(), exhausted=True)
+    attacked = put_in_play(game, 1, unit(), attacked=True)
     attacks = {(a.type, a.target) for a in game.legal_actions() if a.card == attacker}
-    assert attacks == {(ActionType.ATTACK, ready), (ActionType.ATTACK, exhausted), (ActionType.ATTACK_HERO, None)}
+    assert attacks == {(ActionType.ATTACK, ready), (ActionType.ATTACK, attacked), (ActionType.ATTACK_HERO, None)}
 
 
 def test_guard_must_be_attacked_first():
@@ -138,7 +138,7 @@ def test_attack_deals_damage_both_ways_and_defeats():
     attacker = put_in_play(game, 0, unit(power=3, health=4))
     defender = put_in_play(game, 1, unit(power=2, health=3))
     game.step(Action(ActionType.ATTACK, attacker, defender))
-    assert game.card(attacker).damage == 2 and game.card(attacker).exhausted
+    assert game.card(attacker).damage == 2 and game.card(attacker).attacked
     assert game.card(defender).zone == Zone.DISCARD and game.card(defender).damage == 0
     assert defender in game.state.players[1].discard
 
@@ -149,7 +149,7 @@ def test_attacking_the_hero_and_winning():
     game.step(Action(ActionType.ATTACK_HERO, attacker))
     assert game.state.players[1].health == 25 and game.card(attacker).damage == 0
     game.state.players[1].health = 3
-    game.card(attacker).exhausted = False
+    game.card(attacker).attacked = False
     game.step(Action(ActionType.ATTACK_HERO, attacker))
     assert game.is_over and game.state.winner == 0 and game.legal_actions() == []
 
@@ -242,7 +242,7 @@ def test_attack_result_has_damage_defeat_and_moves():
     defender = put_in_play(game, 1, unit(power=2, health=3))
     result = game.step(Action(ActionType.ATTACK, attacker, defender), record=True)
     assert result.damage == {attacker: 2, defender: 3}
-    assert result.defeated == [defender] and result.exhausted == [attacker]
+    assert result.defeated == [defender] and result.attacked == [attacker]
     assert result.moves == [Move(defender, 1, Zone.PLAY, Zone.DISCARD)]
 
 
@@ -254,15 +254,13 @@ def test_play_and_hero_attack_results():
     played = game.step(Action(ActionType.PLAY, card), record=True)
     assert played.mana_spent == {0: 2} and played.moves == [Move(card, 0, Zone.HAND, Zone.PLAY)]
     hit = game.step(Action(ActionType.ATTACK_HERO, attacker), record=True)
-    assert hit.hero_damage == {1: 3} and hit.exhausted == [attacker]
+    assert hit.hero_damage == {1: 3} and hit.attacked == [attacker]
 
 
-def test_end_turn_result_has_ready_and_draw():
+def test_end_turn_result_has_the_draw():
     game = started_game()
-    unit_uid = put_in_play(game, 1, unit(), exhausted=True)
     top = game.state.players[1].deck[-1]
     result = game.step(END, record=True)
-    assert result.readied == [unit_uid]
     assert result.moves == [Move(top, 1, Zone.DECK, Zone.HAND)]
 
 

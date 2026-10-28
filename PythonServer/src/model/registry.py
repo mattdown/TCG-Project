@@ -8,14 +8,22 @@ from src.model.transformer import EntityTransformerNet
 
 ARCHITECTURES = {cls.arch: cls for cls in (GNNNet, EntityTransformerNet)}
 
-# Checkpoints saved before feature and action names were stored still had activated (⟳)
-# abilities: an "ability:activated" feature after "ability:triggered" and ACTIVATE after
-# SPARE_SPORE. Features and action types added since then were appended, so an older, narrower
-# checkpoint uses a prefix of these lists.
-_AFTER = FEATURES.index("ability:triggered") + 1
-LEGACY_FEATURES = [*FEATURES[:_AFTER], "ability:activated", *FEATURES[_AFTER:]]
-_AFTER = ActionType.SPARE_SPORE + 1
-LEGACY_ACTIONS = [*[t.name for t in ActionType][:_AFTER], "ACTIVATE", *[t.name for t in ActionType][_AFTER:]]
+
+def _with(names: list[str], removed: dict[str, list[str]]) -> list[str]:
+    """names with the removed ones put back, each list right after the name it followed."""
+    out = []
+    for name in names:
+        out += [name, *removed.get(name, [])]
+    return out
+
+
+# Checkpoints saved before feature and action names were stored still had the v1 leftovers:
+# activated (⟳) abilities and the exhaust / ready grammar. Features and action types added since
+# then were appended, so an older, narrower checkpoint uses a prefix of these lists.
+LEGACY_FEATURES = _with(list(FEATURES), {
+    "ability:triggered": ["ability:activated"], "cond:defending": ["cond:exhausted"],
+    "op:gain_crystal": ["op:exhaust", "op:ready"], "filter:damaged": ["filter:exhausted", "filter:ready"]})
+LEGACY_ACTIONS = _with([t.name for t in ActionType], {"SPARE_SPORE": ["ACTIVATE"]})
 
 
 def create_model(arch: str, **hparams) -> torch.nn.Module:

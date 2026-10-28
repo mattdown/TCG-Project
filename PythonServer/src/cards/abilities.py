@@ -12,7 +12,7 @@ Abilities use the authoring form from docs/technical-plan.md section 3: plain di
             | {"choose_one": [[...], [...]]}
     target  = "this" | "you" | "opponent" | {"ref": name} | {"all": F}
     amount  = int | "all" | {"per": F, "k": 1, "cap": 4}
-    filter  = {"owner": "you" | "opponent" | "any", "trait"?, "damaged"?, "exhausted"?, "cost_max"?, "not_this"?}
+    filter  = {"owner": "you" | "opponent" | "any", "trait"?, "damaged"?, "cost_max"?, "not_this"?}
 
 The sampler builds trees that satisfy the constraints by construction; validate() checks
 them independently, so it can also vet trees written by hand or by another generator. The
@@ -66,7 +66,7 @@ GRANT_DURATION = {"guard": "until_your_next_turn", "elusive": "until_your_next_t
 DURATION_TEXT = {"this_turn": "this turn", "until_your_next_turn": "until the start of your next turn"}
 TRIGGERS = {"on_play": 10, "on_attack_hero": 3, "on_attack": 3, "on_defeated": 3, "start_of_turn": 3, "end_of_turn": 2,
             "another_played": 2, "opposing_defeated": 2}
-SITUATIONS = ("attacking", "defending", "exhausted", "damaged")
+SITUATIONS = ("attacking", "defending", "damaged")
 RESTRICTING = {"cost_max", "damaged"}  # filter fields that limit how strong a defeat target can be
 
 
@@ -522,10 +522,6 @@ def _adjectives(f: dict) -> str:
         words.append("other")
     if f.get("damaged"):
         words.append("damaged")
-    if f.get("exhausted") is True:
-        words.append("exhausted")
-    elif f.get("exhausted") is False:
-        words.append("ready")
     if f.get("trait"):
         words.append(f["trait"])
     return " ".join(words)
@@ -639,8 +635,6 @@ class Renderer:
             return f"Return {t} to their owners’ hands." if plural else f"Return {t} to its owner’s hand."
         if op == "freeze":
             return f"Freeze {t}: {'they' if plural else 'it'} can’t attack on {its} next turn."
-        if op == "exhaust":
-            return f"Exhaust {t}."
         if op == "modify_stat":
             sign = "+" if s["delta"] > 0 else "−"
             duration = DURATION_TEXT[s.get("duration", "this_turn")]

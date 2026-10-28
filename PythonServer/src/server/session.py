@@ -88,7 +88,7 @@ class GameSession:
     def _set_up(self, scenario: dict):
         """Starts the human's first turn with chosen cards, for checking single cards by hand.
 
-            {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
+            {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "attacked": true, "damage": 1}],
              "opponent_play": ["C1-002"], "opponent_hand": [], "mana": 5, "opponent_mana": 0,
              "health": 30, "opponent_health": 12}
 
@@ -107,7 +107,7 @@ class GameSession:
                     card = self.card_set[entry["id"]]
                 except KeyError:
                     raise ValueError(f"unknown card id {entry['id']!r} in scenario")
-                uid = g.add_card(player, card, zone, exhausted=entry.get("exhausted", False))
+                uid = g.add_card(player, card, zone, attacked=entry.get("attacked", False))
                 g.card(uid).damage = entry.get("damage", 0)
         for prefix, player in (("", self.human_seat), ("opponent_", 1 - self.human_seat)):
             ps = g.state.players[player]
@@ -165,7 +165,7 @@ class GameSession:
 
         def card_view(uid):
             c = g.card(uid)
-            view = {"uid": uid, "card_id": c.card.id, "exhausted": c.exhausted, "fresh": c.fresh, "damage": c.damage,
+            view = {"uid": uid, "card_id": c.card.id, "attacked": c.attacked, "fresh": c.fresh, "damage": c.damage,
                     "cost": g.play_cost(uid) if c.zone == Zone.HAND else c.card.cost}
             if c.card.type == "unit":
                 # Current values, with abilities' changes: the client shows them against the card's own.
@@ -244,8 +244,7 @@ class GameSession:
             "hero_healed": [{"player": p, "amount": n} for p, n in r.hero_healed.items()],
             "mana_spent": [{"player": p, "amount": n} for p, n in r.mana_spent.items()],
             "crystals": [{"player": p, "amount": n} for p, n in r.crystals.items()],
-            "exhausted": r.exhausted,
-            "readied": r.readied,
+            "attacked": r.attacked,
             "moves": [self._move_view(m) for m in r.moves],
             "summoned": [{"uid": uid, "player": (game or self.game).card(uid).owner,
                           "card_id": (game or self.game).card(uid).card.id} for uid in r.summoned],

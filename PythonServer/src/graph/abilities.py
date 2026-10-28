@@ -29,9 +29,9 @@ from src.game.terms import KEYWORDS
 NODE_KINDS = ("entry", "choose", "effect", "if", "may", "choose_one", "end", "modifier")
 ABILITY_KINDS = ("triggered", "on_resolve", "static")
 CONDITIONS = ("count", "behind_on_health", "defeated", "in_play", "turn",
-              "attacking", "defending", "exhausted", "damaged")
+              "attacking", "defending", "damaged")
 OPS = ("deal_damage", "remove_damage", "defeat", "return_to_hand", "freeze", "modify_stat", "grant_keyword",
-       "draw", "discard", "heal_hero", "damage_hero", "gain_crystal", "exhaust", "ready", "discard_card")
+       "draw", "discard", "heal_hero", "damage_hero", "gain_crystal", "discard_card")
 DURATIONS = ("this_turn", "until_your_next_turn", "while_this_in_play", "permanent")
 TARGETS = ("this", "you", "opponent", "ref", "all")
 OWNERS = ("you", "opponent", "any")
@@ -43,7 +43,7 @@ FEATURES = (
     + ["stat:power", "stat:health", "delta"] + [f"keyword:{k}" for k in KEYWORDS] + ["keyword_value"]
     + [f"duration:{d}" for d in DURATIONS] + [f"target:{t}" for t in TARGETS]
     + [f"owner:{o}" for o in OWNERS]
-    + ["filter:damaged", "filter:exhausted", "filter:ready", "filter:cost_max", "filter:trait", "filter:not_this",
+    + ["filter:damaged", "filter:cost_max", "filter:trait", "filter:not_this",
        "filter:hand", "count", "chooser:opponent", "options", "cost_reduction", "subject:this", "subject:all",
        "resolving"]
     # Added later go at the end: checkpoints from before feature names were saved rely on it (registry.py).
@@ -72,8 +72,6 @@ def _set(vec: np.ndarray, name: str, value: float = 1.0):
 def _filter(vec: np.ndarray, f: dict):
     _set(vec, f"owner:{f.get('owner', 'any')}")
     _set(vec, "filter:damaged", float(bool(f.get("damaged"))))
-    if "exhausted" in f:
-        _set(vec, "filter:exhausted" if f["exhausted"] else "filter:ready")
     if "cost_max" in f:
         _set(vec, "filter:cost_max", f["cost_max"] / 10)
     _set(vec, "filter:trait", float("trait" in f))

@@ -102,7 +102,7 @@ def observe(game: Game, player: int) -> Observation:
     marked = set(me.mulligan_marked)
     static = np.array([card_static_features(c.card) for c in instances], dtype=np.float32).reshape(-1, CARD_STATIC_DIM)
     dynamic = np.array([
-        (c.zone == Zone.HAND, c.zone == Zone.PLAY, c.owner == player, c.exhausted, c.fresh,
+        (c.zone == Zone.HAND, c.zone == Zone.PLAY, c.owner == player, c.attacked, c.fresh,
          c.damage / 10, (c.card.health - c.damage) / 10, c.uid in marked,
          c.zone == Zone.PLAY and game.hidden(c.uid), game.frozen(c.uid))
         for c in instances], dtype=np.float32).reshape(-1, CARD_DYNAMIC_DIM)

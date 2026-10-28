@@ -8,8 +8,8 @@ The game's name is still to be decided.
 
 ## What the theme changes, and what it doesn't
 
-- **Game terms and keywords stay as they are:** VP, energy, unit, score, duel, exhausted,
-  fresh, Guard, Elusive, Charge, Evolve, and so on. Players already know these words from other
+- **Game terms and keywords stay as they are:** hero, mana, unit, attack, fresh, Guard,
+  Elusive, Charge, Duelist, Armor, and so on. Players already know these words from other
   card games. They live in `PythonServer/src/game/terms.py`.
 - **Aspects get habitat names** (below). Later they work like Hearthstone classes (your hero
   comes from one habitat, and your deck is that habitat's cards plus neutral cards); for now
@@ -68,7 +68,7 @@ unique in a set.
 
 **Action cards** are events, not characters, so they have no species or job. Their name is an
 aspect word plus a noun for the main effect: "Ember Volley" (damage), "Frost Forecast" (draw),
-"Lichen Rally" (ready). Each aspect has its own words (Ember: Ember, Cinder, Smoulder,
+"Lichen Snare" (freeze). Each aspect has its own words (Ember: Ember, Cinder, Smoulder,
 Bonfire; Frost: Frost, Rime, Snowdrift, Icicle; …).
 
 **Tokens** (units that abilities summon) are small mushroom folk: Sporeling, Puffling, Sprout,

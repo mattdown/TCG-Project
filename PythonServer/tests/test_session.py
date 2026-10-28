@@ -127,7 +127,7 @@ def test_every_action_record_has_a_result(session):
             records = session.handle({"type": "ai_turn"})["actions"]
         for record in records:
             assert set(record["result"]) == {"damage", "defeated", "hero_damage", "hero_healed", "mana_spent", "crystals",
-                                             "exhausted", "readied", "moves", "abilities", "healed", "effects", "summoned"}
+                                             "attacked", "moves", "abilities", "healed", "effects", "summoned"}
 
 
 def test_ai_draws_and_put_backs_stay_hidden():
@@ -251,7 +251,7 @@ def test_card_instances_show_current_stats_and_keywords():
 def test_granted_keywords_and_freeze_are_shown():
     # SLIPPERY: "Whenever this unit attacks the enemy hero, it gains Armor +1 until the start of your next turn."
     # FREEZER: "Whenever this unit attacks the enemy hero, freeze all enemy units."
-    session, state = coverage_scenario({"play": ["SLIPPERY", "FREEZER"], "opponent_play": [{"id": "POSTMAN", "exhausted": True}]})
+    session, state = coverage_scenario({"play": ["SLIPPERY", "FREEZER"], "opponent_play": [{"id": "POSTMAN", "attacked": True}]})
     by_card = {c["card_id"]: c for c in state["players"][0]["play"]}
     for card_id in ("SLIPPERY", "FREEZER"):
         hit = next(a for a in legal(state, "attack_hero") if a["card"] == by_card[card_id]["uid"])

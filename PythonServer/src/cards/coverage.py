@@ -17,7 +17,7 @@ from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
 from src.game.terms import ASPECT_NAMES, ASPECTS, keyword_text
 
-FILTER_FIELDS = ("trait", "damaged", "exhausted", "cost_max", "not_this")
+FILTER_FIELDS = ("trait", "damaged", "cost_max", "not_this")
 
 
 def _filter_features(f: dict, out: set):

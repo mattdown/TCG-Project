@@ -16,7 +16,8 @@ from src.graph.builder import collate_hetero, to_hetero_data
 from src.graph.dense import NUM_FIXED_TOKENS, REL, bucket, collate_dense, relation_matrix
 from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, observe
 from src.model.common import segment_entropy, segment_log_softmax
-from src.model.registry import ARCHITECTURES, create_model, load_model, save_model
+from src.model.registry import (ARCHITECTURES, LEGACY_ACTIONS, LEGACY_FEATURES, create_model, load_model,
+                                save_model)
 from tests.helpers import put_in_play, started_game, unit
 
 ARCHS = sorted(ARCHITECTURES)
@@ -185,16 +186,17 @@ def test_older_checkpoints_load_with_zero_weights_for_new_ability_features(arch,
 
 
 @pytest.mark.parametrize("arch", ARCHS)
-def test_checkpoints_from_before_names_drop_the_activated_feature_and_action(arch, tmp_path):
-    """Older checkpoints had an "ability:activated" feature and an ACTIVATE action, and saved no names."""
+def test_checkpoints_from_before_names_drop_the_v1_features_and_action(arch, tmp_path):
+    """Older checkpoints saved no names and still had columns for activated abilities and the
+    exhaust / ready grammar, and an ACTIVATE action."""
     net = create_model(arch, hidden=32, num_layers=2)
     state = net.state_dict()
-    features = FEATURES.index("ability:triggered") + 1
     weight = state["ability_in.0.weight"]
-    state["ability_in.0.weight"] = torch.cat([weight[:, :features], torch.ones(32, 1), weight[:, features:]], 1)
+    state["ability_in.0.weight"] = torch.stack(
+        [weight[:, FEATURES.index(n)] if n in FEATURES else torch.ones(32) for n in LEGACY_FEATURES], 1)
     rows = state["action_type_emb.weight"]
-    actions = ActionType.SPARE_SPORE + 1
-    state["action_type_emb.weight"] = torch.cat([rows[:actions], torch.ones(1, 32), rows[actions:]])
+    state["action_type_emb.weight"] = torch.stack(
+        [rows[ActionType[n]] if n in ActionType.__members__ else torch.ones(32) for n in LEGACY_ACTIONS])
     torch.save({"arch": arch, "hparams": net.hparams, "state_dict": state}, tmp_path / "old.pt")
     loaded = load_model(tmp_path / "old.pt")
     assert torch.equal(loaded.ability_in[0].weight, net.ability_in[0].weight)

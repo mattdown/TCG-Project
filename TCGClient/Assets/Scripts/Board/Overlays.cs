@@ -90,7 +90,7 @@ namespace Tcg.Board
             Chip(owner, owner == UiText.OpponentsUnit ? ChipOpponent : owner == UiText.YourUnit ? Palette.HumanAccent : ChipNeutral);
             if (!inHand && instance != null)
             {
-                if (instance.exhausted) Chip(UiText.Exhausted, ChipNeutral);
+                if (instance.attacked) Chip(UiText.Attacked, ChipNeutral);
                 if (instance.fresh) Chip(UiText.Fresh, ChipNeutral);
                 if (instance.damage > 0) Chip(string.Format(UiText.DamageChip, instance.damage), ChipNeutral);
                 if (instance.frozen) Chip(UiText.FrozenChip, ChipOpponent);

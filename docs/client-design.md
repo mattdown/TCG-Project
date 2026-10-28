@@ -84,7 +84,7 @@ States:
 
 | State | Shown as |
 |---|---|
-| Exhausted (has attacked) | art dimmed; the card is **not** tilted, and the text stays readable |
+| Attacked (this turn) | art dimmed; the card is **not** tilted, and the text stays readable |
 | Damaged | health number in red |
 | Buffed / debuffed | stat number in green / red |
 | Selected | lifted 10 px, gold glow |
@@ -143,11 +143,11 @@ Drag previews come from each legal action's server-side `preview`
     Cards that can be chosen get a gold ring and are tapped; Yes / No and choose-one options are
     buttons. The AI's choices show the banner too ("heuristic is choosing"), a little longer.
   - *Inspect:* a box per keyword with the server's reminder text, the full card text, and chips
-    for exhausted, fresh, damage, frozen and hidden.
+    for attacked, fresh, damage, frozen and hidden.
   - *Feedback:* the cards in `result.abilities` pulse gold in order; healing, stat changes,
     granted keywords and VP lost float up from the card.
   - *Dev panel:* the DEV button, bottom left, starts a `scenario` from text such as
-    `hand: C1-004; opponent_play: C1-018, C1-036 exhausted; energy: 2; seed: 1`.
+    `hand: C1-004; opponent_play: C1-018, C1-036 attacked; energy: 2; seed: 1`.
 
 ## Help screen
 

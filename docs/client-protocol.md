@@ -30,14 +30,14 @@ Milestone 4, rules v2 (done):
 - **Mana:** crystals (`mana` full of `crystals`, up to `max_mana` = 10) in place of the energy
   zone. There's no energy zone and no "add energy" action any more.
 - **Attacks:** drag a unit onto an enemy unit (`attack`) or the enemy hero (`attack_hero`).
-  Any enemy unit can be attacked, not only exhausted ones. A unit that has attacked is
-  `exhausted` (show it dimmed, as before); `can_attack` says whether it can still attack.
+  Any enemy unit can be attacked. A unit that has attacked this turn is
+  `attacked` (show it dimmed, as before); `can_attack` says whether it can still attack.
 - **The Spare Spore:** the second player's one-off +1 mana, a button while `spare_spore` is true.
 - **Card:** no score crowns and no energy-source rim. Cards have a `subtitle`: show it under
   the name in the name banner, smaller and in italics ("Porcini Baker" / "Up Before Dawn").
   Action cards have event names ("Ember Volley") and an empty subtitle. The card lab's card
   (`PythonServer/scripts/card_kit.html`) shows one way to lay it out.
-- **Unit states:** `frozen` (can't attack on its next turn: show ice), `hidden` (Elusive and
+- **Unit states:** `frozen` (can't attack until the end of its owner's next turn: show ice), `hidden` (Elusive and
   hasn't attacked yet: enemies can't target it).
 
 **Next for the client (milestone 5, small):**
@@ -139,7 +139,7 @@ Legal attack actions and their previews already account for all of these.
   starts on the human's first turn with chosen cards (IDs from `card_set`):
 
   ```json
-  "scenario": {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "exhausted": true, "damage": 1}],
+  "scenario": {"hand": ["C1-004"], "play": ["C1-007", {"id": "C1-010", "attacked": true, "damage": 1}],
                "opponent_play": ["C1-002"], "opponent_hand": [], "mana": 5, "opponent_mana": 0,
                "health": 30, "opponent_health": 12}
   ```
@@ -168,7 +168,7 @@ of one of `state.legal_actions`.
               "text": "Attack: Porcini Chef → Enoki Postman",
               "result": {"damage": [{"uid": 12, "amount": 4}, {"uid": 53, "amount": 3}], "defeated": [12, 53],
                          "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [],
-                         "exhausted": [12], "readied": [],
+                         "attacked": [12],
                          "moves": [{"uid": 12, "card_id": "K1-022", "player": 0, "from": "play", "to": "discard"},
                                    {"uid": 53, "card_id": "K1-133", "player": 1, "from": "play", "to": "discard"}],
                          "abilities": [], "healed": [], "effects": []}},
@@ -187,14 +187,14 @@ at a time.
 ← {"status": "ok", "action": {"type": "end_turn", "card": null, "target": null, "option": null, "player": 1,
      "text": "End turn",
      "result": {"damage": [], "defeated": [], "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [],
-                "exhausted": [], "readied": [],
+                "attacked": [],
                 "moves": [{"uid": 3, "card_id": "K1-070", "player": 0, "from": "deck", "to": "hand"}],
                 "abilities": [], "healed": [], "effects": []}},
    "state": {…}}
 ```
 
 Ending the AI's turn starts yours: you gain a mana crystal, they all refill, your units can
-attack again (`readied` lists the ones that had attacked) and you draw.
+attack again and you draw.
 
 ### `ai_turn`: the AI decides until it's the human's decision or the game ends
 
@@ -230,19 +230,19 @@ captured before decks became one aspect plus neutral, so a replay of seed 7 now 
   "winner": null,
   "players": [
     {"aspect": "aspect_3", "health": 22, "mana": 4, "crystals": 4, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 5,
-     "hand": [{"uid": 29, "card_id": "K1-070", "exhausted": false, "fresh": false, "damage": 0, "cost": 4,
+     "hand": [{"uid": 29, "card_id": "K1-070", "attacked": false, "fresh": false, "damage": 0, "cost": 4,
                "power": 3, "health": 5, "keywords": {"charge": true}, "can_attack": false, "frozen": false,
                "hidden": false}, …],
-     "play": [{"uid": 12, "card_id": "K1-022", "exhausted": false, "fresh": false, "damage": 0, "cost": 1,
+     "play": [{"uid": 12, "card_id": "K1-022", "attacked": false, "fresh": false, "damage": 0, "cost": 1,
                "power": 1, "health": 1, "keywords": {"duelist": 2}, "can_attack": true, "frozen": false,
                "hidden": false}],
      "discard": [ …1 card… ],
      "mulligan_marked": []},
     {"aspect": "aspect_2", "health": 21, "mana": 0, "crystals": 3, "spare_spore": false, "fatigue": 0, "deck_count": 23, "hand_count": 4,
      "hand": null,
-     "play": [{"uid": 53, "card_id": "K1-133", "exhausted": true, "fresh": false, "damage": 0, …},
-              {"uid": 54, "card_id": "K1-151", "exhausted": true, "fresh": false, "damage": 1, …},
-              {"uid": 43, "card_id": "K1-173", "exhausted": false, "fresh": true, "damage": 0, …}],
+     "play": [{"uid": 53, "card_id": "K1-133", "attacked": true, "fresh": false, "damage": 0, …},
+              {"uid": 54, "card_id": "K1-151", "attacked": true, "fresh": false, "damage": 1, …},
+              {"uid": 43, "card_id": "K1-173", "attacked": false, "fresh": true, "damage": 0, …}],
      "discard": [],
      "mulligan_marked": null}
   ],
@@ -283,7 +283,7 @@ captured before decks became one aspect plus neutral, so a replay of seed 7 now 
 
 **Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
 whole game, so use it to track a card's GameObject as it moves between zones. `card_id`
-points into the card set. `exhausted` (has attacked this turn, or is frozen: show it dimmed),
+points into the card set. `attacked` (has attacked this turn: show it dimmed),
 `fresh` (played this turn: can't attack unless it has Charge), `damage` (current damage;
 defeated at `damage >= health`).
 
@@ -291,7 +291,7 @@ They also carry current values, with every ability's changes applied, so the cli
 raised stats in green and lowered ones in red without working anything out:
 
 ```json
-{"uid": 12, "card_id": "K1-022", "exhausted": false, "fresh": false, "damage": 0, "cost": 1,
+{"uid": 12, "card_id": "K1-022", "attacked": false, "fresh": false, "damage": 0, "cost": 1,
  "power": 1, "health": 1, "keywords": {"duelist": 2}, "can_attack": true, "frozen": false, "hidden": false}
 ```
 
@@ -337,7 +337,7 @@ The engine records them while it applies the rules (`StepResult` in `src/game/en
 
 ```json
 "preview": {"damage": [{"uid": 12, "amount": 4}, {"uid": 53, "amount": 3}], "defeated": [12, 53],
-            "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [], "exhausted": [12], "readied": [],
+            "hero_damage": [], "hero_healed": [], "mana_spent": [], "crystals": [], "attacked": [12],
             "moves": [{"uid": 12, "card_id": "K1-022", "player": 0, "from": "play", "to": "discard"},
                       {"uid": 53, "card_id": "K1-133", "player": 1, "from": "play", "to": "discard"}],
             "abilities": [], "healed": [], "effects": []}
@@ -351,8 +351,7 @@ The engine records them while it applies the rules (`StepResult` in `src/game/en
 | `hero_healed` | health each hero got back (player, amount) |
 | `mana_spent` | mana paid per player |
 | `crystals` | mana crystals gained from abilities per player (empty: they fill next turn) |
-| `exhausted` | units that attacked |
-| `readied` | units that can attack again at the start of their owner's turn (only ones that had attacked) |
+| `attacked` | units that attacked |
 | `moves` | cards moved between zones, in order: `uid`, `card_id`, `player` (owner), `from`, `to`; zones are `deck`, `hand`, `play`, `discard` |
 | `abilities` | uids of the cards whose abilities started resolving, in order (to highlight the card as its ability happens) |
 | `healed` | damage removed from each unit (uid, amount) |
@@ -369,7 +368,7 @@ Examples, from the game above (seed 7):
 ```json
 play:        "preview": {…, "mana_spent": [{"player": 0, "amount": 4}],
                          "moves": [{"uid": 29, "card_id": "K1-070", "player": 0, "from": "hand", "to": "play"}]}
-attack_hero: "preview": {…, "hero_damage": [{"player": 1, "amount": 3}], "exhausted": [12]}
+attack_hero: "preview": {…, "hero_damage": [{"player": 1, "amount": 3}], "attacked": [12]}
 your end_turn: "result": {…, "moves": [{"uid": null, "card_id": null, "player": 1, "from": "deck", "to": "hand"}]}
 ```
 

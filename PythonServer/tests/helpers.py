@@ -30,10 +30,10 @@ def started_game(deck_a=None, deck_b=None, config=GameConfig()) -> Game:
     return game
 
 
-def put_in_play(game: Game, player: int, card: Card, exhausted=False, fresh=False) -> int:
+def put_in_play(game: Game, player: int, card: Card, attacked=False, fresh=False) -> int:
     """Adds a new card instance straight into play and returns its uid."""
     uid = len(game.state.cards)
-    game.state.cards.append(CardInstance(uid, card, player, Zone.PLAY, exhausted=exhausted, fresh=fresh))
+    game.state.cards.append(CardInstance(uid, card, player, Zone.PLAY, attacked=attacked, fresh=fresh))
     game.state.players[player].play.append(uid)
     return uid
 

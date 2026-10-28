@@ -311,3 +311,7 @@ for checking the engine and client. It uses the same pipeline.
   feature and client. Generated sets are unchanged (the option had weight 0). Checkpoints now
   save their feature and action names, and older ones load without the dropped column and row,
   with identical outputs.
+- **2026-10-28:** The rest of the v1 exhaust / ready grammar removed: the `exhaust` and `ready`
+  effects, the "exhausted" / "ready" filter and the "this unit is exhausted" condition (none
+  were generated). The engine's `exhausted` flag is now `attacked`, and freeze is its own
+  check, lasting through the frozen unit's owner's next turn. Generated sets are unchanged.

@@ -109,7 +109,7 @@ namespace Tcg.Protocol
     {
         public int uid;
         public string card_id;
-        public bool exhausted;
+        public bool attacked;
         public bool fresh;
         public int damage;
         // Current values, with abilities' changes. Units only (null for action cards).
@@ -162,8 +162,7 @@ namespace Tcg.Protocol
         public List<PlayerAmount> hero_healed = new List<PlayerAmount>();
         public List<PlayerAmount> mana_spent = new List<PlayerAmount>();
         public List<PlayerAmount> crystals = new List<PlayerAmount>();  // empty crystals gained from abilities
-        public List<int> exhausted = new List<int>();
-        public List<int> readied = new List<int>();
+        public List<int> attacked = new List<int>();
         public List<CardMove> moves = new List<CardMove>();
         public List<int> abilities = new List<int>();     // sources of abilities that started resolving, in order
         public List<UidAmount> healed = new List<UidAmount>();

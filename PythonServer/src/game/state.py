@@ -23,7 +23,7 @@ class CardInstance:
     card: Card
     owner: int
     zone: Zone
-    exhausted: bool = False  # has attacked (or been stopped from attacking) this turn
+    attacked: bool = False  # has attacked this turn
     fresh: bool = False  # entered play this turn: can't attack yet, unless it has Charge
     damage: int = 0
     revealed: bool = False  # has attacked, so Elusive no longer protects it
@@ -36,7 +36,7 @@ class ActiveEffect:
     It ends when turn `expires_turn` ends, when its `source` leaves play (for "while this
     card is in play"), or when the affected card leaves play.
     """
-    kind: str  # "stat" | "keyword" | "freeze" (can't attack on its owner's next turn)
+    kind: str  # "stat" | "keyword" | "freeze" (can't attack until its owner's next turn ends)
     uid: int
     stat: str | None = None
     keyword: str | None = None

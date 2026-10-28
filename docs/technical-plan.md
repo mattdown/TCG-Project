@@ -229,13 +229,13 @@ Token      := {name, power, health, keyword?, trait?}       // a unit defined in
 Target     := Name | this | all(Filter) | you | opponent | owner_of(Name)
 Trigger    := event + source (this | Filter)
 Condition  := defeated(Name) | in_play(Name) | count(Filter) ≥ n | behind_on_health | your_turn
-            | this_is(attacking | defending | exhausted | damaged)
+            | this_is(attacking | defending | damaged)
 Modifier   := Subject gets stat ±Amount [while Condition]
             | Subject gains Keyword [while Condition]
             | cost(−1) for Filter
 Subject    := this | all(Filter)
 Amount     := n | k per count(Filter), up to cap | stat_of(Name)
-Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, exhausted?, keyword?, not_this?}
+Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, keyword?, not_this?}
 Duration   := this_turn | until_your_next_turn | until_their_next_turn | while_this_in_play | permanent
 ```
 
@@ -356,7 +356,7 @@ Why this form works for both consumers:
 ## 4. Rules engine (`src/game/`, `src/cards/`)
 
 - **State:** players (hero health, mana crystals and mana, deck, hand, discard, fatigue,
-  Spare Spore), cards in play (exhausted = has attacked, damage, fresh, revealed for
+  Spare Spore), cards in play (attacked this turn, damage, fresh, revealed for
   Elusive), and active effects (op, target, source, expiry).
 - **Decision points.** The engine pauses whenever a player must choose: main-phase action,
   target selection, optional "may" effects, ordering of simultaneous triggers, mulligan.
@@ -382,7 +382,7 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 
 | Node type | Features |
 |---|---|
-| `card` (each card instance that is visible) | card embedding from the card encoder + zone, exhausted, damage, fresh, hidden (Elusive), frozen, owner (relative: you / opponent) |
+| `card` (each card instance that is visible) | card embedding from the card encoder + zone, attacked, damage, fresh, hidden (Elusive), frozen, owner (relative: you / opponent) |
 | `ability` (`src/graph/abilities.py`): one per step of each visible card's abilities: `entry`, `choose`, `may`, `choose_one`, `if`, `effect`, `end`, and one `modifier` per static modifier | node kind + ability kind + trigger event + condition + parameters (op, amount, scaling, stat and delta, buff power and health, token power and health, keyword, duration, target kind, count, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved. 90 features; new ones are appended, so older checkpoints load with zero weights for them |
 | `player` (you, opponent): the heroes | health, mana, crystals, hand size, deck size, units and how many can attack, Spare Spore, fatigue |
 | `global` | turn number, phase, whose turn |

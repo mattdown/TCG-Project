@@ -251,11 +251,29 @@ def test_freeze_stops_one_turn_of_attacks():
     target = put_in_play(game, 1, unit(name="Target"))
     play(game, freeze)
     game.step(END)
-    assert game.card(target).exhausted  # its turn started: it can't attack
+    assert game.frozen(target) and not game.card(target).attacked  # its turn: frozen, not attacked
     assert not any(a.card == target for a in game.legal_actions())
     game.step(END)
+    assert not game.frozen(target)
     game.step(END)
-    assert not game.card(target).exhausted
+    assert game.can_attack(target)
+
+
+def test_freezing_on_its_owners_turn_lasts_through_their_next_turn():
+    """Its owner's next turn is the one after the opponent's."""
+    spiteful = unit(power=0, health=1, name="Spiteful", abilities=[{
+        "kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": None,
+        "steps": [choose(OPP), effect("freeze", it())]}])
+    game = started_game()
+    target = put_in_play(game, 0, unit(power=2, health=3, name="Target"))
+    other = put_in_play(game, 1, spiteful)
+    game.step(Action(ActionType.ATTACK, target, other))
+    game.step(END)
+    game.step(END)
+    assert game.frozen(target) and not game.can_attack(target)
+    game.step(END)
+    game.step(END)
+    assert game.can_attack(target)
 
 
 def test_health_bonus_ending_can_defeat():

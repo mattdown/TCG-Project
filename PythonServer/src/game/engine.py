@@ -59,8 +59,7 @@ class StepResult:
     hero_healed: dict[int, int] = field(default_factory=dict)  # player → health their hero got back
     mana_spent: dict[int, int] = field(default_factory=dict)  # player → mana paid
     crystals: dict[int, int] = field(default_factory=dict)  # player → mana crystals gained by abilities
-    exhausted: list[int] = field(default_factory=list)  # units that attacked (or were stopped from attacking)
-    readied: list[int] = field(default_factory=list)  # units that can attack again at the start of a turn
+    attacked: list[int] = field(default_factory=list)  # units that attacked
     moves: list[Move] = field(default_factory=list)
     abilities: list[int] = field(default_factory=list)  # sources of abilities that started resolving
     healed: dict[int, int] = field(default_factory=dict)  # uid → damage removed
@@ -121,7 +120,7 @@ class Game:
         return value if KEYWORDS[name] else min(value, 1)
 
     def frozen(self, uid: int) -> bool:
-        """An ability stops this unit attacking on its owner's next turn."""
+        """An ability stops this unit attacking until the end of its owner's next turn."""
         return any(e.uid == uid and e.kind == "freeze" for e in self.state.effects)
 
     def hidden(self, uid: int) -> bool:
@@ -139,7 +138,7 @@ class Game:
 
     def can_attack(self, uid: int) -> bool:
         c = self.card(uid)
-        return (c.zone == Zone.PLAY and not c.exhausted and (not c.fresh or bool(self.keyword(uid, "charge")))
+        return (c.zone == Zone.PLAY and not c.attacked and not self.frozen(uid) and (not c.fresh or bool(self.keyword(uid, "charge")))
                 and self.stat(uid, "power") + self.keyword(uid, "duelist") > 0)
 
     def attack_targets(self, attacker_uid: int) -> tuple[list[int], bool]:
@@ -176,7 +175,6 @@ class Game:
                 and (owner == "any" or (c.owner == controller) == (owner == "you"))
                 and ("trait" not in f or f["trait"] in c.card.traits)
                 and (not f.get("damaged") or c.damage > 0)
-                and ("exhausted" not in f or c.exhausted == f["exhausted"])
                 and ("cost_max" not in f or c.card.cost <= f["cost_max"])
                 and ("keyword" not in f or self.keyword(uid, f["keyword"]) > 0)
                 and (not f.get("not_this") or uid != source))
@@ -251,9 +249,9 @@ class Game:
                 ps.mana += 1
             case ActionType.ATTACK | ActionType.ATTACK_HERO:
                 unit = self.card(action.card)
-                unit.exhausted = unit.revealed = True
+                unit.attacked = unit.revealed = True
                 if self._result:
-                    self._result.exhausted.append(unit.uid)
+                    self._result.attacked.append(unit.uid)
                 s.pending.append(Continuation("attack", (action.card, action.target)))
                 self._trigger(action.card, "on_attack")
                 if action.type == ActionType.ATTACK_HERO:
@@ -265,10 +263,10 @@ class Game:
             case ActionType.CHOOSE_TARGET | ActionType.ACCEPT | ActionType.DECLINE | ActionType.CHOOSE_OPTION:
                 self._decide(action)
 
-    def add_card(self, owner: int, card: Card, zone: Zone, exhausted: bool = False) -> int:
+    def add_card(self, owner: int, card: Card, zone: Zone, attacked: bool = False) -> int:
         """Puts a new copy of a card straight into a zone, outside the rules: for scenarios and tests."""
         uid = len(self.state.cards)
-        self.state.cards.append(CardInstance(uid, card, owner, zone, exhausted=exhausted))
+        self.state.cards.append(CardInstance(uid, card, owner, zone, attacked=attacked))
         self._zone_lists(owner)[zone].append(uid)
         return uid
 
@@ -311,15 +309,7 @@ class Game:
         ps.mana = ps.crystals
         for uid in ps.play:
             c = self.card(uid)
-            c.fresh = False
-            held = [e for e in s.effects if e.uid == uid and e.kind == "freeze"]
-            if held:  # frozen: can't attack this turn, then it wears off
-                s.effects = [e for e in s.effects if e not in held]
-                c.exhausted = True
-                continue
-            if self._result and c.exhausted:
-                self._result.readied.append(uid)
-            c.exhausted = False
+            c.fresh = c.attacked = False
         s.pending.append(Continuation("draw", (p,)))
         for uid in ps.play:
             self._trigger(uid, "start_of_turn")
@@ -554,7 +544,7 @@ class Game:
             c = self.card(source)
             return {"attacking": s.duel is not None and s.duel[0] == source,
                     "defending": s.duel is not None and s.duel[1] == source,
-                    "exhausted": c.exhausted, "damaged": c.damage > 0}[cond["this_is"]]
+                    "damaged": c.damage > 0}[cond["this_is"]]
         raise ValueError(f"unknown condition {cond}")
 
     def _effect(self, step: dict, frame: Frame):
@@ -585,12 +575,9 @@ class Game:
                 case "return_to_hand":  # into a full hand, or for a token, the card is discarded instead
                     full = len(s.players[self.card(t).owner].hand) >= self.config.max_hand
                     self._move(t, Zone.DISCARD if full or is_token(self.card(t).card) else Zone.HAND)
-                case "exhaust":
-                    self.card(t).exhausted = True
-                    if self._result:
-                        self._result.exhausted.append(t)
-                case "freeze":
-                    self._add_effect(ActiveEffect("freeze", t))
+                case "freeze":  # lasts through its owner's next turn
+                    owner_next = s.turn + (1 if s.active_player != self.card(t).owner else 2)
+                    self._add_effect(ActiveEffect("freeze", t, expires_turn=owner_next))
                 case "modify_stat":
                     self._add_effect(lasting(t, kind="stat", stat=step["stat"], value=step["delta"]))
                 case "buff":  # lasts until the unit leaves play
@@ -717,7 +704,7 @@ class Game:
         zones[c.zone].remove(uid)
         zones[zone].append(uid)
         c.zone = zone
-        c.exhausted = c.fresh = c.revealed = False
+        c.attacked = c.fresh = c.revealed = False
         c.damage = 0
         if zone != Zone.PLAY:  # lasting effects end when a card leaves play
             self.state.effects = [e for e in self.state.effects if e.uid != uid]

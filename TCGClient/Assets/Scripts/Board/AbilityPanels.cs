@@ -191,7 +191,7 @@ namespace Tcg.Board
             }
         }
 
-        /// <summary>"hand: C1-004; play: C1-010 exhausted damage=1; mana: 2; seed: 1" → scenario JSON and seed.</summary>
+        /// <summary>"hand: C1-004; play: C1-010 attacked damage=1; mana: 2; seed: 1" → scenario JSON and seed.</summary>
         public static (JObject scenario, int? seed) Parse(string text)
         {
             var scenario = new JObject();
@@ -224,7 +224,7 @@ namespace Tcg.Board
                     var card = new JObject { ["id"] = words[0] };
                     for (int i = 1; i < words.Length; i++)
                     {
-                        if (words[i] == "exhausted") card["exhausted"] = true;
+                        if (words[i] == "attacked") card["attacked"] = true;
                         else if (words[i].StartsWith("damage=") && int.TryParse(words[i].Substring(7), out int d)) card["damage"] = d;
                         else throw new FormatException($"Unknown \"{words[i]}\" after {words[0]}");
                     }

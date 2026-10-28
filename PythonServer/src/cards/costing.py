@@ -12,7 +12,7 @@ from src.cards.vanilla import KEYWORD_VALUE, keyword_value
 
 # Value of one use of each effect on one target, per point of its amount where it has one.
 EFFECT_VALUE = {
-    "deal_damage": 1.0, "remove_damage": 0.5, "defeat": 4.0, "return_to_hand": 3.0, "exhaust": 1.5, "freeze": 1.5,
+    "deal_damage": 1.0, "remove_damage": 0.5, "defeat": 4.0, "return_to_hand": 3.0, "freeze": 1.5,
     "draw": 2.0, "discard": 1.5, "heal_hero": 0.5, "damage_hero": 1.0, "gain_crystal": 2.5,
     "grant_keyword": 1.0, "discard_card": 1.0,
 }

@@ -31,7 +31,7 @@ namespace Tcg.View
         public const string YourUnit = "Your unit";
         public const string OpponentsUnit = "Opponent’s unit";
         public const string InYourHand = "In your hand";
-        public const string Exhausted = "Exhausted";
+        public const string Attacked = "Attacked";
         public const string Fresh = "Fresh";
         public const string DamageChip = "Damage {0}";
         public const string HealthTitle = "Health {0} of {1}";
@@ -47,7 +47,7 @@ namespace Tcg.View
         // Dev scenario panel.
         public const string DevButton = "DEV";
         public const string DevTitle = "Start a scenario";
-        public const string DevHelp = "One key per line or separated by ;  Keys: hand, play, opponent_play, opponent_hand (card IDs, comma-separated; add \"exhausted\" or \"damage=N\" after an ID in play), mana, opponent_mana, health, opponent_health, seed.";
+        public const string DevHelp = "One key per line or separated by ;  Keys: hand, play, opponent_play, opponent_hand (card IDs, comma-separated; add \"attacked\" or \"damage=N\" after an ID in play), mana, opponent_mana, health, opponent_health, seed.";
         public const string DevStart = "START";
         public const string DevClose = "CLOSE";
         public const string DevDefault = "mana: 5\nopponent_health: 10\nseed: 1";
