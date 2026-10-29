@@ -260,6 +260,7 @@ card is accepted:
 - **Polarity.** Every effect either helps or hurts its target. Helpful effects target your
   side, harmful ones the opponent's. The reverse is allowed only inside `may … if_you_do`,
   as a cost ("You may deal 2 damage to one of your units. If you do, draw 2 cards.").
+  Only units are generated with these: an action is played to be used, so it never says "you may".
 - **No runaway abilities.** Abilities are static or triggered (on-resolve for actions); units
   only attack. There is no `ready` effect, so no unit attacks twice.
   Attack loops end by themselves, because units take damage.

@@ -44,7 +44,8 @@ what was kept.
 `AbilitySampler.raw()` walks the grammar: ability kind (triggered or static for units,
 on-resolve for actions), then trigger, condition, step pattern, effects, targets and
 numbers. The weights are hand-set placeholders (`EFFECT_WEIGHTS`, `TRIGGERS`, the step
-patterns in `_steps`).
+patterns in `_steps`). Actions never get the "you may … if you do" pattern: you play an action
+to use it, so an optional ability on one makes no sense.
 
 **One ability per card for now.** One idea per card keeps cards readable and makes each
 ability's effect on a card measurable on its own. The engine and the card schema support more;
@@ -321,3 +322,7 @@ for checking the engine and client. It uses the same pipeline.
 - **2026-10-29:** The trace's "Card kind" decision is now two: "Card type" (unit or action),
   then for units "Unit kind" (vanilla, keywords only or ability). It is still one draw, so
   generated sets are unchanged; only the derivation the explorer and visualiser show differs.
+- **2026-10-29:** No "you may … if you do" on action cards: the sampler closes that step
+  pattern for on-resolve abilities (a sampler test checks it). Units keep it. Generated sets
+  change from here on; the committed card sets still have some may-actions until they are
+  regenerated, and they still load (the engine and validator allow them).

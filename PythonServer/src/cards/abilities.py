@@ -196,7 +196,10 @@ class AbilitySampler:
 
     def _steps(self, ability: dict) -> list:
         t = self.trace
-        pattern = t.weighted("Step pattern", {"single": 7, "double": 3, "follow_up": 3, "may": 3, "choose_one": 2})
+        action = ability["kind"] == "on_resolve"
+        pattern = t.weighted("Step pattern", {"single": 7, "double": 3, "follow_up": 3, "may": 0 if action else 3,
+                                              "choose_one": 2},
+                             "no \"you may\" on actions: you play an action to use it" if action else "")
         if pattern == "single":
             with t.section("effect"):
                 return self._effect(ability)

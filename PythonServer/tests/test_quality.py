@@ -76,6 +76,12 @@ def test_sampled_abilities_pass_the_quality_tests():
         assert quality_problems(ability) == [] and complexity(ability) <= MAX_COMPLEXITY
 
 
+def test_actions_never_say_you_may():
+    """You play an action to use it, so its ability is never optional."""
+    sampler = AbilitySampler(random.Random(5))
+    assert not any("may" in step for _ in range(500) for step in sampler.ability("action")["steps"])
+
+
 def test_keyword_the_unit_already_has_cant_matter():
     elusive = {"kind": "static", "condition": {"this_is": "damaged"},
                "modifiers": [{"subject": "this", "keyword": "elusive", "value": 1}]}
