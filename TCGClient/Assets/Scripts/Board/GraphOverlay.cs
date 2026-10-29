@@ -135,7 +135,8 @@ namespace Tcg.Board
             view._tooltip.gameObject.SetActive(false);
             panel.gameObject.SetActive(false);
 
-            var toggle = Ui.Box("Toggle", root, 80, 690, 48, 22, bottom: true);
+            var toggle = Ui.Node("Toggle", root);  // under the DEV button
+            Ui.Anchor(toggle, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-22, -90), new Vector2(48, 22));
             Ui.Pill(toggle, UiText.GraphButton, Palette.CardNavy, 11, display: false);
             view._toggleFace = toggle.Find("Face").GetComponent<Image>();
             var button = toggle.gameObject.AddComponent<Button>();

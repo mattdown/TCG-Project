@@ -411,19 +411,12 @@ public static class ClientAssetBuilder
 
     static void BuildOpponentBar(BoardView bv, RectTransform board, Fonts f)
     {
-        // The enemy hero: portrait, name and a health bar. The whole panel is the attack_hero target.
-        bv.OpponentHero = Box("OpponentHero", board, 12, 2, 300, 56);
-        var ring = Ui.Outline(Stretch("TargetRing", bv.OpponentHero, -4, -4, -4, -4), Palette.GlowTarget, 16);
-        ring.gameObject.SetActive(false);
-        var avatar = Box("OpponentAvatar", board, 24, 8, 42, 42);
-        bv.OpponentAvatarText = Avatar(avatar, Palette.OpponentAccent, Palette.OpponentLip, 10, 4, 16, f);
-
-        bv.OpponentInfoText = Text(Box("OpponentInfo", board, 76, 9, 500, 20), "Opponent", f.NunitoBlack, 14,
-            Color.white, TextAlignmentOptions.Left);
-        Img(Box("OpponentHeart", board, 76, 29, 18, 17), Sprite("heart"), Color.white).preserveAspect = true;
-        bv.OpponentHealthFill = Bar(Box("OpponentHealth", board, 100, 31, 140, 12), Palette.Health, 6, 4, 3);
-        bv.OpponentHealthText = Number(Box("OpponentHealthText", board, 246, 26, 80, 21), f, 15);
-        bv.OpponentHealthText.alignment = TextAlignmentOptions.Left;
+        // The enemy hero's painted panel, top left. The whole panel is the attack_hero target.
+        bv.OpponentHero = HeroPanel("Opponent", board, ArtSprite("hero_opponent.png"), HeroInset, HeroInset, false, f,
+            out bv.OpponentNameText, out bv.OpponentHealthFill, out bv.OpponentHealthText);
+        bv.OpponentInfoText = Text(Box("OpponentInfo", board, HeroInset + HeroWidth + 6, HeroInset + 4, 160, 40), "", f.NunitoBlack, 13,
+            Palette.SubtleText, TextAlignmentOptions.TopLeft);
+        bv.OpponentInfoText.lineSpacing = -8f;
 
         // The help button takes the top-right corner; the enemy's mana sits to its left.
         var help = Node("Help", board);
@@ -440,16 +433,50 @@ public static class ClientAssetBuilder
 
     static void BuildHumanHero(BoardView bv, RectTransform board, Fonts f)
     {
-        bv.HumanHero = Box("HumanHero", board, 12, 498, 290, 92, bottom: true);
-        var avatar = Box("HumanAvatar", board, 24, 504, 48, 48, bottom: true);
-        Avatar(avatar, Palette.HumanAccent, Palette.HumanLip, 11, 5, 18, f).text = UiText.YouAvatar;
-        bv.HumanInfoText = Text(Box("HumanInfo", board, 82, 507, 180, 44, bottom: true), UiText.You, f.NunitoBlack, 15,
-            Color.white, TextAlignmentOptions.TopLeft);
-        bv.HumanInfoText.lineSpacing = -8f;
-        Img(Box("HumanHeart", board, 24, 558, 22, 20, bottom: true), Sprite("heart"), Color.white).preserveAspect = true;
-        bv.HumanHealthFill = Bar(Box("HumanHealth", board, 52, 560, 170, 16, bottom: true), Palette.Health, 8, 6, 4);
-        bv.HumanHealthText = Number(Box("HumanHealthText", board, 228, 556, 80, 24, bottom: true), f, 18);
-        bv.HumanHealthText.alignment = TextAlignmentOptions.Left;
+        // Your painted panel, bottom left; the deck count beside it is where drawn cards fly from.
+        bv.HumanHero = HeroPanel("Human", board, ArtSprite("hero_you.png"), HeroInset, 720 - HeroInset - HeroHeight, true, f,
+            out bv.HumanNameText, out bv.HumanHealthFill, out bv.HumanHealthText);
+        bv.HumanInfoText = Text(Box("HumanInfo", board, HeroInset + HeroWidth + 6, 720 - HeroInset - 26, 120, 22, bottom: true), "", f.NunitoBlack, 13,
+            Palette.SubtleText, TextAlignmentOptions.BottomLeft);
+    }
+
+    // The hero art (Art/Sprites/hero_*.png, 914x1071) and where its banner, bar slot and heart are, in its pixels.
+    const float HeroHeight = 185f, HeroInset = 18f;
+    const float HeroWidth = HeroHeight * 914f / 1071f;
+
+    /// <summary>
+    /// A hero: a red glow behind (the attack target ring), the painted panel with the character,
+    /// a health fill in its bar slot (BoardView sizes it), the name on the banner and the health in the heart.
+    /// </summary>
+    static RectTransform HeroPanel(string who, RectTransform board, Sprite art, float x, float y, bool bottom, Fonts f,
+        out TMP_Text name, out RectTransform fill, out TMP_Text health)
+    {
+        float s = HeroHeight / 1071f;
+        var panel = Box(who + "Hero", board, x, y, HeroWidth, HeroHeight, bottom);
+        RectTransform At(string part, float px, float py, float pw, float ph) => Box(part, panel, px * s, py * s, pw * s, ph * s);
+
+        // The glow's falloff (50 units) runs deeper than its inset, so only the soft edge shows past the panel.
+        var ring = Img(Stretch("TargetRing", panel, -22, -22, -22, -22), _glow, Palette.GlowTarget);
+        ring.type = Image.Type.Sliced;
+        ring.pixelsPerUnitMultiplier = 0.8f;
+        ring.gameObject.SetActive(false);
+        Img(Stretch("Art", panel, 0, 0, 0, 0), art, Color.white).raycastTarget = true;
+
+        fill = At("HealthFill", 142, 836, 508, 86);
+        Rounded(fill, Palette.Health, 4);
+        var shine = Node("Shine", fill);
+        shine.anchorMin = new Vector2(0, 1);
+        shine.anchorMax = new Vector2(1, 1);
+        shine.offsetMin = new Vector2(1, -3);
+        shine.offsetMax = new Vector2(-1, -1);
+        Rounded(shine, Color.white.WithAlpha(0.35f), 1.5f);
+
+        name = Text(At("Name", 225, 692, 510, 78), "", f.Lilita, 13, Color.white, TextAlignmentOptions.Center, f.LilitaOutline);
+        name.enableAutoSizing = true;
+        name.fontSizeMin = 7;
+        name.fontSizeMax = 13;
+        health = Number(At("Health", 677, 812, 140, 112), f, 15);
+        return panel;
     }
 
     static void BuildManaAndButtons(BoardView bv, RectTransform board, Fonts f)
@@ -528,31 +555,6 @@ public static class ClientAssetBuilder
     }
 
     // --- pieces
-
-    static TMP_Text Avatar(RectTransform rt, Color face, Color lip, float radius, float lipHeight, float size, Fonts f)
-    {
-        Rounded(rt, Palette.Outline, radius);
-        Rounded(Stretch("Lip", rt, 3, 3, 3, 3), lip, radius - 3);
-        Rounded(Stretch("Face", rt, 3, 3, 3, 3 + lipHeight), face, radius - 3);
-        return Text(Stretch("Text", rt, 0, 0, 0, 1), "", f.Lilita, size, Color.white, TextAlignmentOptions.Center,
-            f.LilitaOutline);
-    }
-
-    /// <summary>A health bar: navy track with 2 px padding; returns the fill, sized by BoardView.</summary>
-    static RectTransform Bar(RectTransform track, Color fill, float trackRadius, float fillRadius, float shineHeight)
-    {
-        Rounded(track, Palette.Outline, trackRadius);
-        var size = track.sizeDelta;
-        var bar = Box("Fill", track, 2, 2, size.x - 4, size.y - 4);
-        Rounded(bar, fill, fillRadius);
-        var shine = Node("Shine", bar);
-        shine.anchorMin = new Vector2(0, 1);
-        shine.anchorMax = new Vector2(1, 1);
-        shine.offsetMin = new Vector2(1, -shineHeight);
-        shine.offsetMax = new Vector2(-1, 0);
-        Rounded(shine, Color.white.WithAlpha(0.35f), Mathf.Min(fillRadius, shineHeight / 2f));
-        return bar;
-    }
 
     /// <summary>
     /// A right-aligned row: mana crystals (a template crystal BoardView clones) then a count, in a

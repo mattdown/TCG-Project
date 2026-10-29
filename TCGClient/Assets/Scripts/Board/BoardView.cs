@@ -19,7 +19,7 @@ namespace Tcg.Board
     {
         const float FieldScale = 0.86f;
         const float RowGap = 14f;
-        const float MaxRowWidth = 1180f;
+        const float MaxRowWidth = 900f;  // keeps a full row of 7 clear of the hero panels in the left corners
         const float HandStep = 118f;
         const float HandMaxWidth = 700f;
         const float BackStep = 40f;
@@ -37,7 +37,9 @@ namespace Tcg.Board
         [Header("Opponent bar")]
         [Tooltip("The enemy hero's panel: the attack_hero target.")]
         public RectTransform OpponentHero;
-        public TMP_Text OpponentAvatarText;
+        [Tooltip("The name on the hero panel's banner.")]
+        public TMP_Text OpponentNameText;
+        [Tooltip("Deck and hand counts, beside the panel.")]
         public TMP_Text OpponentInfoText;
         public RectTransform OpponentHealthFill;
         public TMP_Text OpponentHealthText;
@@ -46,6 +48,7 @@ namespace Tcg.Board
 
         [Header("Your side")]
         public RectTransform HumanHero;
+        public TMP_Text HumanNameText;
         public TMP_Text HumanInfoText;
         public RectTransform HumanHealthFill;
         public TMP_Text HumanHealthText;
@@ -138,12 +141,13 @@ namespace Tcg.Board
             _handGroup.alpha = s.InMulligan ? 0f : 1f;
             _handGroup.blocksRaycasts = !s.InMulligan;
 
-            OpponentAvatarText.text = Initials(opponentName);
-            OpponentInfoText.text = $"{opponentName} <color=#B8C6E8>· {UiText.Deck} {opponent.deck_count} · {UiText.Hand} {opponent.hand_count}</color>";
+            OpponentNameText.text = opponentName;
+            OpponentInfoText.text = $"{UiText.Deck} {opponent.deck_count}\n{UiText.Hand} {opponent.hand_count}";
             SetHealth(OpponentHealthFill, _opponentHealthWidth, OpponentHealthText, opponent.health, animate);
             SetCrystals(OpponentCrystals, OpponentManaText, opponent);
 
-            HumanInfoText.text = $"{UiText.You}\n<size=12><color=#B8C6E8>{UiText.Deck} {human.deck_count}</color></size>";
+            HumanNameText.text = UiText.You;
+            HumanInfoText.text = $"{UiText.Deck} {human.deck_count}";
             SetHealth(HumanHealthFill, _humanHealthWidth, HumanHealthText, human.health, animate);
             SetCrystals(HumanCrystals, HumanManaText, human);
             TurnText.text = $"{UiText.Turn} {s.turn}";
@@ -238,7 +242,10 @@ namespace Tcg.Board
             _heroRing.gameObject.SetActive(option);
             _heroRing.color = hovered ? Palette.GlowTarget : Palette.GlowTarget.WithAlpha(0.45f);
             int health = State?.Opponent.health ?? 0;
-            OpponentHealthText.text = hovered && damage > 0 ? $"{health} → {Mathf.Max(health - damage, 0)}" : $"{health}/{HeroHealth}";
+            // The heart shows the health it would have left, in gold, while an attack on it is under the finger.
+            bool preview = hovered && damage > 0;
+            OpponentHealthText.text = (preview ? Mathf.Max(health - damage, 0) : health).ToString();
+            OpponentHealthText.color = preview ? Palette.Gold : Color.white;
         }
 
         // --- the opponent's actions
@@ -605,7 +612,7 @@ namespace Tcg.Board
             fill.gameObject.SetActive(t > 0f);
             if (animate) fill.DOSizeDelta(size, 0.5f).SetEase(Ease.OutCubic);
             else fill.sizeDelta = size;
-            label.text = $"{health}/{HeroHealth}";
+            label.text = health.ToString();
         }
 
         /// <summary>One crystal per mana crystal: full ones lit, spent ones empty; "mana/crystals" beside them.</summary>
@@ -624,12 +631,6 @@ namespace Tcg.Board
                 crystal.localScale = Vector3.one;
             }
             label.text = $"{p.mana}/{p.crystals}";
-        }
-
-        static string Initials(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "?";
-            return name.Length <= 2 ? name.ToUpperInvariant() : name.Substring(0, 2).ToUpperInvariant();
         }
     }
 }

@@ -7,7 +7,6 @@ namespace Tcg.View
     public static class UiText
     {
         public const string You = "You";
-        public const string YouAvatar = "ME";
         public const string Deck = "Deck";
         public const string Hand = "Hand";
         public const string Turn = "TURN";

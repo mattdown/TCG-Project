@@ -119,7 +119,8 @@ namespace Tcg.Board
             var root = Ui.Stretch("Dev", parent, 0, 0, 0, 0);
             var view = root.gameObject.AddComponent<DevPanel>();
             // Raycasts pass through the full-screen root except on its button and open panel.
-            var toggle = Ui.Box("Toggle", root, 24, 690, 48, 22, bottom: true);
+            var toggle = Ui.Node("Toggle", root);  // under the help button, top right
+            Ui.Anchor(toggle, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-22, -62), new Vector2(48, 22));
             Ui.Pill(toggle, UiText.DevButton, Palette.CardNavy, 11, display: false);
             var toggleButton = toggle.gameObject.AddComponent<Button>();
             toggleButton.targetGraphic = toggle.GetComponent<Image>();

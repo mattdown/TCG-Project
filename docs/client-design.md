@@ -20,10 +20,12 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 >   hidden (Elusive) one can't be targeted by enemies.
 > - **Subtitles** under card names.
 >
-> As built: each hero keeps its v1 corner (the enemy's top left, yours bottom left) with a
-> heart and a health bar in place of the VP bar; the enemy hero's whole panel is the
-> `attack_hero` drop target, ringed red while an arrow is out and showing "22 → 19" under the
-> finger. Mana crystals are painted stones (`Art/Sprites/mana_full.png` / `mana_empty.png`) in a
+> As built: each hero is a painted panel (`Art/Sprites/hero_opponent.png` top left,
+> `hero_you.png` bottom left) with its mushroom character, the name on the green banner, a red
+> health fill in the bar slot and the health left in the heart; deck and hand counts sit beside
+> it. The enemy hero's whole panel is the `attack_hero` drop target, with a soft red glow while an
+> arrow is out and the health it would have left, in gold, in the heart under the finger.
+> Mana crystals are painted stones (`Art/Sprites/mana_full.png` / `mana_empty.png`) in a
 > row with a "4/6" count, over a soft dark glow that widens with the row; the ones a play would
 > spend get a gold disc behind them. The Spare Spore is a purple button left of
 > the turn pill, labelled with the action's text. Frozen units show ice and a ❄ over the art;
@@ -61,11 +63,11 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 
 | Area | Where |
 |---|---|
-| Opponent bar | top strip: avatar, name, deck and hand counts, VP bar (left); energy gems (right); card backs peek in at top centre |
+| Opponent bar | top strip: the enemy hero panel with deck and hand counts beside it (left); mana crystals and the help button, with the DEV / GNN dev buttons under it (right); card backs peek in at top centre |
 | Opponent units | one centred row near the top |
 | Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`) |
 | Your units | one centred row below the divider |
-| Your VP | bottom left: avatar, deck count, VP bar |
+| Your hero | bottom left: your hero panel, with the deck count beside it |
 | Your energy, END TURN | bottom right: energy gems with a ready/total count, turn number, END TURN button |
 | Hand | fanned along the bottom centre, partly off-screen |
 
@@ -112,7 +114,7 @@ bright in its action colour under the finger, with a label. Highlights come from
 |---|---|---|---|
 | Drag a hand card | your side of the field | `play` | green zone, "Drop to play · N mana"; a light slot shows where it lands; the crystals it will spend are outlined |
 | Drag an arrow from a unit | an enemy unit | `attack` | valid targets get red rings, others dim; the hovered one shows the result ("Defeated", "Takes 2") |
-| Drag an arrow from a unit | the enemy hero | `attack_hero` | the portrait gets a red ring; the health previews the loss ("−3") |
+| Drag an arrow from a unit | the enemy hero | `attack_hero` | the hero panel glows red; the heart shows the health left, in gold |
 | Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; hand cards also get a PLAY button, greyed out when not legal |
 
 Rules behind the highlights (from `src/game/engine.py`): any enemy unit can be attacked, but
