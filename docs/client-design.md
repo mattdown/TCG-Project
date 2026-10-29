@@ -61,7 +61,7 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 |---|---|
 | Opponent bar | top strip: avatar, name, deck and hand counts, VP bar (left); energy gems (right); card backs peek in at top centre |
 | Opponent units | one centred row near the top |
-| Divider | a thin semi-transparent white line across the field |
+| Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`) |
 | Your units | one centred row below the divider |
 | Your VP | bottom left: avatar, deck count, VP bar |
 | Your energy, END TURN | bottom right: energy gems with a ready/total count, turn number, END TURN button |
@@ -72,13 +72,15 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 One card design is used everywhere: 150×210 at 100% in hand, 86% on the field, about 2× when
 inspected. Every card on the field shows its full text.
 
-- **Cost:** a hexagonal gem, top left. A gold rim means it's an energy source; a dark rim means it isn't.
-- **Score:** one crown per VP, top right of the art.
-- **Name:** a banner in the aspect colour across the bottom of the art.
-- **Text box:** keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is aligned top left and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
-- **Traits:** a small navy tag at the bottom centre.
-- **Power:** an orange circle with a sword through it, bottom left.
-- **Health:** a heart, bottom right, showing health *left* (damage lowers the number).
+- **Frame:** painted art (`Art/Sprites/card_frame.png`; action cards use `card_frame_action.png`,
+  which has no power orb or health shield). The card art shows through the oval window. The
+  builder places every part in the frame art's own pixels (`ClientAssetBuilder.FrameBox`).
+- **Cost:** on the frame's pink gem, top left.
+- **Name:** on the wooden banner under the art; the subtitle goes on the small tab below it.
+- **Text box:** the parchment, in dark brown. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
+- **Traits:** a small navy tag on the bottom edge, its rim in the aspect colour.
+- **Power:** on the gold orb, bottom left.
+- **Health:** on the red shield, bottom right, showing health *left* (damage lowers the number).
 
 States:
 

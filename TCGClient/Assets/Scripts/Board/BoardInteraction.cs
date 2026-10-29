@@ -55,7 +55,7 @@ namespace Tcg.Board
             Ui.Theme = Board.Theme;
             Board.InputHandler = this;
             var root = Board.Root;
-            int below = root.Find("Fade").GetSiblingIndex() + 1;
+            int below = root.Find("Background").GetSiblingIndex() + 1;
 
             _field = DropZone.Create("PlayZone", root, Palette.GlowPlayable, PlayLabel, 0.18f);
             Ui.Anchor(_field.Rect, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -282), new Vector2(1200, 198));

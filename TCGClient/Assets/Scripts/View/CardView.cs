@@ -20,12 +20,15 @@ namespace Tcg.View
     {
         public const float Width = 150f, Height = 210f;
         const float SelectedLift = 10f;
-        const float StatsClearance = 50f;  // banner width kept clear of the power and health badges
 
         [Header("Parts")]
         public RectTransform Visual;
         public Image GlowHalo, GlowRing;
-        public Image FrameEdge, BannerFill, Art;
+        [Tooltip("The painted frame over the art, and its shadow.")]
+        public Image Frame, FrameShadow;
+        [Tooltip("The job tag's rim, in the aspect colour.")]
+        public Image AspectTag;
+        public Image Art;
         [Tooltip("Dims the art once the unit has attacked."), FormerlySerializedAs("ExhaustedOverlay")]
         public GameObject AttackedOverlay;
         [Tooltip("Ice over the art: frozen, so it can't attack on its next turn.")]
@@ -44,6 +47,8 @@ namespace Tcg.View
         [Tooltip("Placeholder art: 4 silhouettes per aspect, aspect-major (aspect_1 first).")]
         public Sprite[] ArtSprites;
         public const int ArtPerAspect = 4;
+        [Tooltip("Units have the power orb and health shield painted on; action cards don't.")]
+        public Sprite UnitFrame, ActionFrame;
 
         public int Uid { get; private set; } = -1;
         public CardDef Def { get; private set; }
@@ -88,21 +93,13 @@ namespace Tcg.View
         void BindDefinition(CardDef def)
         {
             int aspect = Palette.AspectNumber(def.aspects != null && def.aspects.Count > 0 ? def.aspects[0] : null);
-            Color aspectColour = Palette.Aspect(aspect);
-            FrameEdge.color = aspectColour;
-            BannerFill.color = aspectColour;
+            AspectTag.color = Palette.Aspect(aspect);
             Art.sprite = PickArt(def, aspect);
+            Frame.sprite = FrameShadow.sprite = def.IsAction ? ActionFrame : UnitFrame;
 
-            // The name, with the subtitle (the character's version) on a smaller line under it.
-            // Units keep the banner's right end clear for the power and health badges over it.
-            bool subtitled = !string.IsNullOrEmpty(def.subtitle);
-            float right = def.IsAction ? 3f : StatsClearance;
+            // The name on the banner; the subtitle (the character's version) on the tab under it.
             NameText.text = def.name;
-            NameText.rectTransform.offsetMin = new Vector2(NameText.rectTransform.offsetMin.x, subtitled ? 11f : 0f);
-            NameText.rectTransform.offsetMax = new Vector2(-right, NameText.rectTransform.offsetMax.y);
-            SubtitleText.rectTransform.offsetMax = new Vector2(-right, SubtitleText.rectTransform.offsetMax.y);
             SubtitleText.text = def.subtitle ?? "";
-            SubtitleText.gameObject.SetActive(subtitled);
             foreach (var go in UnitOnly) go.SetActive(!def.IsAction);
 
             // The unit's job, or the card type for action cards.

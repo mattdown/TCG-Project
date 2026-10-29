@@ -147,11 +147,11 @@ namespace Tcg.Board
             }
 
             var cost = At(_card.CostGem, 0.75f, 0.5f);
-            var colour = At(_card.FrameEdge.rectTransform, 0f, 0.28f);
+            var colour = At(_card.AspectTag.rectTransform, 0.04f, 0.5f);
             var name = At(_card.NameText.rectTransform, 0.08f, 0.5f);
             var rules = At(_card.BodyText.rectTransform, 0.12f, 0.5f);
-            var sword = At(_card.PowerIcon, 0.76f, 0.24f);  // the blade: the sprite is drawn at 45 degrees
-            var heart = At(_card.HealthIcon, 0.45f, 0.5f);
+            var sword = At(_card.PowerIcon, 0.5f, 0.15f);
+            var heart = At(_card.HealthIcon, 0.5f, 0.5f);
             var job = At(_card.TraitTag, 0.92f, 0.5f);
 
             Label(UiText.HelpCost, UiText.HelpCostText, cost, left: true, labelTop: cost.y - 22);

@@ -11,6 +11,7 @@ namespace Tcg.View
         public static readonly Color CardShadow = Hex("#0A1022");
         public static readonly Color TextBox = Hex("#E9EEF8");
         public static readonly Color BodyText = Hex("#24304F");
+        public static readonly Color ParchmentText = Hex("#3A2717");  // text on the card frame's parchment
         public static readonly Color SubtleText = Hex("#B8C6E8");
         public static readonly Color TraitText = Hex("#D6E0F5");
         public static readonly Color Energy = Hex("#E24BD6");

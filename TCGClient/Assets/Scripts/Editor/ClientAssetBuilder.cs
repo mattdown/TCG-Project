@@ -20,6 +20,7 @@ using UnityEngine.UI;
 public static class ClientAssetBuilder
 {
     const string ArtDir = "Assets/Art/Generated";
+    const string PaintedDir = "Assets/Art/Sprites";
     const string FontDir = "Assets/Fonts";
     const string PrefabPath = "Assets/Prefabs/Card.prefab";
     const string ScenePath = "Assets/Scenes/Main.unity";
@@ -78,7 +79,28 @@ public static class ClientAssetBuilder
             ti.SaveAndReimport();
         }
         _glow = Sprite("glow");
+
+        // Painted art (card frames, the arena): large and shown much smaller, so mipmapped.
+        foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { PaintedDir }))
+        {
+            var ti = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+            ti.textureType = TextureImporterType.Sprite;
+            ti.spriteImportMode = SpriteImportMode.Single;
+            ti.mipmapEnabled = true;
+            ti.alphaIsTransparency = true;
+            ti.maxTextureSize = 4096;
+            ti.textureCompression = TextureImporterCompression.CompressedHQ;
+            ti.filterMode = FilterMode.Trilinear;
+            ti.wrapMode = TextureWrapMode.Clamp;
+            var settings = new TextureImporterSettings();
+            ti.ReadTextureSettings(settings);
+            settings.spriteMeshType = SpriteMeshType.FullRect;
+            ti.SetTextureSettings(settings);
+            ti.SaveAndReimport();
+        }
     }
+
+    static Sprite ArtSprite(string file) => AssetDatabase.LoadAssetAtPath<Sprite>($"{PaintedDir}/{file}");
 
     static UiTheme BuildTheme(Fonts f)
     {
@@ -148,7 +170,8 @@ public static class ClientAssetBuilder
         m.SetTexture(ShaderUtilities.ID_MainTex, f.Lilita.material.GetTexture(ShaderUtilities.ID_MainTex));
         m.SetFloat(ShaderUtilities.ID_GradientScale, f.Lilita.material.GetFloat(ShaderUtilities.ID_GradientScale));
         m.SetColor(ShaderUtilities.ID_OutlineColor, Palette.Outline);
-        m.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.28f);
+        m.EnableKeyword(ShaderUtilities.Keyword_Outline);
+        m.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.349f);
         m.SetFloat(ShaderUtilities.ID_FaceDilate, 0.22f);
         m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
         m.SetColor(ShaderUtilities.ID_UnderlayColor, Palette.Outline);
@@ -203,69 +226,74 @@ public static class ClientAssetBuilder
         cv.GlowRing.gameObject.SetActive(false);
         cv.TargetOutline = Ui.Outline(Stretch("TargetRing", visual, -7, -7, -7, -7), Palette.GlowTarget, 16);
         cv.TargetOutline.gameObject.SetActive(false);
-        Rounded(Stretch("Shadow", visual, 0, 5, 0, -5), Palette.CardShadow, 13);
-        Rounded(Stretch("Body", visual, 0, 0, 0, 0), Palette.CardNavy, 13).raycastTarget = true;  // taps and drags
-        cv.FrameEdge = Rounded(Stretch("FrameEdge", visual, 4, 4, 4, 6), Palette.Aspect(1), 10);
-        var frame = Stretch("Frame", cv.FrameEdge.rectTransform, 2, 2, 2, 2);
-        Rounded(frame, Palette.TextBox, 8);
-        frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+        Img(Stretch("Body", visual, 0, 0, 0, 0), null, Color.clear).raycastTarget = true;  // taps and drags
 
+        // The frame art's own outline as the drop shadow.
+        cv.UnitFrame = ArtSprite("card_frame.png");
+        cv.ActionFrame = ArtSprite("card_frame_action.png");
+        var shadow = FrameBox("Shadow", visual, 0, 0, FramePx.x, FramePx.y);
+        shadow.anchoredPosition += new Vector2(0, -4);
+        cv.FrameShadow = Img(shadow, cv.UnitFrame, Palette.CardShadow.WithAlpha(0.5f));
+
+        // The art sits behind the frame, clipped to the oval window's bounds (the frame hides the corners).
+        var window = FrameBox("ArtWindow", visual, 264, 218, 856, 862);
+        window.gameObject.AddComponent<RectMask2D>();
         var artSprites = new List<Sprite>();
         for (int a = 1; a <= 6; a++)
             foreach (var n in ArtNames) artSprites.Add(Sprite($"art_{a}_{n}"));
         cv.ArtSprites = artSprites.ToArray();
-        cv.Art = Img(Box("Art", frame, 0, 0, 138, 92), artSprites[2], Color.white);
+        var artBox = Node("Art", window);
+        float artHeight = 862 * FrameScale;
+        Anchor(artBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(artHeight * 1.5f, artHeight));
+        cv.Art = Img(artBox, artSprites[2], Color.white);
 
         // A unit that has attacked: the art just dims (the glow on units that can attack does the rest).
-        var attacked = Box("Attacked", frame, 0, 0, 138, 92);
+        var attacked = Stretch("Attacked", window, 0, 0, 0, 0);
         Img(attacked, null, Palette.Attacked);
         cv.AttackedOverlay = attacked.gameObject;
         attacked.gameObject.SetActive(false);
 
         // Frozen: ice over the art. Hidden (Elusive, not attacked yet): a misty veil.
-        var frozen = Box("Frozen", frame, 0, 0, 138, 92);
+        var frozen = Stretch("Frozen", window, 0, 0, 0, 0);
         Img(frozen, null, Palette.Hex("#BDEBFF").WithAlpha(0.55f));
         Text(Stretch("Flake", frozen, 0, 0, 0, 0), "❄", f.Lilita, 34, Palette.Hex("#F2FBFF"),
             TextAlignmentOptions.Center, f.LilitaOutline);
         cv.FrozenOverlay = frozen.gameObject;
         frozen.gameObject.SetActive(false);
-        var hidden = Box("Hidden", frame, 0, 0, 138, 92);
+        var hidden = Stretch("Hidden", window, 0, 0, 0, 0);
         Img(hidden, null, Palette.Hex("#C9C2F2").WithAlpha(0.45f));
         cv.HiddenOverlay = hidden.gameObject;
         hidden.gameObject.SetActive(false);
 
-        // The name banner, with room for the subtitle line under the name.
-        var banner = Box("Banner", frame, 0, 78, 138, 28);
-        Img(banner, null, Palette.CardNavy);
-        cv.BannerFill = Img(Stretch("Fill", banner, 0, 2, 0, 2), null, Palette.Aspect(1));
-        var shine = Node("Shine", cv.BannerFill.rectTransform);
-        shine.anchorMin = new Vector2(0, 1);
-        shine.anchorMax = new Vector2(1, 1);
-        shine.offsetMin = new Vector2(0, -3);
-        shine.offsetMax = Vector2.zero;
-        Img(shine, null, Color.white.WithAlpha(0.3f));
-        cv.NameText = Text(Stretch("Name", banner, 3, 0, 3, 0), "Card name", f.Lilita, 13, Color.white,
+        cv.Frame = Img(FrameBox("Frame", visual, 0, 0, FramePx.x, FramePx.y), cv.UnitFrame, Color.white);
+
+        // The name on the wooden banner; the subtitle on the tab under it.
+        cv.NameText = Text(FrameBox("Name", visual, 215, 1092, 940, 150), "Card name", f.Lilita, 13, Color.white,
             TextAlignmentOptions.Center, f.LilitaOutline);
         cv.NameText.enableAutoSizing = true;
         cv.NameText.fontSizeMin = 8;
         cv.NameText.fontSizeMax = 13;
-        cv.SubtitleText = Text(Stretch("Subtitle", banner, 4, 15, 4, 2), "", f.NunitoItalic, 8.5f,
-            Color.white.WithAlpha(0.92f), TextAlignmentOptions.Center);
+        cv.SubtitleText = Text(FrameBox("Subtitle", visual, 440, 1268, 485, 90), "", f.NunitoItalic, 8.5f,
+            Palette.ParchmentText, TextAlignmentOptions.Center);
         cv.SubtitleText.enableAutoSizing = true;
-        cv.SubtitleText.fontSizeMin = 6.5f;
+        cv.SubtitleText.fontSizeMin = 5f;
         cv.SubtitleText.fontSizeMax = 8.5f;
 
-        cv.BodyText = Text(Box("Text", frame, 8, 108, 122, 64), "", f.Nunito, 10, Palette.BodyText,
-            TextAlignmentOptions.TopLeft);
+        // The parchment, kept clear of the power orb and the shield in its bottom corners.
+        cv.BodyText = Text(FrameBox("Text", visual, 250, 1385, 870, 380), "", f.Nunito, 10, Palette.ParchmentText,
+            TextAlignmentOptions.Center);
         cv.BodyText.textWrappingMode = TextWrappingModes.Normal;
         cv.BodyText.lineSpacing = -12f;
         cv.BodyText.enableAutoSizing = true;
         cv.BodyText.fontSizeMin = 5;
         cv.BodyText.fontSizeMax = 10;
 
-        var tag = Node("Traits", frame);
-        Anchor(tag, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 4), new Vector2(0, 14));
-        Rounded(tag, Palette.CardNavy, 6);
+        // The job tag on the bottom edge, its rim in the aspect colour.
+        var tag = Node("Traits", visual);
+        Anchor(tag, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 0), new Vector2(0, 12));
+        cv.AspectTag = Rounded(tag, Palette.Aspect(1), 6);
+        var tagFill = Rounded(Stretch("Fill", tag, 1.5f, 1.5f, 1.5f, 1.5f), Palette.CardNavy, 5);
+        tagFill.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
         var tagLayout = tag.gameObject.AddComponent<HorizontalLayoutGroup>();
         tagLayout.padding = new RectOffset(8, 8, 0, 0);
         tagLayout.childControlWidth = tagLayout.childControlHeight = true;
@@ -277,22 +305,18 @@ public static class ClientAssetBuilder
         cv.TraitText.characterSpacing = 4f;
         cv.TraitTag = tag;
 
-        var cost = Box("Cost", visual, -7, -7, 36, 39);
-        Img(Stretch("Fill", cost, 0, 0, 0, 0), Sprite("gem_fill"), Palette.Energy);
-        Img(Stretch("Rim", cost, 0, 0, 0, 0), Sprite("gem_rim"), Palette.Outline);
-        Img(Stretch("Shine", cost, 0, 0, 0, 0), Sprite("gem_shine"), Color.white.WithAlpha(0.6f));
-        cv.CostText = Number(Stretch("Value", cost, 0, 0, 0, 1), f, 20);
+        // The numbers sit on the frame's own gem (cost), orb (power) and shield (health).
+        var cost = FrameBox("Cost", visual, 125, 160, 200, 200);
+        cv.CostText = Number(Stretch("Value", cost, 0, 3.3f, 0, -2.3f), f, 20);
         cv.CostGem = cost;
 
-        // Power and health sit above the name banner, clear of the card name.
-        var sword = Img(Box("Power", visual, 67.78f, 40.02f, 68, 68), Sprite("sword"), Color.white);
-        cv.PowerText = Number(Box("PowerValue", visual, 92.78f, 61.02f, 22, 22), f, 17);
-
-        var heart = Img(Box("Health", visual, 117.68f, 57.22f, 36, 33), Sprite("heart"), Color.white);
-        cv.HealthText = Number(Box("HealthValue", visual, 117.68f, 57.22f, 36, 29), f, 18);
-        cv.PowerIcon = sword.rectTransform;
-        cv.HealthIcon = heart.rectTransform;
-        cv.UnitOnly = new[] { sword.gameObject, cv.PowerText.gameObject, heart.gameObject, cv.HealthText.gameObject };
+        var power = FrameBox("Power", visual, 125, 1720, 180, 180);
+        cv.PowerText = Number(Stretch("Value", power, 0, 0.5f, 0, 0.5f), f, 18);
+        var health = FrameBox("Health", visual, 1085, 1712, 175, 175);
+        cv.HealthText = Number(Stretch("Value", health, 0, 4.34f, 0, -1.34f), f, 18);
+        cv.PowerIcon = power;
+        cv.HealthIcon = health;
+        cv.UnitOnly = new[] { power.gameObject, health.gameObject };
 
         System.IO.Directory.CreateDirectory("Assets/Prefabs");
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
@@ -300,7 +324,19 @@ public static class ClientAssetBuilder
         return prefab.GetComponent<CardView>();
     }
 
+    // The frame art (Art/Sprites/card_frame*.png, 1342x2000) in card units: its wood and parchment
+    // fill the 150x210 card, and the cost gem pokes out at the top left.
+    static readonly Vector2 FramePx = new(1342, 2000);
+    const float FrameScale = 0.1127f;
+    static readonly Vector2 FrameOrigin = new(-0.6f, -10.9f);
+
+    /// <summary>A box placed in frame-art pixels (y down from the art's top-left).</summary>
+    static RectTransform FrameBox(string name, Transform card, float x, float y, float w, float h) =>
+        Box(name, card, FrameOrigin.x + x * FrameScale, FrameOrigin.y + y * FrameScale, w * FrameScale, h * FrameScale);
+
     // --- the board
+
+    const float DividerY = 270f;  // between the unit rows (centres 160.5 and 380.5 down)
 
     static void BuildBoardScene(Fonts f, CardView cardPrefab, UiTheme theme)
     {
@@ -329,10 +365,12 @@ public static class ClientAssetBuilder
         bv.CardPrefab = cardPrefab;
         bv.Theme = theme;
 
-        Img(Stretch("Background", board, 0, 0, 0, 0), null, Palette.UiNavy);
-        var field = Img(Stretch("Field", board, 0, 0, 0, 0), Sprite("field_tile"), Color.white);
-        field.type = Image.Type.Tiled;
-        Img(Stretch("Fade", board, 0, 0, 0, 0), Sprite("field_fade"), Color.white);
+        // The forest arena, its centre line on the divider between the two rows of units.
+        var arena = Node("Background", board);
+        Img(arena, ArtSprite("game_background.jpeg"), Color.white);
+        var fit = arena.gameObject.AddComponent<BackgroundFit>();
+        fit.ArtLine = 778f / 1536f;
+        fit.BoardLine = DividerY;
 
         // Opponent's hand: card backs peeking in at the top centre.
         bv.OpponentBacks = Node("OpponentBacks", board);
@@ -347,20 +385,7 @@ public static class ClientAssetBuilder
 
         BuildOpponentBar(bv, board, f);
 
-        // The field: both rows of units around a divider line.
-        var divider = Node("Divider", board);
-        divider.anchorMin = new Vector2(0, 1);
-        divider.anchorMax = new Vector2(1, 1);
-        divider.offsetMin = new Vector2(48, -272);
-        divider.offsetMax = new Vector2(-48, -270);
-        Img(divider, null, Palette.Outline.WithAlpha(0.2f));
-        var line = Node("Line", board);
-        line.anchorMin = new Vector2(0, 1);
-        line.anchorMax = new Vector2(1, 1);
-        line.offsetMin = new Vector2(48, -270);
-        line.offsetMax = new Vector2(-48, -268);
-        Img(line, null, Color.white.WithAlpha(0.5f));
-
+        // The field: both rows of units either side of the arena's line.
         bv.OpponentUnits = Node("OpponentUnits", board);
         Anchor(bv.OpponentUnits, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -160.5f), Vector2.zero);
         bv.HumanUnits = Node("HumanUnits", board);
