@@ -235,8 +235,10 @@ public static class ClientAssetBuilder
         cv.FrameShadow = Img(shadow, cv.UnitFrame, Palette.CardShadow.WithAlpha(0.5f));
 
         // The art sits behind the frame, clipped to the oval window's bounds (the frame hides the corners).
+        // A stencil Mask, not RectMask2D: that clips to a screen-aligned rect, so it breaks on the tilted hand.
         var window = FrameBox("ArtWindow", visual, 264, 218, 856, 862);
-        window.gameObject.AddComponent<RectMask2D>();
+        Img(window, null, Color.white);
+        window.gameObject.AddComponent<Mask>().showMaskGraphic = false;
         var artSprites = new List<Sprite>();
         for (int a = 1; a <= 6; a++)
             foreach (var n in ArtNames) artSprites.Add(Sprite($"art_{a}_{n}"));
