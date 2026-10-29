@@ -70,7 +70,7 @@ body.render #controls { display: none; }
 const A = window.LAB_DATA.kept;
 const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
 const INTRO = 0.6, OUTRO = 3.6;
-const ABILITY_BEAT = 1.0, CARD_BEAT = 0.35;  // seconds per decision: the ability's, then the card's (name, cost, stats)
+const STEP = 2.0;  // seconds per decision, the ability's and the card's alike
 const SHOW_ODDS = false;  // the running "1 in N" and the final odds under the card
 let PATH_END = 0, DURATION = 0;  // set by time(): the video is as long as the card's path needs
 const FAN = 175, FORK = 620;  // option stub length, gap between the branches of a "choose one"
@@ -107,7 +107,7 @@ function textWidth(text, px, weight = 700) {
 
 // ------------------------------------------------------------------ layout
 const beats = [], links = [];
-const bounds = { x0: 0, x1: 0, y0: 0, y1: 0 };  // the ability's part of the tree: the final shot
+const bounds = { x0: 0, x1: 0, y0: 0, y1: 0 };  // both trees: the final shot
 let pending = [];  // beats whose chosen option links to the next decision placed
 
 function grow(x, y) {
@@ -115,11 +115,19 @@ function grow(x, y) {
   bounds.y0 = Math.min(bounds.y0, y); bounds.y1 = Math.max(bounds.y1, y);
 }
 const hasDecisions = (n) => n.children.some((c) => "decision" in c || hasDecisions(c));
+const gapFor = (n) => (n > 1 ? Math.min(54, 480 / (n - 1)) : 0);
+const titleRise = (span) => Math.max(54, span / 2 + 40);  // a decision's title sits this far above its node
+
+function headroom(sec) {
+  // How far the tallest fan and its title reach above its node: room to leave above a tree.
+  return Math.max(0, ...sec.children.map((c) => ("decision" in c
+    ? titleRise((c.options.length - 1) * gapFor(c.options.length)) + 30 : headroom(c))));
+}
 
 function place(d, pt, crumbs, inAbility) {
   const n = d.options.length, open = d.options.filter((o) => o.p > 0);
   const size = n > 12 ? 14 : n > 7 ? 17 : 20;
-  const gap = n > 1 ? Math.min(54, 480 / (n - 1)) : 0;
+  const gap = gapFor(n);
   const chosen = d.options.find((o) => o.name === d.chosen);
   const b = { d, x: pt.x, y: pt.y, crumbs, inAbility, n, size, gap, open: open.length, forced: open.length <= 1,
     p: chosen.p, i: beats.length };
@@ -128,7 +136,7 @@ function place(d, pt, crumbs, inAbility) {
   const labelW = Math.max(...d.options.map((o) => textWidth(pretty(o.name), size)));
   const chosenW = textWidth(pretty(d.chosen) + "  " + pct(chosen.p), size, 900);
   b.span = (n - 1) * gap;
-  if (inAbility || !beats.length) { grow(pt.x - 60, pt.y - b.span / 2 - 50); grow(pt.x + FAN + labelW + 90, pt.y + b.span / 2 + 20); }
+  grow(pt.x - 60, pt.y - titleRise(b.span) - 30); grow(pt.x + FAN + labelW + 90, pt.y + b.span / 2 + 20);
   for (const from of pending) links.push({ from, to: b });
   beats.push(b);
   pending = [b];
@@ -155,6 +163,12 @@ function walk(sec, pt, crumbs, inAbility) {
       pt = { x, y: pt.y };
       continue;
     }
+    if (c.section === "card" && !crumbs.length) {  // building the card: its own tree, below the ability's
+      pending = [];
+      walk(c, { x: 0, y: bounds.y1 + 90 + headroom(c) }, [c.section], false);
+      i++;
+      continue;
+    }
     pt = walk(c, pt, [...crumbs, c.section], inAbility || c.section === "ability");
     i++;
   }
@@ -164,7 +178,7 @@ function walk(sec, pt, crumbs, inAbility) {
 // ------------------------------------------------------------------ timing
 function time() {
   let t = INTRO;
-  for (const b of beats) { b.t0 = t; t += b.inAbility || b.i === 0 ? ABILITY_BEAT : CARD_BEAT; b.t1 = t; }
+  for (const b of beats) { b.t0 = t; t += STEP; b.t1 = t; }
   PATH_END = t;
   DURATION = window.DURATION = t + OUTRO;
 }
@@ -180,8 +194,6 @@ function svg(tag, attrs, parent = cam) {
 }
 const curve = (x0, y0, x1, y1) => `M${x0} ${y0} C${(x0 + x1) / 2} ${y0} ${(x0 + x1) / 2} ${y1} ${x1} ${y1}`;
 
-function hashOf(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
-
 function build() {
   const linkLayer = svg("g", {}), optLayer = svg("g", {}), nodeLayer = svg("g", {});
   for (const l of links) {
@@ -192,7 +204,6 @@ function build() {
   }
   for (const b of beats) {
     const opts = svg("g", {}, optLayer), nodes = svg("g", {}, nodeLayer);
-    b.layers = [opts, nodes];
     b.opts = b.d.options.map((o, k) => {
       const end = b.ends[k], chosen = o.name === b.d.chosen, closed = o.p === 0;
       const width = closed ? 2 : 2 + 14 * o.p;  // on screen, in pixels: draw() divides by the zoom
@@ -206,22 +217,10 @@ function build() {
         chip = svg("tspan", { class: "p", dx: 8 }, label);
         chip.textContent = pct(o.p);
       }
-      // Faint twigs past each option that wasn't taken: every one leads on into its own subtree.
-      const twigs = [];
-      let bridge = null;  // joins the option to its twigs once the labels have gone
-      if (!chosen && !closed && b.n <= 12) {
-        const x = end.x + 22 + textWidth(pretty(o.name), b.size), h = hashOf(b.d.decision + o.name);
-        bridge = svg("path", { d: `M${end.x} ${end.y} L${x} ${end.y}`, fill: "none", "stroke-linecap": "round" }, opts);
-        for (let j = 0; j < 2 + (h % 3); j++) {
-          const dy = (j - 1) * (8 + (h >> (j + 2)) % 9);
-          twigs.push(svg("path", { d: curve(x, end.y, x + 46 + ((h >> j) % 30), end.y + dy * 1.6), fill: "none",
-            stroke: "#7F8DBA", pathLength: 1, "stroke-dasharray": 1 }, opts));
-        }
-      }
-      return { line, label, chip, twigs, bridge, chosen, closed, width };
+      return { line, label, chip, chosen, closed, width };
     });
     b.node = svg("circle", { cx: b.x, cy: b.y, fill: "#FFC93C", stroke: "#0E1733" }, nodes);
-    b.title = svg("text", { class: "dlabel", x: b.x, y: b.y - Math.max(54, b.span / 2 + 40), "text-anchor": "middle" }, nodes);
+    b.title = svg("text", { class: "dlabel", x: b.x, y: b.y - titleRise(b.span), "text-anchor": "middle" }, nodes);
     b.title.textContent = b.d.decision;
   }
 }
@@ -251,8 +250,11 @@ function camera(t) {
     if (next && u > 0.6) {
       const s = ease((u - 0.6) / 0.4), n = focusOf(next);
       c = blend(c, n, s);
-      const far = Math.min(1, Math.hypot(n.x - b.x, n.y - b.y) / 900);
-      c.z *= 1 - 0.38 * far * Math.sin(Math.PI * s);  // pull back a little on long moves
+      // Pull back on long moves; on the jump to the card's tree, as far as the overview, so both trees stay in view.
+      const dist = Math.hypot(n.x - b.x, n.y - b.y), arc = Math.sin(Math.PI * s);
+      c.z *= 1 - 0.38 * Math.min(1, dist / 900) * arc;
+      const jump = clamp((dist - 1500) / 1500) * arc;
+      if (jump > 0) c.z = Math.exp(lerp(Math.log(c.z), Math.log(fitAll().z * 1.15), jump));
     }
   } else {
     c = blend(focusOf(beats[beats.length - 1]), fitAll(), ease(clamp((t - end) / 1.6)));
@@ -271,8 +273,6 @@ function draw(t) {
   const z = camera(t), px = (n) => n / z;  // strokes keep their width on screen as the camera zooms
   for (const b of beats) {
     const u = beatU(b, t), on = t >= b.t0;
-    const kept = b.inAbility || b.i === 0 ? 1 : 1 - outro;  // the final shot is the ability
-    for (const g of b.layers) g.style.opacity = kept;
     const appear = on ? ease(clamp(u / 0.12)) : 0;
     const spread = ease(clamp(u / 0.35)), pick = ease(clamp((u - 0.35) / 0.25));
     b.node.style.opacity = appear;
@@ -300,18 +300,6 @@ function draw(t) {
         o.line.style.stroke = mix(MUTED, UNWALKED, outro);
         o.line.style.strokeWidth = px(lerp(o.width, Math.max(o.width, 3.5), outro));
         o.label.style.opacity = clamp((spread - 0.5) / 0.5) * fade * words;
-        const twig = clamp((spread - 0.55) / 0.45);
-        for (const w of o.twigs) {
-          w.style.strokeDashoffset = 1 - twig;
-          w.style.opacity = twig > 0 ? lerp(0.55 * fade, 0.75, outro) : 0;
-          w.style.stroke = mix(MUTED, UNWALKED, outro);
-          w.style.strokeWidth = px(lerp(1.8, 2.4, outro));
-        }
-        if (o.bridge) {
-          o.bridge.style.opacity = twig > 0 ? fade * (1 - words) : 0;
-          o.bridge.style.stroke = o.line.style.stroke;
-          o.bridge.style.strokeWidth = o.line.style.strokeWidth;
-        }
       }
     }
   }
@@ -319,7 +307,7 @@ function draw(t) {
     const b = beats[l.to.i - 1];
     const v = ease(clamp((beatU(b, t) - 0.6) / 0.4));
     l.path.style.strokeDashoffset = 1 - v;
-    l.path.style.opacity = v > 0 ? (l.to.inAbility ? 1 : 1 - outro) : 0;
+    l.path.style.opacity = v > 0 ? 1 : 0;
     l.path.style.strokeWidth = px(8);
   }
   caption(t, 1 - words);
