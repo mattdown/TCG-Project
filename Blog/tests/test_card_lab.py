@@ -23,3 +23,10 @@ def test_explorer_data():
     assert kept["stopped_at"] is None and kept["card"] is not None
     assert 0 < kept["ability_p"] <= 1 and kept["ability_decisions"] >= 1
     assert all(a["stopped_at"] and "trace" in a for a in data["others"])
+
+
+def test_visualiser_pool_starts_on_the_chosen_card():
+    from card_generation_visualiser import pool_data
+    cards = pool_data(112, 3)["cards"]
+    assert [c["seed"] for c in cards][0] == 112 and len({c["seed"] for c in cards}) == 4
+    assert all("trace" in c["kept"] and "others" not in c for c in cards)

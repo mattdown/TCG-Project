@@ -1,7 +1,7 @@
 """Card generation visualiser: one card's path through the grammar, animated for the blog.
 
     uv run --project PythonServer python Blog/card_generation_visualiser.py                  # Blog/build/card_generation_visualiser.html, opened
-    uv run --project PythonServer python Blog/card_generation_visualiser.py --seed 94        # another card (the explorer's seeds)
+    uv run --project PythonServer python Blog/card_generation_visualiser.py --seed 94        # start on another card (the explorer's seeds)
     uv run --project PythonServer --with playwright python Blog/card_generation_visualiser.py --render   # also the .mp4
 
 Run from the repository root. The card comes from the generator in PythonServer (via card_lab.py),
@@ -9,10 +9,12 @@ so this uses PythonServer's environment.
 
 The page plays a timeline (2 s per decision) built from the card's derivation (src/cards/trace.py): every
 decision the sampler made, its options and the one it took. It has a scrubber for checking the
-timing. --render steps that timeline frame by frame in Chrome and joins the frames with ffmpeg,
+timing. It starts on --seed and bakes in a pool of other cards for its "New card" button, so the
+page needs no server. --render steps that timeline frame by frame in Chrome and joins the frames with ffmpeg,
 so the video is smooth and the same every time.
 """
 import argparse
+import random
 import shutil
 import subprocess
 import webbrowser
@@ -29,8 +31,13 @@ WIDTH, HEIGHT = 1920, 1080
 def card_data(seed: int) -> dict:
     params = {k: v for k, v in DEFAULTS.items() if k not in ("seed", "count")}
     data = one(seed, **params)
-    data["text_stages"] = text_stages(data["kept"])
-    return data
+    return {"seed": seed, "kept": data["kept"], "text_stages": text_stages(data["kept"])}
+
+
+def pool_data(first: int, size: int) -> dict:
+    """The first card, then `size` others at random: what the page's "New card" button picks from."""
+    others = [s for s in random.Random(0).sample(range(1, 100_000), size + 1) if s != first][:size]
+    return {"cards": [card_data(s) for s in [first, *others]]}
 
 
 def text_stages(kept: dict) -> list[dict]:
@@ -90,7 +97,8 @@ def render(html: Path, video: Path, fps: int):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--seed", type=int, default=112, help="which card: the same seeds as the card explorer")
+    parser.add_argument("--seed", type=int, default=112, help="the first card: the same seeds as the card explorer")
+    parser.add_argument("--pool", type=int, default=50, help="other cards baked in for the New card button")
     parser.add_argument("--out", type=Path, default=OUT / "card_generation_visualiser.html")
     parser.add_argument("--render", action="store_true", help="also render the video next to the page (needs playwright)")
     parser.add_argument("--fps", type=int, default=60)
@@ -98,7 +106,7 @@ def main():
     args = parser.parse_args()
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(page(card_data(args.seed), TEMPLATE))
+    args.out.write_text(page(pool_data(args.seed, args.pool), TEMPLATE))
     print(f"Wrote {args.out}")
     if args.render:
         render(args.out, args.out.with_suffix(".mp4"), args.fps)

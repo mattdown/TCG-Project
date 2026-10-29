@@ -115,7 +115,8 @@ def test_trace_records_every_decision_with_its_options():
     for _ in range(30):
         a = generator.card()
         steps = list(_decisions(a.trace))
-        assert steps[0]["decision"] == "Card kind"
+        assert steps[0]["decision"] == "Card type"
+        assert (steps[1]["decision"] == "Unit kind") == (a.card_type == "unit")
         assert any(d["decision"] == "Ability kind" for d in steps)
         for d in steps:
             chosen = next(o for o in d["options"] if o["name"] == d["chosen"])

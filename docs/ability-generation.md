@@ -82,7 +82,9 @@ Trade-offs worth knowing:
 
 ### 4. Build and cost the card
 
-**Card kinds.** The first decision is the kind of card, from shares of the whole set:
+**Card kinds.** The first decision is the kind of card, from shares of the whole set. It is one
+draw, traced as two decisions: "Card type" (unit or action), then for a unit "Unit kind"
+(vanilla, keywords only or ability), whose odds multiply back to these shares:
 - vanilla units (stats only, about 4%)
 - keyword-only units (about 25%)
 - action cards (25%)
@@ -316,3 +318,6 @@ for checking the engine and client. It uses the same pipeline.
   effects, the "exhausted" / "ready" filter and the "this unit is exhausted" condition (none
   were generated). The engine's `exhausted` flag is now `attacked`, and freeze is its own
   check, lasting through the frozen unit's owner's next turn. Generated sets are unchanged.
+- **2026-10-29:** The trace's "Card kind" decision is now two: "Card type" (unit or action),
+  then for units "Unit kind" (vanilla, keywords only or ability). It is still one draw, so
+  generated sets are unchanged; only the derivation the explorer and visualiser show differs.

@@ -25,6 +25,7 @@ from src.game.terms import ASPECTS, keyword_text
 STAGES = ("grammar", "quality", "card", "duplicate", "variety")  # where an attempt can be stopped
 KINDS = ("vanilla", "keywords", "unit", "action")  # stats only, stats + keywords, a unit with an ability, an action
 PLAIN = ("vanilla", "keywords")  # kinds without an ability
+UNIT_KINDS = {"vanilla": "vanilla", "keywords": "keywords only", "unit": "ability"}  # as the trace names them
 MAX_DUPLICATES = 100  # plain draws in a row that only repeat existing cards before falling back to an ability unit
 
 
@@ -89,12 +90,10 @@ class CardGenerator:
         """One draw taken as far through the pipeline as it gets."""
         t = self.sampler.trace
         t.reset()
-        if kind is None:
-            kind = t.weighted("Card kind", self.shares)
-        else:
-            t.record("Card kind", list(self.shares.items()), kind,
-                     "decided once per card: redraws after a thrown-away draw keep it")
+        note = "decided once per card: redraws after a thrown-away draw keep it" if kind else ""
+        kind = kind or self.rng.choices(list(self.shares), list(self.shares.values()))[0]
         card_type = "action" if kind == "action" else "unit"
+        self._record_kind(kind, card_type, note)
         if kind in PLAIN:
             a = Attempt(self._next, card_type, None, "", 0, 0.0, kind)
             self._register(a)
@@ -127,6 +126,15 @@ class CardGenerator:
             except ValueError as e:
                 a.stopped_at, a.problems = "card", [str(e).split(": ", 1)[-1]]
         return a
+
+    def _record_kind(self, kind: str, card_type: str, note: str):
+        """The kind is one draw over the four shares, traced as two decisions: unit or action, then
+        for a unit whether it has an ability. Their odds multiply back to the shares."""
+        t, s = self.sampler.trace, self.shares
+        t.record("Card type", [("unit", 1 - s["action"]), ("action", s["action"])], card_type, note)
+        if card_type == "unit":
+            t.record("Unit kind", [("vanilla", s["vanilla"]), ("keywords only", s["keywords"]), ("ability", s["unit"])],
+                     UNIT_KINDS[kind], note)
 
     def _register(self, a: Attempt):
         a.trace = self.sampler.trace.root
