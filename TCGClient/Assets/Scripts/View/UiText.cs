@@ -52,6 +52,20 @@ namespace Tcg.View
         public const string DevClose = "CLOSE";
         public const string DevDefault = "mana: 5\nopponent_health: 10\nseed: 1";
 
+        // GNN overlay. Node and edge type names come from the server.
+        public const string GraphButton = "GNN";
+        public const string GraphTitle = "State graph";
+        public const string GraphNodes = "Nodes";
+        public const string GraphEdges = "Edges";
+        public const string GraphLoading = "Loading the graph…";
+        public const string GraphGnn = "GNN embeddings after layer {0} of {1}";  // {0}, {1}: layer numbers
+        public const string GraphFeatures = "Input features: the server has no GNN model";
+        public const string GraphHint = "Each square is a node's vector: <color=#FB923C>orange</color> positive, <color=#38BDF8>blue</color> negative. Tap an edge type to hide it.";
+        public const string GraphYou = "You";
+        public const string GraphOpponent = "Opponent";
+        public const string GraphGlobal = "Turn and phase";
+        public const string GraphAbilityOf = "Ability step of {0}";  // {0}: the card's name
+
         // Help screen. Keyword rules and class names come from the server's card_set.
         public const string HelpTitle = "How to read a card";
         public const string HelpKeywords = "Keywords";

@@ -5,6 +5,7 @@ import pytest
 from src.cards.coverage import generate_coverage_set
 from src.cards.schema import Card, CardSet
 from src.cards.vanilla import generate_vanilla_set
+from src.model.registry import create_model
 from src.server.session import GameSession
 from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit
 
@@ -303,3 +304,40 @@ def test_summons_send_their_tokens_and_report_them():
     response = session.handle({"type": "act", "action_index": play["index"]})
     assert [s["card_id"] for s in response["action"]["result"]["summoned"]] == [token["id"]] * 2
     assert [c["card_id"] for c in response["state"]["players"][0]["play"]][-2:] == [token["id"]] * 2
+
+
+def test_graph_has_the_gnn_nodes_and_edges_from_the_humans_side():
+    card_set = generate_coverage_set(per_feature=1, candidates=500)
+    unit_card = next(c for c in card_set.cards if c.type == "unit" and c.abilities)
+    session = GameSession(card_set)
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 2, "scenario": {
+        "hand": [unit_card.id], "play": [unit_card.id], "opponent_play": [unit_card.id],
+        "opponent_hand": [unit_card.id]}})
+    graph = session.handle({"type": "graph"})["graph"]
+    nodes = graph["nodes"]
+    assert [n["id"] for n in nodes] == list(range(len(nodes)))
+    assert graph["embedding"] == "features" and graph["layers"] == 1
+    assert all(len(v) == graph["dim"] for n in nodes for v in n["vectors"])
+    cards = [n for n in nodes if n["type"] == "card"]
+    me, them = session.game.state.players
+    assert [c["uid"] for c in cards] == me.hand + me.play + them.play  # never the AI's hand
+    assert sum(n["type"] == "player" for n in nodes) == 2 and sum(n["type"] == "global" for n in nodes) == 1
+    abilities = [n for n in nodes if n["type"] == "ability"]
+    assert abilities and {n["card"] for n in abilities} == {c["id"] for c in cards}
+    assert any(n["label"].startswith("entry") for n in abilities)
+    types = {n["id"]: n["type"] for n in nodes}
+    for e in graph["edges"]:
+        if e["type"] in ("next", "uses"):
+            assert types[e["src"]] == types[e["dst"]] == "ability"
+        elif e["type"] in ("part_of", "matches", "bound_to"):
+            assert (types[e["src"]], types[e["dst"]]) == ("ability", "card")
+    assert {"belongs_to", "faces", "part_of", "next"} <= {e["type"] for e in graph["edges"]}
+
+
+def test_graph_returns_every_gnn_layer():
+    session = GameSession(fixture_set())
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1})
+    session._net = create_model("gnn", hidden=32, num_layers=2)
+    graph = session.handle({"type": "graph"})["graph"]
+    assert graph["embedding"] == "gnn" and graph["layers"] == 3
+    assert all(len(n["vectors"]) == 3 and len(n["vectors"][0]) == graph["dim"] for n in graph["nodes"])

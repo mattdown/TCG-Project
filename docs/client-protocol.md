@@ -213,6 +213,30 @@ The quick option when no step-by-step animation is needed.
 
 (Each record also has its `result`; left out here.)
 
+### `graph`: the state graph the GNN reads
+
+For the client's GNN overlay. The graph is built from the human's observation (the same one the
+network gets), so the AI's hand and both decks never appear. Nodes are `card`, `player`
+(`owner` 0 is the human), `global` and `ability` (the steps of each visible card's ability
+graph). `id` is the node's index in `nodes`. Edges are the forward ones only (`belongs_to`,
+`faces`, `opposes`, `in`, `part_of`, `next`, `uses`, `matches`, `bound_to`); the GNN also
+passes messages back along each. `vectors` has one entry per layer (the input projection, then
+one after each GNN layer), each the embedding averaged down to `dim` numbers. With no GNN model on
+the server, `embedding` is `"features"` and the single vector is the node's raw input features.
+
+```json
+→ {"type": "graph"}
+← {"status": "ok", "graph": {"embedding": "gnn", "layers": 5, "dim": 16,
+     "nodes": [
+       {"id": 0, "type": "card", "uid": 12, "card_id": "S1-642", "owner": 0, "zone": "hand", "vectors": [[-0.01, 0.019, …], …]},
+       …
+       {"id": 7, "type": "player", "owner": 0, "vectors": […]},
+       {"id": 9, "type": "global", "vectors": […]},
+       {"id": 10, "type": "ability", "card": 0, "kind": "entry", "label": "entry: on_play", "resolving": false, "vectors": […]},
+       {"id": 11, "type": "ability", "card": 0, "kind": "effect", "label": "effect: summon", "resolving": false, "vectors": […]}],
+     "edges": [{"type": "belongs_to", "src": 0, "dst": 7}, {"type": "next", "src": 10, "dst": 11}, …]}}
+```
+
 ## The state
 
 Always from the human's point of view: the AI's hand and both decks' contents are never

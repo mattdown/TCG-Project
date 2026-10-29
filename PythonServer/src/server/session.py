@@ -12,6 +12,7 @@ Every request is a JSON object with a "type"; every response has "status" ("ok" 
   {"type": "act", "action_index": 3}           → applies the human's choice from state.legal_actions
   {"type": "ai_move"}                          → the AI makes one decision (call in a loop to animate)
   {"type": "ai_turn"}                          → the AI decides until it's the human's turn or the game ends
+  {"type": "graph"}                            → the state graph the GNN reads, from the human's side (graph_view.py)
 
 The state never includes the AI's hand or either deck's contents.
 """
@@ -30,6 +31,8 @@ from src.game.engine import Game, Move, StepResult, describe_action
 from src.game.state import Phase, Zone
 from src.game.terms import (ASPECT_DESCRIPTIONS, ASPECT_NAMES, ASPECTS, KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS,
                             NEUTRAL, NEUTRAL_DESCRIPTION, NEUTRAL_NAME)
+from src.model.registry import load_model
+from src.server.graph_view import graph_view
 
 # Zones whose cards both players see. A card burned from a full hand goes to the discard pile face up.
 PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD)
@@ -42,6 +45,7 @@ class GameSession:
         self.game: Game | None = None
         self.human_seat = 0
         self.ai: Agent | None = None
+        self._net = None  # the network the graph overlay runs, loaded on first use
 
     def handle(self, request: dict) -> dict:
         handler = {
@@ -51,6 +55,7 @@ class GameSession:
             "act": self._act,
             "ai_move": self._ai_move,
             "ai_turn": self._ai_turn,
+            "graph": self._graph,
         }.get(request.get("type"))
         if handler is None:
             return {"status": "error", "msg": f"unknown request type {request.get('type')!r}"}
@@ -140,7 +145,18 @@ class GameSession:
             records.append(self._apply(self.ai.choose(self.game)))
         return {"status": "ok", "actions": records, "state": self.view()}
 
+    def _graph(self, _):
+        return {"status": "ok", "graph": graph_view(self.game, self.human_seat, self._graph_net())}
+
     # --- helpers
+
+    def _graph_net(self):
+        """The AI's network if it has one, else the saved model; None without either."""
+        if isinstance(self.ai, NeuralAgent):
+            return self.ai.net
+        if self._net is None and self.model_path is not None and self.model_path.exists():
+            self._net = load_model(self.model_path)
+        return self._net
 
     def _make_agent(self, name: str) -> Agent:
         if name == "neural":

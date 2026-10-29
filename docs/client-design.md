@@ -148,6 +148,12 @@ Drag previews come from each legal action's server-side `preview`
     granted keywords and VP lost float up from the card.
   - *Dev panel:* the DEV button, bottom left, starts a `scenario` from text such as
     `hand: C1-004; opponent_play: C1-018, C1-036 attacked; energy: 2; seed: 1`.
+  - *GNN overlay:* the GNN button, next to DEV, darkens the board and draws the server's `graph`
+    over it: card nodes on their cards with each card's ability graph unfolded below, player
+    nodes on the heroes, the global node by the turn counter. Each node is a 4×4 grid of its
+    embedding (orange positive, blue negative) in a frame coloured by node type; edges are
+    coloured by type, tapping a type in the legend hides it, and hovering a node lights its
+    edges. It refreshes after every state while open (`Board/GraphOverlay.cs`).
 
 ## Help screen
 

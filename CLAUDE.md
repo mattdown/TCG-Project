@@ -140,7 +140,8 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   in one go, and indexes never go stale.
   Ability UI: `View/CardText.cs` builds card text from the server's `keywords` and
   `ability_text`; `Board/AbilityPanels.cs` has the choice banner and the dev scenario panel
-  (DEV button); `Board/AutoPlayer.cs` is a dev-only random player for soak tests (add it to the
+  (DEV button); `Board/GraphOverlay.cs` is the GNN overlay (the `graph` request: nodes, edges and embeddings
+  over the darkened board, toggled by the GNN button); `Board/AutoPlayer.cs` is a dev-only random player for soak tests (add it to the
   Game object in Play mode). Lilita One and Nunito lack some symbols (→): DejaVu Sans Bold
   is their TMP fallback.
 - **No rules in C#.** Drop zones come only from `legal_actions`; drag previews ("+2 VP",

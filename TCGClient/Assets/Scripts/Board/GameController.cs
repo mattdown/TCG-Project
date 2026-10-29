@@ -34,6 +34,7 @@ namespace Tcg.Board
         bool _busy;
         JObject _scenario;  // the dev panel's last scenario: NEW GAME replays it
         int? _scenarioSeed;
+        GraphOverlay _graph;
 
         void Start()
         {
@@ -52,8 +53,21 @@ namespace Tcg.Board
                 _scenarioSeed = seed;
                 NewGame(Opponent);
             };
+            _graph = GraphOverlay.Create(Board.Root, Board);
+            _graph.Requested += RequestGraph;
             SetBusy(true);
             Network.Send<CardSetResponse>(new Request("card_set"), OnCardSet);
+        }
+
+        /// <summary>Fetches the state graph for the GNN overlay; it follows every new state while open.</summary>
+        void RequestGraph()
+        {
+            if (_state == null) return;
+            Network.Send<GraphResponse>(new Request("graph"), r =>
+            {
+                if (r.Ok) _graph.Show(r.graph);
+                else Debug.LogWarning($"Graph request failed: {r.msg}");
+            });
         }
 
         void OnCardSet(CardSetResponse r)
@@ -154,6 +168,8 @@ namespace Tcg.Board
             _state = r.state;
             Board.Render(_state, _cards, _opponentName, animate, r.action);
             Interaction.OnStateChanged(_state, _cards, _opponentName);
+            _graph.transform.SetAsLastSibling();
+            if (_graph.IsOpen) RequestGraph();
 
             if (!_state.game_over && !_state.HumanDecides)
             {

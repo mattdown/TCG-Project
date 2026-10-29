@@ -79,6 +79,7 @@ class EncodedObs:
 class Observation:
     encoded: EncodedObs
     actions: list[Action]  # in the same order as the encoded actions
+    card_uids: list[int] = None  # the card behind each card node, in order
 
 
 @lru_cache(maxsize=None)
@@ -148,4 +149,4 @@ def observe(game: Game, player: int) -> Observation:
         action_context=context,
         action_option=option,
     )
-    return Observation(encoded, actions)
+    return Observation(encoded, actions, card_uids)

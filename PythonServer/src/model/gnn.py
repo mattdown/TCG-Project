@@ -47,7 +47,8 @@ class GNNNet(nn.Module):
     def collate(observations: list[EncodedObs]) -> Batch:
         return collate_hetero(observations)
 
-    def forward(self, batch: Batch) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def node_states(self, batch: Batch) -> list[dict[str, torch.Tensor]]:
+        """Every node's embedding by node type: the input projection, then after each layer."""
         card = batch["card"]
         x = {
             "card": self.card_in(torch.cat([self.card_encoder(card.x_static), card.x_dynamic], dim=-1)),
@@ -55,9 +56,16 @@ class GNNNet(nn.Module):
             "global": self.global_in(batch["global"].x),
             "ability": self.ability_in(batch["ability"].x),
         }
+        states = [x]
         for conv, norms in zip(self.convs, self.norms):
             out = conv(x, batch.edge_index_dict)
             x = {nt: norms[nt](h + F.relu(out[nt])) if nt in out else h for nt, h in x.items()}
+            states.append(x)
+        return states
+
+    def forward(self, batch: Batch) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        card = batch["card"]
+        x = self.node_states(batch)[-1]
 
         actions = batch["action"]
         offset = card.ptr[actions.batch]

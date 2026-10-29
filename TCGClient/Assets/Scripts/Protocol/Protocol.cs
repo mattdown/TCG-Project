@@ -75,6 +75,12 @@ namespace Tcg.Protocol
         public List<GameAction> actions;   // ai_turn
     }
 
+    /// <summary>Reply to graph: the state graph the GNN reads, from the human's side.</summary>
+    public class GraphResponse : Response
+    {
+        public GraphData graph;
+    }
+
     // --- data
 
     public class CardDef
@@ -257,6 +263,41 @@ namespace Tcg.Protocol
         public PlayerState Opponent => players[1 - human_seat];
         public bool HumanDecides => !game_over && decision_player == human_seat;
         public bool InMulligan => phase == "mulligan";
+    }
+
+    /// <summary>
+    /// The GNN's view of the state: nodes of four types and the forward edges between them (each
+    /// stands for both directions). Node ids are indexes into nodes.
+    /// </summary>
+    public class GraphData
+    {
+        public string embedding;  // "gnn": the network's embeddings; "features": raw inputs (no model)
+        public int layers;        // vectors per node: the input projection, then one per GNN layer
+        public int dim;           // numbers per vector
+        public List<GraphNode> nodes;
+        public List<GraphEdge> edges;
+    }
+
+    public class GraphNode
+    {
+        public int id;
+        public string type;       // card, player, global, ability
+        public int? uid;          // card: the card on the board
+        public string card_id;    // card
+        public int? owner;        // card, player: 0 = the human, 1 = the opponent
+        public string zone;       // card: hand, play, discard
+        public int? card;         // ability: the id of its card's node
+        public string kind;       // ability: entry, choose, effect, if, may, choose_one, end, modifier
+        public string label;      // ability: its kind and what it does, e.g. "effect: deal_damage"
+        public bool resolving;    // ability: the step being resolved now
+        public List<List<float>> vectors;  // one per layer, averaged down to dim numbers
+    }
+
+    public class GraphEdge
+    {
+        public string type;       // belongs_to, faces, opposes, in, part_of, next, uses, matches, bound_to
+        public int src;
+        public int dst;
     }
 
     /// <summary>Action type names from the protocol.</summary>
