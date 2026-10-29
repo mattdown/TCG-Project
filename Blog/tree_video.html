@@ -34,6 +34,9 @@ html, body { margin: 0; height: 100%; background: #05081A; overflow: hidden; }
 .odds .l { font: 700 21px Nunito; color: var(--muted); }
 #cardbox { position: absolute; left: 1330px; top: 170px; width: 420px; }
 #cardbox .card { --w: 420px; cursor: default; }
+#cardbox .card.no-art .art svg { visibility: hidden; }
+#cardbox .trait:empty { display: none; }
+.shade.right { left: auto; top: 0; bottom: 0; width: 780px; background: linear-gradient(90deg, rgba(13, 21, 53, 0), rgba(13, 21, 53, .92) 40%); }
 .final { position: absolute; left: 1250px; width: 580px; top: 800px; text-align: center; }
 .final .n { font: 400 64px/1.1 "Lilita One", system-ui; color: var(--gold); text-shadow: 0 4px 0 var(--outline); }
 .final .l { font: 700 24px Nunito; color: var(--muted); }
@@ -48,7 +51,7 @@ body.render #controls { display: none; }
 <body>
 <div id="stage">
   <svg id="world" xmlns="http://www.w3.org/2000/svg"><g id="cam"></g></svg>
-  <div class="shade top"></div><div class="shade bottom" id="shade-bottom"></div>
+  <div class="shade right"></div><div class="shade top"></div><div class="shade bottom" id="shade-bottom"></div>
   <div class="title">One card, drawn from the grammar<small id="subtitle"></small></div>
   <div class="caption" id="caption"><div class="crumbs" id="crumbs"></div><div class="what" id="what"></div><div class="how" id="how"></div></div>
   <div class="odds" id="odds"><div class="n" id="odds-n"></div><div class="l">chance of this ability so far</div></div>
@@ -71,7 +74,7 @@ const A = window.LAB_DATA.kept;
 const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
 const INTRO = 0.6, OUTRO = 3.6;
 const STEP = 2.0;  // seconds per decision, the ability's and the card's alike
-const SHOW_ODDS = false;  // the running "1 in N" and the final odds under the card
+const SHOW_ODDS = true;  // the running "1 in N" and the final odds under the card
 let PATH_END = 0, DURATION = 0;  // set by time(): the video is as long as the card's path needs
 const FAN = 175, FORK = 620;  // option stub length, gap between the branches of a "choose one"
 
@@ -109,6 +112,7 @@ function textWidth(text, px, weight = 700) {
 const beats = [], links = [];
 const bounds = { x0: 0, x1: 0, y0: 0, y1: 0 };  // both trees: the final shot
 let pending = [];  // beats whose chosen option links to the next decision placed
+const sectionEnd = {};  // section path ("ability/steps/option 1") → index of the last decision in it
 
 function grow(x, y) {
   bounds.x0 = Math.min(bounds.x0, x); bounds.x1 = Math.max(bounds.x1, x);
@@ -139,6 +143,7 @@ function place(d, pt, crumbs, inAbility) {
   grow(pt.x - 60, pt.y - titleRise(b.span) - 30); grow(pt.x + FAN + labelW + 90, pt.y + b.span / 2 + 20);
   for (const from of pending) links.push({ from, to: b });
   beats.push(b);
+  for (let k = 1; k <= crumbs.length; k++) sectionEnd[crumbs.slice(0, k).join("/")] = b.i;
   pending = [b];
   return { x: pt.x + FAN + Math.max(130, chosenW + 50, n > 1 ? labelW * 0.55 + 60 : 0), y: pt.y };
 }
@@ -227,7 +232,7 @@ function build() {
 
 // ------------------------------------------------------------------ camera
 function zoomFor(b) { return Math.min(1.75, (H * 0.62) / (b.span + 190)); }
-function focusOf(b) { return { x: b.x + FAN * 0.7, y: b.y, z: zoomFor(b), sx: W / 2, sy: H * 0.47 }; }
+function focusOf(b) { return { x: b.x + FAN * 0.7, y: b.y, z: zoomFor(b), sx: 660, sy: H * 0.47 }; }  // left of the card
 function fitAll() {
   const bw = bounds.x1 - bounds.x0, bh = bounds.y1 - bounds.y0;
   return { x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2,
@@ -313,6 +318,7 @@ function draw(t) {
   caption(t, 1 - words);
   odds(t, outro);
   finale(t);
+  cardAt(t);
 }
 
 function caption(t, outro) {
@@ -337,10 +343,53 @@ function odds(t, outro) {
 }
 
 function finale(t) {
-  const end = PATH_END, card = ease(clamp((t - end - 1.3) / 0.6)), num = ease(clamp((t - end - 1.9) / 0.5));
-  $("cardbox").style.opacity = card;
-  $("cardbox").style.transform = `translateY(${(1 - card) * 40}px) scale(${lerp(0.9, 1, card)})`;
-  $("final").style.opacity = SHOW_ODDS ? num : 0;
+  $("final").style.opacity = SHOW_ODDS ? ease(clamp((t - PATH_END - 1.9) / 0.5)) : 0;
+}
+
+// ------------------------------------------------------------------ the card, filled in as the tree unfolds
+const KEYWORD_DECISIONS = ["Add a keyword?", "Two keywords?", "Keyword", "Keyword value"];
+let cardEvents = [], cardShown = -1;
+
+function cardTimeline() {
+  // Each decision that settles part of the card fills it in at the moment its choice is made. The
+  // ability text comes in stages (tree_video.py): each once its part of the tree is decided.
+  const c = A.card, at = (b) => b.t0 + 0.6 * (b.t1 - b.t0);
+  const lastKeyword = beats.filter((b) => KEYWORD_DECISIONS.includes(b.d.decision)).pop();
+  const events = [];
+  for (const b of beats) {
+    const v = b.d.chosen, set = (f) => events.push({ t: at(b), f });
+    switch (b.d.decision) {
+      case "Card kind": set((s) => { s.type = v === "action" ? "action" : "unit"; }); break;
+      case "Job": set((s) => { s.traits = [v]; }); break;
+      case "Aspect": set((s) => { s.aspect = v; }); break;
+      case "Species": case "Action name": set((s) => { s.name = c.name; s.art = true; }); break;
+      case "Subtitle": set((s) => { s.subtitle = c.subtitle; }); break;
+      case "Starting cost": case "Cost": set((s) => { s.cost = v; }); break;
+      case "Stats": set((s) => { s.power = c.power; s.health = c.health; }); break;
+    }
+    if (b === lastKeyword) set((s) => { s.keywords = c.keywords; });
+  }
+  for (const stage of window.LAB_DATA.text_stages || []) {
+    const b = beats[sectionEnd[stage.after.join("/")]];
+    if (b) events.push({ t: at(b), f: (s) => { s.text = stage.text; } });
+  }
+  cardEvents = events.sort((x, y) => x.t - y.t);
+}
+
+function cardAt(t) {
+  const done = cardEvents.filter((e) => e.t <= t);
+  if (done.length !== cardShown) {
+    cardShown = done.length;
+    const s = { type: "unit", name: "", subtitle: "", cost: "", power: "", health: "", aspect: null, keywords: [],
+      traits: [""], text: "", art: false };
+    for (const e of done) e.f(s);
+    $("cardbox").innerHTML = cardHtml({ card: s, card_type: s.type, kind: A.kind, text: s.text, index: 0 });
+    $("cardbox").querySelector(".card").classList.toggle("no-art", !s.art);
+    fitText($("cardbox"));
+  }
+  // A gold glow when something on the card has just been decided.
+  const since = done.length ? t - done[done.length - 1].t : Infinity, glow = since < 0.7 ? 1 - since / 0.7 : 0;
+  $("cardbox").style.filter = glow ? `drop-shadow(0 0 ${32 * glow}px rgba(255, 201, 60, ${0.9 * glow}))` : "none";
 }
 
 // ------------------------------------------------------------------ setup and playback
@@ -384,10 +433,8 @@ async function init() {
   walk(A.trace, { x: 0, y: 0 }, [], false);
   time();
   build();
-  const c = A.card;
-  $("subtitle").textContent = `${c.name} – ${c.subtitle}: every random choice the generator made`;
-  $("cardbox").innerHTML = cardHtml(A);
-  fitText($("cardbox"));
+  $("subtitle").textContent = "Every random choice the generator made, and the card they add up to";
+  cardTimeline();
   $("final-n").textContent = oneIn(A.ability_p);
   if (!SHOW_ODDS) $("cardbox").style.top = (H - 420 * 1.4) / 2 + "px";  // nothing under it: centre it
   $("scrub").max = DURATION;

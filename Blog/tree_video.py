@@ -19,6 +19,7 @@ import webbrowser
 from pathlib import Path
 
 from card_lab import DEFAULTS, one, page  # next to this file; it puts PythonServer on the path
+from src.cards.abilities import Renderer, render as card_text  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("tree_video.html")
 OUT = Path(__file__).parent / "build"
@@ -27,7 +28,37 @@ WIDTH, HEIGHT = 1920, 1080
 
 def card_data(seed: int) -> dict:
     params = {k: v for k, v in DEFAULTS.items() if k not in ("seed", "count")}
-    return one(seed, **params)
+    data = one(seed, **params)
+    data["text_stages"] = text_stages(data["kept"])
+    return data
+
+
+def text_stages(kept: dict) -> list[dict]:
+    """The card text as the tree unfolds: each stage is shown once the decisions in its section
+    (`after`, a path of trace sections) are made. Rendered from parts of the finished ability, so a
+    stage only appears once that part can't change; "…" marks what is still to come."""
+    a, card_type = kept["tree"], kept["card_type"]
+    if not a:
+        return []
+    full = card_text(a, card_type)
+
+    def lead(ability: dict) -> str:  # "Whenever …, if …": the text before the steps
+        text = card_text(ability, card_type)
+        return text[:len(text) - len(Renderer(card_type).steps(ability["steps"])) - 2]
+
+    stages = []
+    if a["kind"] == "triggered":
+        stages.append({"after": ["ability", "trigger"], "text": lead({**a, "condition": None}) + ", …"})
+        if a.get("condition"):
+            stages.append({"after": ["ability", "condition"], "text": lead(a) + ", …"})
+    steps = a.get("steps", [])
+    if len(steps) == 1 and "choose_one" in steps[0]:  # each option as it's decided
+        options = steps[0]["choose_one"]
+        for k in range(1, len(options)):
+            partial = card_text({**a, "steps": [{**steps[0], "choose_one": options[:k]}]}, card_type)
+            stages.append({"after": ["ability", "steps", f"option {k}"], "text": partial + " …"})
+    stages.append({"after": ["ability"], "text": full})
+    return stages
 
 
 def render(html: Path, video: Path, fps: int):
