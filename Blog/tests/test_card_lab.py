@@ -1,4 +1,4 @@
-"""The card lab's data: what its pages and the tree video are built from."""
+"""The card lab's data: what its pages and the card generation visualiser are built from."""
 from card_lab import one, run
 from src.cards.abilities import render
 

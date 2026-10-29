@@ -1,13 +1,13 @@
-"""Ability tree video: one card's path through the grammar, as an animation for the blog.
+"""Card generation visualiser: one card's path through the grammar, animated for the blog.
 
-    uv run --project PythonServer python Blog/tree_video.py                  # Blog/build/tree_video.html, opened
-    uv run --project PythonServer python Blog/tree_video.py --seed 94        # another card (the explorer's seeds)
-    uv run --project PythonServer --with playwright python Blog/tree_video.py --render   # also the .mp4
+    uv run --project PythonServer python Blog/card_generation_visualiser.py                  # Blog/build/card_generation_visualiser.html, opened
+    uv run --project PythonServer python Blog/card_generation_visualiser.py --seed 94        # another card (the explorer's seeds)
+    uv run --project PythonServer --with playwright python Blog/card_generation_visualiser.py --render   # also the .mp4
 
 Run from the repository root. The card comes from the generator in PythonServer (via card_lab.py),
 so this uses PythonServer's environment.
 
-The page plays a 15-second timeline built from the card's derivation (src/cards/trace.py): every
+The page plays a timeline (2 s per decision) built from the card's derivation (src/cards/trace.py): every
 decision the sampler made, its options and the one it took. It has a scrubber for checking the
 timing. --render steps that timeline frame by frame in Chrome and joins the frames with ffmpeg,
 so the video is smooth and the same every time.
@@ -21,7 +21,7 @@ from pathlib import Path
 from card_lab import DEFAULTS, one, page  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import Renderer, render as card_text  # noqa: E402
 
-TEMPLATE = Path(__file__).with_name("tree_video.html")
+TEMPLATE = Path(__file__).with_name("card_generation_visualiser.html")
 OUT = Path(__file__).parent / "build"
 WIDTH, HEIGHT = 1920, 1080
 
@@ -91,7 +91,7 @@ def render(html: Path, video: Path, fps: int):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--seed", type=int, default=112, help="which card: the same seeds as the card explorer")
-    parser.add_argument("--out", type=Path, default=OUT / "tree_video.html")
+    parser.add_argument("--out", type=Path, default=OUT / "card_generation_visualiser.html")
     parser.add_argument("--render", action="store_true", help="also render the video next to the page (needs playwright)")
     parser.add_argument("--fps", type=int, default=60)
     parser.add_argument("--no-browser", action="store_true")

@@ -352,7 +352,7 @@ let cardEvents = [], cardShown = -1;
 
 function cardTimeline() {
   // Each decision that settles part of the card fills it in at the moment its choice is made. The
-  // ability text comes in stages (tree_video.py): each once its part of the tree is decided.
+  // ability text comes in stages (card_generation_visualiser.py): each once its part of the tree is decided.
   const c = A.card, at = (b) => b.t0 + 0.6 * (b.t1 - b.t0);
   const lastKeyword = beats.filter((b) => KEYWORD_DECISIONS.includes(b.d.decision)).pop();
   const events = [];

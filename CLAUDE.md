@@ -68,7 +68,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
 TCGClient/      Unity 6000.3.10f1, URP 2D template
 docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
 Blog/           everything that isn't the game or training: the card lab and explorer (card_lab.py,
-                card_kit.html), tree_video (one card's path through the grammar, animated), tests/;
+                card_kit.html), card_generation_visualiser (one card's path through the grammar, animated), tests/;
                 uses PythonServer's environment, writes to Blog/build/ (gitignored)
 ```
 
@@ -87,7 +87,7 @@ Blog tools, from the repository root:
 
 ```
 uv run --project PythonServer python Blog/card_lab.py     # card lab web page, /explorer for one card's path (--text, --export)
-uv run --project PythonServer python Blog/tree_video.py   # --seed N, --render for an MP4
+uv run --project PythonServer python Blog/card_generation_visualiser.py   # --seed N, --render for an MP4
 uv run --project PythonServer pytest Blog/tests
 ```
 
