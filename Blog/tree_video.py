@@ -1,8 +1,11 @@
 """Ability tree video: one card's path through the grammar, as an animation for the blog.
 
-    uv run python -m scripts.tree_video                       # data/tree_video.html, opened in the browser
-    uv run python -m scripts.tree_video --seed 94             # another card (the seed is the explorer's)
-    uv run --with playwright python -m scripts.tree_video --render    # also data/tree_video.mp4
+    uv run --project PythonServer python Blog/tree_video.py                  # Blog/build/tree_video.html, opened
+    uv run --project PythonServer python Blog/tree_video.py --seed 94        # another card (the explorer's seeds)
+    uv run --project PythonServer --with playwright python Blog/tree_video.py --render   # also the .mp4
+
+Run from the repository root. The card comes from the generator in PythonServer (via card_lab.py),
+so this uses PythonServer's environment.
 
 The page plays a 15-second timeline built from the card's derivation (src/cards/trace.py): every
 decision the sampler made, its options and the one it took. It has a scrubber for checking the
@@ -15,10 +18,10 @@ import subprocess
 import webbrowser
 from pathlib import Path
 
-from scripts.card_lab import DEFAULTS, one, page
+from card_lab import DEFAULTS, one, page  # next to this file; it puts PythonServer on the path
 
 TEMPLATE = Path(__file__).with_name("tree_video.html")
-OUT = Path(__file__).parents[1] / "data"
+OUT = Path(__file__).parent / "build"
 WIDTH, HEIGHT = 1920, 1080
 
 

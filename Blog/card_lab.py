@@ -1,8 +1,10 @@
 """Card lab: generate cards from the ability grammar and see every stage, including what was thrown away.
 
-    uv run python -m scripts.card_lab                      # web page at http://localhost:8765
-    uv run python -m scripts.card_lab --text --count 50    # the same in the terminal
-    uv run python -m scripts.card_lab --export lab.html    # a self-contained page, no server needed
+    uv run --project PythonServer python Blog/card_lab.py                      # web page at http://localhost:8765
+    uv run --project PythonServer python Blog/card_lab.py --text --count 50    # the same in the terminal
+    uv run --project PythonServer python Blog/card_lab.py --export lab.html    # a self-contained page, no server needed
+
+Run from the repository root: the cards come from the generator in PythonServer, so this uses its environment.
 
 The explorer (http://localhost:8765/explorer) generates one card at a time and shows the path
 the sampler took through the grammar: every random decision, the options it had and why some
@@ -13,18 +15,20 @@ The pipeline is described in docs/ability-generation.md.
 import argparse
 import json
 import random
+import sys
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from src.cards.abilities import validate
-from src.cards.generate import STAGES, Attempt, CardGenerator
-from src.cards.quality import (ACTION_COMPLEXITY, MAX_COMPLEXITY, MAX_NARROWING, complexity, disconnected_steps,
-                                dominated_options, narrowing, skeleton)
-from src.cards.theme import JOBS
-from src.cards.trace import decisions, path_probability
-from src.game.terms import ASPECT_NAMES, keyword_text
+sys.path.insert(0, str(Path(__file__).parents[1] / "PythonServer"))
+from src.cards.abilities import validate  # noqa: E402
+from src.cards.generate import STAGES, Attempt, CardGenerator  # noqa: E402
+from src.cards.quality import (ACTION_COMPLEXITY, MAX_COMPLEXITY, MAX_NARROWING, complexity,  # noqa: E402
+                                disconnected_steps, dominated_options, narrowing, skeleton)
+from src.cards.theme import JOBS  # noqa: E402
+from src.cards.trace import decisions, path_probability  # noqa: E402
+from src.game.terms import ASPECT_NAMES, keyword_text  # noqa: E402
 
 PAGE = Path(__file__).with_name("card_lab.html")
 EXPLORER_PAGE = Path(__file__).with_name("card_explorer.html")

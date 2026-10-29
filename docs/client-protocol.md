@@ -36,7 +36,7 @@ Milestone 4, rules v2 (done):
 - **Card:** no score crowns and no energy-source rim. Cards have a `subtitle`: show it under
   the name in the name banner, smaller and in italics ("Porcini Baker" / "Up Before Dawn").
   Action cards have event names ("Ember Volley") and an empty subtitle. The card lab's card
-  (`PythonServer/scripts/card_kit.html`) shows one way to lay it out.
+  (`Blog/card_kit.html`) shows one way to lay it out.
 - **Unit states:** `frozen` (can't attack until the end of its owner's next turn: show ice), `hidden` (Elusive and
   hasn't attacked yet: enemies can't target it).
 

@@ -180,25 +180,26 @@ cards are, not a guess about value.
 
 ## Tools
 
-The card lab (`PythonServer/scripts/card_lab.py`) runs the whole pipeline and shows every
-stage, including what was thrown away and why. Run these from `PythonServer/`.
+The card lab (`Blog/card_lab.py`) runs the whole pipeline and shows every stage, including
+what was thrown away and why. Run these from the repository root: they use PythonServer's
+environment.
 
 The web page, at <http://localhost:8765>. Change the seed, set size, jobs, action share and variety there:
 
 ```bash
-uv run python -m scripts.card_lab
+uv run --project PythonServer python Blog/card_lab.py
 ```
 
 The same output in the terminal (`--rejected` adds the thrown-away draws):
 
 ```bash
-uv run python -m scripts.card_lab --text --count 50 --rejected
+uv run --project PythonServer python Blog/card_lab.py --text --count 50 --rejected
 ```
 
 A self-contained page with one batch baked in, which needs no Python to view (for sharing or a blog post):
 
 ```bash
-uv run python -m scripts.card_lab --export lab.html --seed 7 --count 80
+uv run --project PythonServer python Blog/card_lab.py --export lab.html --seed 7 --count 80
 ```
 
 The **card explorer** (<http://localhost:8765/explorer>, linked from the lab) generates one card per
@@ -214,7 +215,7 @@ the random generator as plain sampling, so tracing never changes what is generat
 100 cards into a page where the button deals from the batch:
 
 ```bash
-uv run python -m scripts.card_lab --export-explorer explorer.html --count 100 --variety 1
+uv run --project PythonServer python Blog/card_lab.py --export-explorer explorer.html --count 100 --variety 1
 ```
 
 The page shows:

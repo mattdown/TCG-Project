@@ -4,7 +4,7 @@
               → (vanilla and keyword-only units) build → not a duplicate
 
 Every attempt is kept with the stage that stopped it and why, so the card lab
-(scripts/card_lab.py) can show what the generator throws away as well as what it keeps. The
+(Blog/card_lab.py) can show what the generator throws away as well as what it keeps. The
 coverage generator uses the same pipeline. docs/ability-generation.md describes each stage.
 """
 import math

@@ -3,8 +3,7 @@ import random
 import re
 from collections import Counter
 
-from scripts.card_lab import one, run
-from src.cards.abilities import AbilitySampler, card_problems, render
+from src.cards.abilities import AbilitySampler, card_problems
 from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.match import play_match
 from src.agents.random_agent import RandomAgent
@@ -103,20 +102,6 @@ def test_variety_spreads_shapes():
     assert distinct(4) > distinct(1)
 
 
-def test_card_lab_data():
-    data = run(seed=3, count=30, jobs=6, action_share=0.25, vanilla_share=0.1, keyword_share=0.3, variety=2)
-    assert len(data["kept"]) == 30
-    for a in data["attempts"]:
-        assert a["checks"][0]["test"] == ("grammar" if a["tree"] else "card")
-        assert (a["card"] is None) == (a["stopped_at"] in ("grammar", "quality", "card"))
-    kept = [data["attempts"][i] for i in data["kept"]]
-    assert all(a["card"]["traits"][0] in data["job_list"] for a in kept if a["card"]["type"] == "unit")
-    assert {a["kind"] for a in kept} >= {"vanilla", "keywords", "on_resolve"}
-    assert all(a["card"]["aspect"] is None for a in kept if a["kind"] in ("vanilla", "keywords"))
-    ability = next(a for a in kept if a["tree"])
-    assert render(ability["tree"], ability["card_type"])
-
-
 def _decisions(node):
     for c in node["children"]:
         if "section" in c:
@@ -149,14 +134,6 @@ def test_tracing_matches_plain_sampling():
     assert tracer.chance("y", 0.3) == (plain.random() < 0.3)
     assert tracer.small("z", 1, 5) == plain.choices([1, 2, 3, 4, 5], [1, 1 / 2, 1 / 3, 1 / 4, 1 / 5])[0]
     assert rng.random() == plain.random()
-
-
-def test_explorer_data():
-    data = one(seed=12, jobs=6, action_share=0.25, vanilla_share=0.0, keyword_share=0.0, variety=1)
-    kept = data["kept"]
-    assert kept["stopped_at"] is None and kept["card"] is not None
-    assert 0 < kept["ability_p"] <= 1 and kept["ability_decisions"] >= 1
-    assert all(a["stopped_at"] and "trace" in a for a in data["others"])
 
 
 def test_names_are_unique_and_actions_get_event_names():

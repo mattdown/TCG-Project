@@ -2,7 +2,7 @@
 
 Each decision keeps all the options that were open at that point, their probabilities and
 the one taken, grouped into nested sections (trigger, steps, effect, target, …). The card
-explorer (scripts/card_lab.py) draws this as the path the sampler took. The tracer makes the
+explorer (Blog/card_lab.py) draws this as the path the sampler took. The tracer makes the
 same calls on the random generator as plain sampling would, so tracing never changes what is
 generated.
 """

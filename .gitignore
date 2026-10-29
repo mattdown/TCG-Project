@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 *.so
 PythonServer/data/
+Blog/build/
 wandb/
 
 # --- Unity (TCGClient/) ---

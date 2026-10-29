@@ -61,12 +61,15 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/agents/   random, heuristic, neural agents; match runner
   src/training/ PPO self-play
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
-  scripts/      generate_cards, card_lab, tree_video, train, benchmark, server (run as `python -m scripts.<name>`)
+  scripts/      generate_cards, experiments, train, benchmark, server (run as `python -m scripts.<name>`)
   cardsets/     generated card sets (JSON, one card per line)
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
 TCGClient/      Unity 6000.3.10f1, URP 2D template
 docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
+Blog/           everything that isn't the game or training: the card lab and explorer (card_lab.py,
+                card_kit.html), tree_video (one card's path through the grammar, animated), tests/;
+                uses PythonServer's environment, writes to Blog/build/ (gitignored)
 ```
 
 ## Commands (from `PythonServer/`)
@@ -75,11 +78,17 @@ docs/           technical plan, client protocol and design, theme, draw.io diagr
 uv sync
 uv run pytest
 uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
-uv run python -m scripts.card_lab           # card lab web page, /explorer for one card's path (--text, --export)
-uv run python -m scripts.tree_video         # one card's path through the grammar as a 15 s animation (--seed, --render)
 uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
 uv run python -m scripts.benchmark [--models a.pt b.pt]
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
+```
+
+Blog tools, from the repository root:
+
+```
+uv run --project PythonServer python Blog/card_lab.py     # card lab web page, /explorer for one card's path (--text, --export)
+uv run --project PythonServer python Blog/tree_video.py   # --seed N, --render for an MP4
+uv run --project PythonServer pytest Blog/tests
 ```
 
 Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log. The
@@ -87,6 +96,9 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
 
 ## Conventions
 
+- **PythonServer is the game and training only.** Anything else (viewers, explainers, blog pages
+  and their tests) goes in `Blog/`. It imports PythonServer's code (each script puts `PythonServer`
+  on `sys.path`) and runs with its environment, from the repository root.
 - **Cards are data.** A new card must never need new code. The network never sees a card ID,
   only what the card is, so it handles unseen and generated cards.
 - **Player-facing names** go through `src/game/terms.py`, so the game can be renamed in one place.

@@ -25,6 +25,7 @@ PythonServer/          Game engine, agents and training (Python, managed with uv
   tests/               pytest suite
 docs/                  technical plan, client protocol, draw.io diagrams
 TCGClient/             Unity 6 client (6000.3.10f1)
+Blog/                  tools and pages for the blog: card lab and explorer, ability tree animation
 ```
 
 ## Python setup
@@ -39,7 +40,7 @@ uv sync
 | Command | What it does |
 |---|---|
 | `uv run python -m scripts.generate_cards` | Writes a 200-card set: units with keywords to `cardsets/keywords_200.json` (the default set), or `--kind vanilla` for stats only (`--count`, `--seed`). `--kind set --count N` writes `cardsets/set_N.json`: a full set from the generation pipeline (about 4% vanilla and 25% keyword-only neutral units, a quarter action cards, the rest units with one ability; `--vanilla-share`, `--keyword-share`, `--action-share`), plus a Markdown checklist. `--kind coverage` writes `cardsets/coverage.json`: a small set that uses every ability building block at least twice (about a quarter action cards), plus a Markdown checklist |
-| `uv run python -m scripts.card_lab` | Card lab: generates cards with abilities and shows every stage of the pipeline, including what was thrown away and why ([docs/ability-generation.md](docs/ability-generation.md)). Opens a web page; `/explorer` generates one card at a time and shows the path it took through the grammar. `--text` prints to the terminal; `--export lab.html` / `--export-explorer explorer.html` write self-contained pages |
+| `uv run --project PythonServer python Blog/card_lab.py` (from the repository root) | Card lab: generates cards with abilities and shows every stage of the pipeline, including what was thrown away and why ([docs/ability-generation.md](docs/ability-generation.md)). Opens a web page; `/explorer` generates one card at a time and shows the path it took through the grammar. `--text` prints to the terminal; `--export lab.html` / `--export-explorer explorer.html` write self-contained pages |
 | `uv run python -m scripts.train` | PPO self-play on random decks; writes `models/tcgnet.pt` and `models/tcgnet_best.pt`. Every `PPOConfig` field is a flag, e.g. `--arch transformer --iterations 200 --device mps` |
 | `uv run python -m scripts.benchmark` | Round-robin win rates: random, heuristic and neural agents (`--models a.pt b.pt` to compare checkpoints) |
 | `uv run python -m scripts.server` | ZeroMQ server for the Unity client on `tcp://*:5555`. `--cards cardsets/coverage.json` to check abilities in Unity (`new_game` takes a `scenario`) |
