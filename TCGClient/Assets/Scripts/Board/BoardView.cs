@@ -26,6 +26,8 @@ namespace Tcg.Board
         const float Move = 0.3f;
 
         public UiTheme Theme;
+        [Tooltip("The painted mana crystal, full and spent.")]
+        public Sprite ManaFull, ManaEmpty;
 
         [Header("Cards")]
         public CardView CardPrefab;
@@ -219,10 +221,10 @@ namespace Tcg.Board
             var p = State.Human;
             for (int i = 0; i < HumanCrystals.childCount; i++)
             {
-                var rim = HumanCrystals.GetChild(i).GetChild(1);
+                var gem = HumanCrystals.GetChild(i);
                 bool spent = i < spend && i < p.mana;
-                rim.GetComponent<Image>().color = spent ? Color.white : Palette.Outline;
-                rim.localScale = Vector3.one * (spent ? 1.1f : 1f);
+                gem.GetChild(0).gameObject.SetActive(spent);
+                gem.GetChild(1).localScale = Vector3.one * (spent ? 1.1f : 1f);
             }
             HumanManaText.text = spend > 0 ? $"{p.mana} → {p.mana - spend}" : $"{p.mana}/{p.crystals}";
         }
@@ -606,8 +608,8 @@ namespace Tcg.Board
             label.text = $"{health}/{HeroHealth}";
         }
 
-        /// <summary>One gem per mana crystal: full ones bright, spent ones dark; "mana/crystals" beside them.</summary>
-        static void SetCrystals(RectTransform crystals, TMP_Text label, PlayerState p)
+        /// <summary>One crystal per mana crystal: full ones lit, spent ones empty; "mana/crystals" beside them.</summary>
+        void SetCrystals(RectTransform crystals, TMP_Text label, PlayerState p)
         {
             var template = crystals.GetChild(0).gameObject;
             while (crystals.childCount < p.crystals)
@@ -616,12 +618,10 @@ namespace Tcg.Board
             {
                 var gem = crystals.GetChild(i);
                 gem.gameObject.SetActive(i < p.crystals);
-                bool full = i < p.mana;
-                gem.GetChild(0).GetComponent<Image>().color = full ? Palette.Energy : Palette.EnergySpent;
-                var rim = gem.GetChild(1);
-                rim.GetComponent<Image>().color = Palette.Outline;
-                rim.localScale = Vector3.one;
-                if (gem.childCount > 2) gem.GetChild(2).gameObject.SetActive(full);
+                gem.GetChild(0).gameObject.SetActive(false);
+                var crystal = gem.GetChild(1);
+                crystal.GetComponent<Image>().sprite = i < p.mana ? ManaFull : ManaEmpty;
+                crystal.localScale = Vector3.one;
             }
             label.text = $"{p.mana}/{p.crystals}";
         }

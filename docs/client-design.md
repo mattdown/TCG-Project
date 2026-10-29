@@ -23,7 +23,9 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 > As built: each hero keeps its v1 corner (the enemy's top left, yours bottom left) with a
 > heart and a health bar in place of the VP bar; the enemy hero's whole panel is the
 > `attack_hero` drop target, ringed red while an arrow is out and showing "22 → 19" under the
-> finger. Mana crystals use the old gem row ("4/6"). The Spare Spore is a purple button left of
+> finger. Mana crystals are painted stones (`Art/Sprites/mana_full.png` / `mana_empty.png`) in a
+> row with a "4/6" count, over a soft dark glow that widens with the row; the ones a play would
+> spend get a gold disc behind them. The Spare Spore is a purple button left of
 > the turn pill, labelled with the action's text. Frozen units show ice and a ❄ over the art;
 > hidden ones a lilac veil. Unit names leave the banner's right end to the power and health
 > badges.

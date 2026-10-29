@@ -15,7 +15,6 @@ namespace Tcg.View
         public Sprite TargetRing;
         public Sprite ArrowHead;
         public Sprite Stripes;
-        public Sprite GemFill, GemRim, GemShine, GemDashed;
         public Sprite Crown;
 
         [Header("Fonts")]

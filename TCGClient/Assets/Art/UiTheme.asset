@@ -19,10 +19,6 @@ MonoBehaviour:
   TargetRing: {fileID: 21300000, guid: b3922093dddcf41deaab94a13768f732, type: 3}
   ArrowHead: {fileID: 21300000, guid: 00d868f451dd740f8a91fc192421b082, type: 3}
   Stripes: {fileID: 21300000, guid: 1015399789166404383bc0fafd1ac87c, type: 3}
-  GemFill: {fileID: 21300000, guid: 5d5e110511d724cee8fa50d24586996b, type: 3}
-  GemRim: {fileID: 21300000, guid: 9ae75608bb7324d39b08ab95fb316aed, type: 3}
-  GemShine: {fileID: 21300000, guid: 4d2c69141ea164045bba34faebf2b643, type: 3}
-  GemDashed: {fileID: 21300000, guid: 03b7f6354fd4f4853b59f68a49fbfa85, type: 3}
   Crown: {fileID: 21300000, guid: 9bb270a18336849ffb5c0ad73bf2de41, type: 3}
   Lilita: {fileID: 11400000, guid: f916bb76a4f5441c7bc713df0aa8a867, type: 2}
   Nunito: {fileID: 11400000, guid: 98339db2dfe884553b0a9aa90cfbd4bd, type: 2}

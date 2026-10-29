@@ -117,10 +117,6 @@ public static class ClientAssetBuilder
         theme.TargetRing = Sprite("target_ring");
         theme.ArrowHead = Sprite("arrow_head");
         theme.Stripes = Sprite("stripes");
-        theme.GemFill = Sprite("gem_fill");
-        theme.GemRim = Sprite("gem_rim");
-        theme.GemShine = Sprite("gem_shine");
-        theme.GemDashed = Sprite("gem_dashed");
         theme.Crown = Sprite("crown");
         theme.Lilita = f.Lilita;
         theme.Nunito = f.Nunito;
@@ -365,6 +361,8 @@ public static class ClientAssetBuilder
         var bv = board.gameObject.AddComponent<BoardView>();
         bv.CardPrefab = cardPrefab;
         bv.Theme = theme;
+        bv.ManaFull = ArtSprite("mana_full.png");
+        bv.ManaEmpty = ArtSprite("mana_empty.png");
 
         // The forest arena, its centre line on the divider between the two rows of units.
         var arena = Node("Background", board);
@@ -434,9 +432,10 @@ public static class ClientAssetBuilder
 
         var mana = Node("OpponentMana", board);
         Anchor(mana, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-80, -14), new Vector2(400, 22));
-        bv.OpponentCrystals = GemRow(mana, new Vector2(18, 20), false);
-        bv.OpponentManaText = Number(Node("Count", mana), f, 16);
+        bv.OpponentCrystals = GemRow(mana, new Vector2(20, 22), out var opponentTray);
+        bv.OpponentManaText = Number(Node("Count", opponentTray), f, 16);
         bv.OpponentManaText.rectTransform.sizeDelta = new Vector2(46, 22);
+        bv.OpponentManaText.gameObject.AddComponent<LayoutElement>().minWidth = 46;
     }
 
     static void BuildHumanHero(BoardView bv, RectTransform board, Fonts f)
@@ -457,9 +456,10 @@ public static class ClientAssetBuilder
     {
         var mana = Node("HumanMana", board);
         Anchor(mana, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 220), new Vector2(400, 28));
-        bv.HumanCrystals = GemRow(mana, new Vector2(22, 24), true);
-        bv.HumanManaText = Number(Node("Count", mana), f, 20);
+        bv.HumanCrystals = GemRow(mana, new Vector2(26, 29), out var humanTray);
+        bv.HumanManaText = Number(Node("Count", humanTray), f, 20);
         bv.HumanManaText.rectTransform.sizeDelta = new Vector2(58, 28);
+        bv.HumanManaText.gameObject.AddComponent<LayoutElement>().minWidth = 58;
 
         // The Spare Spore: the second player's one-off +1 mana, shown while its action is legal.
         var spore = Node("SpareSpore", board);
@@ -554,30 +554,52 @@ public static class ClientAssetBuilder
         return bar;
     }
 
-    /// <summary>A right-aligned row: energy gems (a template gem BoardView clones) then a count.</summary>
-    static RectTransform GemRow(RectTransform row, Vector2 gemSize, bool shine)
+    /// <summary>
+    /// A right-aligned row: mana crystals (a template crystal BoardView clones) then a count, in a
+    /// tray that sizes to them, over a soft dark glow so the stones stand out from the arena.
+    /// The row and the tray size their children to fit (no nested ContentSizeFitters, which miss
+    /// the crystals BoardView adds each turn).
+    /// </summary>
+    static RectTransform GemRow(RectTransform row, Vector2 gemSize, out RectTransform tray)
     {
         var rowLayout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
         rowLayout.childAlignment = TextAnchor.MiddleRight;
-        rowLayout.spacing = 8;
-        rowLayout.childControlWidth = rowLayout.childControlHeight = false;
+        rowLayout.childControlWidth = true;
+        rowLayout.childControlHeight = false;
         rowLayout.childForceExpandWidth = rowLayout.childForceExpandHeight = false;
 
-        var gems = Node("Gems", row);
+        tray = Node("Tray", row);
+        tray.sizeDelta = new Vector2(0, gemSize.y);
+        var trayLayout = tray.gameObject.AddComponent<HorizontalLayoutGroup>();
+        trayLayout.childAlignment = TextAnchor.MiddleRight;
+        trayLayout.spacing = 8;
+        trayLayout.childControlWidth = true;
+        trayLayout.childControlHeight = false;
+        trayLayout.childForceExpandWidth = trayLayout.childForceExpandHeight = false;
+
+        float spread = gemSize.y * 0.9f;
+        var shadow = Img(Stretch("Shadow", tray, -spread, -spread * 1.2f, -spread, -spread * 1.2f),
+            _glow, Color.black.WithAlpha(0.85f));
+        shadow.type = Image.Type.Sliced;
+        shadow.pixelsPerUnitMultiplier = 40f / spread;  // the glow's 40-unit falloff scaled to the spread
+        shadow.raycastTarget = false;
+        shadow.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+
+        var gems = Node("Gems", tray);
         var gemsLayout = gems.gameObject.AddComponent<HorizontalLayoutGroup>();
         gemsLayout.childAlignment = TextAnchor.MiddleRight;
         gemsLayout.spacing = 3;
         gemsLayout.childControlWidth = gemsLayout.childControlHeight = false;
         gemsLayout.childForceExpandWidth = gemsLayout.childForceExpandHeight = false;
-        var fit = gems.gameObject.AddComponent<ContentSizeFitter>();
-        fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
         gems.sizeDelta = new Vector2(0, gemSize.y);
 
+        // A painted crystal (BoardView swaps full / empty), over a gold glow shown on the ones a play would spend.
         var gem = Node("Gem", gems);
         gem.sizeDelta = gemSize;
-        Img(Stretch("Fill", gem, 0, 0, 0, 0), Sprite("gem_fill"), Palette.Energy);
-        Img(Stretch("Rim", gem, 0, 0, 0, 0), Sprite("gem_rim"), Palette.Outline);
-        if (shine) Img(Stretch("Shine", gem, 0, 0, 0, 0), Sprite("gem_shine"), Color.white.WithAlpha(0.6f));
+        var spend = Img(Stretch("Spend", gem, -gemSize.x * 0.25f, -gemSize.y * 0.25f, -gemSize.x * 0.25f, -gemSize.y * 0.25f),
+            Ui.Theme.Dot, Palette.GlowSelected.WithAlpha(0.85f));
+        spend.gameObject.SetActive(false);
+        Img(Stretch("Crystal", gem, 0, 0, 0, 0), ArtSprite("mana_full.png"), Color.white);
         return gems;
     }
 
