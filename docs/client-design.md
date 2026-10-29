@@ -26,7 +26,7 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 > it. The enemy hero's whole panel is the `attack_hero` drop target, with a soft red glow while an
 > arrow is out and the health it would have left, in gold, in the heart under the finger.
 > Mana crystals are painted stones (`Art/Sprites/mana_full.png` / `mana_empty.png`) in a
-> row with a "4/6" count, over a soft dark glow that widens with the row; the ones a play would
+> row with a "4/6" count (yours in rows of 5 under END TURN); the ones a play would
 > spend get a gold disc behind them. The Spare Spore is a purple button left of
 > the turn pill, labelled with the action's text. Frozen units show ice and a ❄ over the art;
 > hidden ones a lilac veil. Unit names leave the banner's right end to the power and health
@@ -63,12 +63,12 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 
 | Area | Where |
 |---|---|
-| Opponent bar | top strip: the enemy hero panel with deck and hand counts beside it (left); mana crystals and the help button, with the DEV / GNN dev buttons under it (right); card backs peek in at top centre |
+| Opponent bar | top strip: the enemy hero panel with deck and hand counts beside it (left); mana crystals and the help button, with the DEV / GNN dev buttons under it (right); painted card backs (`Art/Sprites/card_back.png`), the size of your cards, hang 62 px in at top centre in a mirror of your hand's fan |
 | Opponent units | one centred row near the top |
-| Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`) |
+| Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`), under a navy fade at the top and bottom for the HUD |
 | Your units | one centred row below the divider |
 | Your hero | bottom left: your hero panel, with the deck count beside it |
-| Your energy, END TURN | bottom right: energy gems with a ready/total count, turn number, END TURN button |
+| Your mana, END TURN | bottom right: turn number, END TURN button, and your mana crystals (rows of 5) with a ready/total count under it |
 | Hand | fanned along the bottom centre, partly off-screen |
 
 ## The card

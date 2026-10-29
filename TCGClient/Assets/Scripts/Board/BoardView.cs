@@ -22,7 +22,8 @@ namespace Tcg.Board
         const float MaxRowWidth = 900f;  // keeps a full row of 7 clear of the hero panels in the left corners
         const float HandStep = 118f;
         const float HandMaxWidth = 700f;
-        const float BackStep = 40f;
+        const float BackVisible = 62f;     // how far the opponent's hand hangs into the board
+        const float BackMaxWidth = 520f;   // narrower than yours, clear of their mana in the top right
         const float Move = 0.3f;
 
         public UiTheme Theme;
@@ -563,15 +564,21 @@ namespace Tcg.Board
                 back.SetActive(true);
                 _backs.Add(back);
             }
+            // Your hand's fan, mirrored: each back hangs from its top centre on a shallow arc above the screen.
+            float step = count > 1 ? Mathf.Min(HandStep, (BackMaxWidth - CardView.Width) / (count - 1)) : 0f;
             for (int i = 0; i < _backs.Count; i++)
             {
                 bool shown = i < count;
                 _backs[i].SetActive(shown);
                 if (!shown) continue;
-                float off = i - (count - 1) / 2f;
+                float x = (i - (count - 1) / 2f) * step;
+                float u = x / HandStep;
+                float angle = u * 4f;
+                var top = new Vector2(x, CardView.Height - BackVisible + u * u * 6f);
+                float rad = angle * Mathf.Deg2Rad;
                 var rt = (RectTransform)_backs[i].transform;
-                rt.anchoredPosition = new Vector2(off * BackStep, 0f);
-                rt.localRotation = Quaternion.Euler(0f, 0f, off * 4f);
+                rt.anchoredPosition = top + new Vector2(Mathf.Sin(rad), -Mathf.Cos(rad)) * (CardView.Height / 2f);
+                rt.localRotation = Quaternion.Euler(0f, 0f, angle);
             }
         }
 

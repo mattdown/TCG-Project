@@ -30,8 +30,6 @@ namespace Tcg.View
         public static readonly Color OpponentLip = Hex("#A8321F");
         public static readonly Color HumanAccent = Hex("#2F86E8");
         public static readonly Color HumanLip = Hex("#1A5DB0");
-        public static readonly Color CardBack = Hex("#7A3FC4");
-        public static readonly Color CardBackRing = Hex("#9152E0");
 
         /// <summary>Aspect colours by aspect_N (Ember, Bog, Moss, Meadow, Glow, Frost: see docs/theme.md).</summary>
         static readonly Color[] Aspects =
