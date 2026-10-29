@@ -44,7 +44,7 @@ a darker lip along the bottom edge, white numbers with a dark outline.
 | Score crowns, primary button | `#FFC93C`, lip `#D98A10` |
 | Stat above printed value | `#7CFF7C` |
 | Stat below printed value | `#FF8A96` |
-| Glows | playable `#5BEA5B`, selected `#FFE14D`, target `#FF4D5E` |
+| Glows | playable `#81FF00`, selected `#FFE14D`, target `#FF4D5E` |
 | Field | checkerboard `#5E9C57` / `#5A9753`, 44 px squares, darkening to navy at the top and bottom edges |
 
 Aspect colours, one per `aspect_N`: Ember `#F0533A`, Bog `#2F86E8`, Moss `#43B04F`,

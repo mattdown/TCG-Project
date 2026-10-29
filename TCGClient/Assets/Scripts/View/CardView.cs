@@ -23,7 +23,7 @@ namespace Tcg.View
 
         [Header("Parts")]
         public RectTransform Visual;
-        public Image GlowHalo, GlowRing;
+        public Image GlowHalo;
         [Tooltip("The painted frame over the art, and its shadow.")]
         public Image Frame, FrameShadow;
         [Tooltip("The job tag's rim, in the aspect colour.")]
@@ -133,12 +133,10 @@ namespace Tcg.View
             Mark = mark;
             bool glow = mark != CardMark.None;
             GlowHalo.gameObject.SetActive(glow);
-            GlowRing.gameObject.SetActive(glow);
             if (glow)
             {
                 Color c = mark == CardMark.Playable ? Palette.GlowPlayable
                     : mark == CardMark.Selected ? Palette.GlowSelected : Palette.GlowTarget;
-                GlowRing.color = c;
                 GlowHalo.color = c.WithAlpha(mark == CardMark.Selected ? 0.75f : 0.65f);
             }
             Visual.anchoredPosition = new Vector2(0f, mark == CardMark.Selected ? SelectedLift : 0f);

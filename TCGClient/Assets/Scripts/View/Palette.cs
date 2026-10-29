@@ -22,7 +22,7 @@ namespace Tcg.View
         public static readonly Color GoldLip = Hex("#D98A10");
         public static readonly Color StatUp = Hex("#7CFF7C");
         public static readonly Color StatDown = Hex("#FF8A96");
-        public static readonly Color GlowPlayable = Hex("#5BEA5B");
+        public static readonly Color GlowPlayable = Hex("#81FF00");
         public static readonly Color GlowSelected = Hex("#FFE14D");
         public static readonly Color GlowTarget = Hex("#FF4D5E");
         public static readonly Color Attacked = new Color(10 / 255f, 16 / 255f, 36 / 255f, 0.6f);

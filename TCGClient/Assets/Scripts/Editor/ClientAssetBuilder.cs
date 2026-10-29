@@ -219,12 +219,11 @@ public static class ClientAssetBuilder
 
         var visual = Stretch("Visual", rootRt, 0, 0, 0, 0);
         cv.Visual = visual;
-        cv.GlowHalo = Img(Stretch("GlowHalo", visual, -27, -27, -27, -27), _glow, Color.white);
+        // Sized to the painted frame, which pokes out further at the top and bottom than at the sides.
+        cv.GlowHalo = Img(Stretch("GlowHalo", visual, -24.35f, -27.78f, -27.46f, -31.25f), _glow, Color.white);
         cv.GlowHalo.type = Image.Type.Sliced;
-        cv.GlowRing = Rounded(Stretch("GlowRing", visual, -3, -3, -3, -3), Color.white, 16);
         cv.GlowHalo.gameObject.SetActive(false);
-        cv.GlowRing.gameObject.SetActive(false);
-        cv.TargetOutline = Ui.Outline(Stretch("TargetRing", visual, -7, -7, -7, -7), Palette.GlowTarget, 16);
+        cv.TargetOutline = Ui.Outline(Stretch("TargetRing", visual, 0, -4.63f, -3, -8.5f), Palette.GlowTarget, 16);
         cv.TargetOutline.gameObject.SetActive(false);
         Img(Stretch("Body", visual, 0, 0, 0, 0), null, Color.clear).raycastTarget = true;  // taps and drags
 
