@@ -4,15 +4,21 @@ Nodes and edges are the ones the GNN reads (src/graph/builder.py), from the huma
 view, so nothing hidden appears. Reverse edges are left out: each forward edge stands for both
 directions. Every node carries a short vector per layer: its GNN embedding averaged down to
 VECTOR_DIM numbers, or its raw input features when there's no GNN to run.
+
+Also what the two heads read. The policy head scores each legal action from its type and the
+final embeddings of its actor and target cards, the ability node being decided (context), the
+first node of a chosen option, and the global node. The value head reads the global node and
+both player nodes. Actions are only sent for the human's own decisions: the AI's would need its
+observation, which includes its hand.
 """
 import numpy as np
 import torch
 
-from src.game.engine import Game
+from src.game.engine import Game, describe_action
 from src.graph.abilities import FEATURES
 from src.graph.encode import observe
 
-VECTOR_DIM = 16
+VECTOR_DIM = 4
 # Feature prefixes that name what an ability node does, after its kind.
 LABEL_PREFIXES = ("op:", "event:", "cond:")
 
@@ -38,11 +44,17 @@ def graph_view(game: Game, player: int, net=None) -> dict:
     n_cards, n_nodes = e.num_cards, e.num_nodes
     player_id, global_id, ability_id = n_cards, n_cards + 2, n_cards + 3
 
+    probabilities, value = [None] * e.num_actions, None
     if net is not None and getattr(net, "arch", None) == "gnn":
+        batch = net.collate([e])
         with torch.no_grad():
-            states = net.node_states(net.collate([e]))
+            states = net.node_states(batch)
+            logits, _, values = net(batch)
         layers = [{t: x[t].cpu().numpy() for t in ("card", "player", "global", "ability")} for x in states]
         source = "gnn"
+        if e.num_actions:
+            probabilities = [round(float(p), 4) for p in logits.softmax(-1)]
+        value = round(float(values[0]), 4)
     else:
         layers = [{"card": np.concatenate([e.card_static, e.card_dynamic], axis=1), "player": e.player,
                    "global": e.global_[None], "ability": e.node_features}]
@@ -75,5 +87,18 @@ def graph_view(game: Game, player: int, net=None) -> dict:
                                  ("matches", e.node_matches, True), ("bound_to", e.node_bound, True)):
         edges += [(name, ability_id + int(s), int(d) if to_card else ability_id + int(d)) for s, d in field.T]
 
+    def card_node(i) -> int | None:
+        return int(i) if i >= 0 else None
+
+    def ability_node(i) -> int | None:
+        return ability_id + int(i) if i >= 0 else None
+
+    actions = [{"index": i, "type": a.to_dict()["type"], "text": describe_action(game, a),
+                "actor": card_node(e.action_actor[i]), "target": card_node(e.action_target[i]),
+                "context": ability_node(e.action_context[i]), "option": ability_node(e.action_option[i]),
+                "global": global_id, "probability": probabilities[i]}
+               for i, a in enumerate(obs.actions)]
+
     return {"embedding": source, "layers": len(layers), "dim": VECTOR_DIM, "nodes": nodes,
-            "edges": [{"type": t, "src": s, "dst": d} for t, s, d in edges]}
+            "edges": [{"type": t, "src": s, "dst": d} for t, s, d in edges],
+            "actions": actions, "value": {"estimate": value, "nodes": [global_id, player_id, player_id + 1]}}

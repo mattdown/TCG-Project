@@ -150,10 +150,14 @@ Drag previews come from each legal action's server-side `preview`
     `hand: C1-004; opponent_play: C1-018, C1-036 attacked; energy: 2; seed: 1`.
   - *GNN overlay:* the GNN button, next to DEV, darkens the board and draws the server's `graph`
     over it: card nodes on their cards with each card's ability graph unfolded below, player
-    nodes on the heroes, the global node by the turn counter. Each node is a 4×4 grid of its
-    embedding (orange positive, blue negative) in a frame coloured by node type; edges are
-    coloured by type, tapping a type in the legend hides it, and hovering a node lights its
-    edges. It refreshes after every state while open (`Board/GraphOverlay.cs`).
+    nodes on the heroes, the global node by the turn counter. Each node is a column of its
+    embedding (4 cells, orange positive, blue negative) in a frame coloured by node type; edges
+    are coloured by type, tapping a type in the legend hides it, and hovering a node lights its
+    edges. The POLICY button (shown while the overlay is open) lists the legal actions by the
+    network's probability, and the value; hovering a row (tap to keep it) fades the other nodes
+    and draws a line from each node the head reads (actor, target, context, option, global; the
+    value reads global and both players). It refreshes after every state while open
+    (`Board/GraphOverlay.cs`).
 
 ## Help screen
 

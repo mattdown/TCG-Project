@@ -60,11 +60,19 @@ namespace Tcg.View
         public const string GraphLoading = "Loading the graph…";
         public const string GraphGnn = "GNN embeddings after layer {0} of {1}";  // {0}, {1}: layer numbers
         public const string GraphFeatures = "Input features: the server has no GNN model";
-        public const string GraphHint = "Each square is a node's vector: <color=#FB923C>orange</color> positive, <color=#38BDF8>blue</color> negative. Tap an edge type to hide it.";
+        public const string GraphHint = "Each column is a node's vector: <color=#FB923C>orange</color> positive, <color=#38BDF8>blue</color> negative. Tap an edge type to hide it.";
         public const string GraphYou = "You";
         public const string GraphOpponent = "Opponent";
         public const string GraphGlobal = "Turn and phase";
         public const string GraphAbilityOf = "Ability step of {0}";  // {0}: the card's name
+        public const string PolicyButton = "POLICY";
+        public const string PolicyTitle = "Policy and value";
+        // {0}: the slot names, each in its line colour.
+        public const string PolicyKey = "Hover an action (tap to keep it) to see what the policy head reads: {0}";
+        public static readonly string[] PolicySlots = { "actor", "target", "context", "option", "global" };
+        public const string PolicyValue = "Value: reads global and both players";
+        public const string PolicyNoActions = "Not your decision: your actions show when you choose.";
+        public const string PolicyMore = "+{0} more";
 
         // Help screen. Keyword rules and class names come from the server's card_set.
         public const string HelpTitle = "How to read a card";

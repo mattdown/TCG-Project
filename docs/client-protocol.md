@@ -221,20 +221,31 @@ network gets), so the AI's hand and both decks never appear. Nodes are `card`, `
 graph). `id` is the node's index in `nodes`. Edges are the forward ones only (`belongs_to`,
 `faces`, `opposes`, `in`, `part_of`, `next`, `uses`, `matches`, `bound_to`); the GNN also
 passes messages back along each. `vectors` has one entry per layer (the input projection, then
-one after each GNN layer), each the embedding averaged down to `dim` numbers. With no GNN model on
+one after each GNN layer), each the embedding averaged down to `dim` (4) numbers. With no GNN model on
 the server, `embedding` is `"features"` and the single vector is the node's raw input features.
+
+`actions` are the human's legal actions (same order and `index` as `legal_actions`; empty when
+it's the AI's decision, since its view includes its hand), each with the nodes the policy head
+scores it from: `actor` and `target` card nodes, `context` (the ability node being decided) and
+`option` (the first node of a chosen option), null when the slot is empty, and always `global`.
+`probability` is the network's softmax over the legal actions. `value` is the value head's
+estimate for the human in [-1, 1] and the nodes it reads (global and both players). Both numbers
+are null without a GNN model.
 
 ```json
 → {"type": "graph"}
-← {"status": "ok", "graph": {"embedding": "gnn", "layers": 5, "dim": 16,
+← {"status": "ok", "graph": {"embedding": "gnn", "layers": 5, "dim": 4,
      "nodes": [
-       {"id": 0, "type": "card", "uid": 12, "card_id": "S1-642", "owner": 0, "zone": "hand", "vectors": [[-0.01, 0.019, …], …]},
+       {"id": 0, "type": "card", "uid": 12, "card_id": "S1-642", "owner": 0, "zone": "hand", "vectors": [[-0.01, 0.019, 0.04, -0.07], …]},
        …
        {"id": 7, "type": "player", "owner": 0, "vectors": […]},
        {"id": 9, "type": "global", "vectors": […]},
        {"id": 10, "type": "ability", "card": 0, "kind": "entry", "label": "entry: on_play", "resolving": false, "vectors": […]},
        {"id": 11, "type": "ability", "card": 0, "kind": "effect", "label": "effect: summon", "resolving": false, "vectors": […]}],
-     "edges": [{"type": "belongs_to", "src": 0, "dst": 7}, {"type": "next", "src": 10, "dst": 11}, …]}}
+     "edges": [{"type": "belongs_to", "src": 0, "dst": 7}, {"type": "next", "src": 10, "dst": 11}, …],
+     "actions": [{"index": 0, "type": "play", "text": "Play Enoki Tailor", "actor": 0, "target": null,
+                  "context": null, "option": null, "global": 9, "probability": 0.12}, …],
+     "value": {"estimate": -0.05, "nodes": [9, 7, 8]}}}
 ```
 
 ## The state

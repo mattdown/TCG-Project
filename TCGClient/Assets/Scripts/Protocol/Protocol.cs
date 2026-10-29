@@ -276,6 +276,27 @@ namespace Tcg.Protocol
         public int dim;           // numbers per vector
         public List<GraphNode> nodes;
         public List<GraphEdge> edges;
+        public List<GraphAction> actions;  // the human's legal actions, in legal_actions order; empty otherwise
+        public GraphValue value;
+    }
+
+    /// <summary>A legal action and the node ids the policy head scores it from (null: the slot is empty).</summary>
+    public class GraphAction
+    {
+        public int index;
+        public string type;
+        public string text;
+        public int? actor, target;     // card nodes
+        public int? context, option;   // ability nodes
+        public int global;
+        public float? probability;     // null without a GNN model
+    }
+
+    /// <summary>The value head's estimate for the human, in [-1, 1], and the nodes it reads.</summary>
+    public class GraphValue
+    {
+        public float? estimate;        // null without a GNN model
+        public List<int> nodes;
     }
 
     public class GraphNode

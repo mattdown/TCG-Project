@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Tcg.View
 {
     /// <summary>
-    /// A node's vector as a square grid of cells: orange for positive values, blue for negative,
+    /// A node's vector as a column of cells, top to bottom: orange for positive values, blue for negative,
     /// fading to navy at zero. Values are read against a shared scale so nodes compare at a glance.
     /// </summary>
     public class EmbeddingGlyph : MaskableGraphic
@@ -32,19 +32,17 @@ namespace Tcg.View
             vh.Clear();
             if (_values == null || _values.Count == 0) return;
             var r = rectTransform.rect;
-            int side = Mathf.CeilToInt(Mathf.Sqrt(_values.Count));
-            float cell = Mathf.Min(r.width, r.height) / side;
-            float gap = cell > 5f ? 1f : 0f;
-            var origin = new Vector2(r.center.x - cell * side / 2f, r.center.y + cell * side / 2f);
+            float cell = r.height / _values.Count;
+            float gap = cell > 4f ? 1f : 0f;
             for (int i = 0; i < _values.Count; i++)
             {
-                var min = origin + new Vector2(i % side * cell, -(i / side + 1) * cell);
+                float top = r.yMax - i * cell;
                 var colour = ColourOf(_values[i], _scale);
                 int start = vh.currentVertCount;
-                vh.AddVert(new Vector2(min.x, min.y), colour, Vector2.zero);
-                vh.AddVert(new Vector2(min.x, min.y + cell - gap), colour, Vector2.zero);
-                vh.AddVert(new Vector2(min.x + cell - gap, min.y + cell - gap), colour, Vector2.zero);
-                vh.AddVert(new Vector2(min.x + cell - gap, min.y), colour, Vector2.zero);
+                vh.AddVert(new Vector2(r.xMin, top - cell + gap), colour, Vector2.zero);
+                vh.AddVert(new Vector2(r.xMin, top), colour, Vector2.zero);
+                vh.AddVert(new Vector2(r.xMax, top), colour, Vector2.zero);
+                vh.AddVert(new Vector2(r.xMax, top - cell + gap), colour, Vector2.zero);
                 vh.AddTriangle(start, start + 1, start + 2);
                 vh.AddTriangle(start + 2, start + 3, start);
             }

@@ -15,7 +15,8 @@ namespace Tcg.Board
     /// nodes on the heroes and the global node by the turn counter. Each node shows its vector
     /// (EmbeddingGlyph) in a frame coloured by node type; edges are coloured by edge type, and the
     /// legend hides an edge type when tapped. Nodes follow the cards every frame, so the graph
-    /// keeps up with the board's animations.
+    /// keeps up with the board's animations. The POLICY button opens a list of the legal actions
+    /// and the value: hovering one (or tapping, to keep it) draws lines from the nodes its head reads.
     /// </summary>
     public class GraphOverlay : MonoBehaviour
     {
@@ -55,10 +56,19 @@ namespace Tcg.Board
             ["in"] = new EdgeStyle("#E9EEF8", 0.7f, 2f, 0f, false),
         };
 
+        /// <summary>The policy head's inputs, in UiText.PolicySlots order: actor, target, context, option, global.</summary>
+        static readonly Color[] SlotColours =
+        {
+            Palette.Hex("#FFE14D"), Palette.Hex("#FF4D5E"), Palette.Hex("#22BCC9"), Palette.Hex("#FF6FD8"),
+            Palette.Hex("#E9EEF8"),
+        };
+        const int MaxActionRows = 14;
+
         class NodeView
         {
             public GraphNode Node;
             public RectTransform Rect;
+            public CanvasGroup Group;
             public EmbeddingGlyph Glyph;
             public Vector2 Position;
             public float Size;
@@ -90,6 +100,12 @@ namespace Tcg.Board
         int _hover = -1;
         bool _dirty;
 
+        RectTransform _policy;
+        Image _policyFace;
+        readonly List<(int node, Color colour)> _focus = new List<(int, Color)>();
+        RectTransform _focusRow;  // the action or value row whose inputs are drawn
+        bool _pinned;
+
         public static GraphOverlay Create(RectTransform parent, BoardView board)
         {
             // Like the dev panel: raycasts pass through the full-screen root except on its button and open panel.
@@ -107,6 +123,15 @@ namespace Tcg.Board
             view._edges.raycastTarget = false;
             view._nodeLayer = Ui.Stretch("Nodes", view._area, 0, 0, 0, 0);
             view.BuildLegend(panel);
+            view._policy = Ui.Box("Policy", panel, 12, 70, 290, 100);
+            view._policy.gameObject.SetActive(false);
+            var policyToggle = Ui.Box("PolicyToggle", panel, 136, 690, 72, 22, bottom: true);
+            Ui.Pill(policyToggle, UiText.PolicyButton, Palette.CardNavy, 11, display: false);
+            view._policyFace = policyToggle.Find("Face").GetComponent<Image>();
+            var policyButton = policyToggle.gameObject.AddComponent<Button>();
+            policyButton.targetGraphic = policyToggle.GetComponent<Image>();
+            policyToggle.GetComponent<Image>().raycastTarget = true;
+            policyButton.onClick.AddListener(view.TogglePolicy);
 
             view._tooltip = Ui.Node("Tooltip", panel);
             view._tooltip.anchorMin = view._tooltip.anchorMax = new Vector2(0.5f, 0.5f);
@@ -145,6 +170,9 @@ namespace Tcg.Board
             _abilitiesOf.Clear();
             _treeSize.Clear();
             _hover = -1;
+            _focus.Clear();
+            _focusRow = null;
+            _pinned = false;
             _tooltip.gameObject.SetActive(false);
 
             int layer = graph.layers - 1;
@@ -170,6 +198,7 @@ namespace Tcg.Board
             foreach (var e in graph.edges) counts[e.type] = counts.TryGetValue(e.type, out var c) ? c + 1 : 1;
             foreach (var pair in _edgeRows)
                 pair.Value.label.text = $"{Name(pair.Key)} <color=#B8C6E8>· {(counts.TryGetValue(pair.Key, out var n) ? n : 0)}</color>";
+            BuildPolicy();
             _dirty = true;
             LateUpdate();
         }
@@ -190,8 +219,9 @@ namespace Tcg.Board
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             var frame = Ui.Rounded(rt, NodeColours.TryGetValue(node.type, out var c) ? c : Color.white, 4);
             frame.raycastTarget = true;
+            var group = rt.gameObject.AddComponent<CanvasGroup>();
             Ui.Rounded(Ui.Stretch("Back", rt, 2, 2, 2, 2), Palette.Outline, 3);
-            var vector = Ui.Stretch("Vector", rt, 3, 3, 3, 3).gameObject;
+            var vector = Ui.Stretch("Vector", rt, 2, 2, 2, 2).gameObject;
             vector.AddComponent<CanvasRenderer>();
             var glyph = vector.AddComponent<EmbeddingGlyph>();
             glyph.raycastTarget = false;
@@ -200,7 +230,7 @@ namespace Tcg.Board
             var hover = rt.gameObject.AddComponent<GraphNodeHover>();
             hover.Entered += () => SetHover(node.id);
             hover.Exited += () => { if (_hover == node.id) SetHover(-1); };
-            return new NodeView { Node = node, Rect = rt, Glyph = glyph };
+            return new NodeView { Node = node, Rect = rt, Group = group, Glyph = glyph };
         }
 
         /// <summary>
@@ -343,7 +373,7 @@ namespace Tcg.Board
             n.Position = position;
             n.Size = size;
             n.Rect.anchoredPosition = position;
-            n.Rect.sizeDelta = new Vector2(size, size);
+            n.Rect.sizeDelta = new Vector2(Mathf.Max(8f, size * 0.5f), size);  // a column: it's a vector
             _dirty = true;
         }
 
@@ -385,7 +415,11 @@ namespace Tcg.Board
                 var to = _nodes[e.dst];
                 var colour = style.Colour;
                 float width = style.Width;
-                if (_hover >= 0)
+                if (_focus.Count > 0)
+                {
+                    colour = colour.WithAlpha(colour.a * 0.12f);
+                }
+                else if (_hover >= 0)
                 {
                     bool touches = e.src == _hover || e.dst == _hover;
                     colour = touches ? colour.WithAlpha(1f) : colour.WithAlpha(colour.a * 0.12f);
@@ -396,6 +430,18 @@ namespace Tcg.Board
                     From = from.Position, To = to.Position, Colour = colour, Width = width, Bend = style.Bend,
                     Inset = style.Arrow ? to.Size / 2f + 1f : 0f, Arrow = style.Arrow,
                 });
+            }
+            if (_focusRow != null && _focus.Count > 0)
+            {
+                var row = BoundsOf(_focusRow);
+                var to = new Vector2(row.xMax, row.center.y);
+                foreach (var (node, colour) in _focus)
+                    if (node < _nodes.Count)
+                        _edgeBuffer.Add(new GraphEdges.Edge
+                        {
+                            From = _nodes[node].Position, To = to, Colour = colour, Width = 2.5f, Bend = 0.12f,
+                            Arrow = true,
+                        });
             }
             _edges.Set(_edgeBuffer);
         }
@@ -487,6 +533,109 @@ namespace Tcg.Board
         {
             if (!_hiddenEdges.Remove(type)) _hiddenEdges.Add(type);
             _edgeRows[type].group.alpha = _hiddenEdges.Contains(type) ? 0.35f : 1f;
+            _dirty = true;
+        }
+
+        // --- policy and value
+
+        void TogglePolicy()
+        {
+            bool open = !_policy.gameObject.activeSelf;
+            _policy.gameObject.SetActive(open);
+            _policyFace.color = open ? Palette.HumanAccent : Palette.CardNavy;
+            if (!open) SetFocus(null, null, false);
+        }
+
+        /// <summary>
+        /// The legal actions, likeliest first, and the value. Each row's slots are the nodes its
+        /// head reads after message passing; an empty policy slot uses a learned "empty" vector.
+        /// </summary>
+        void BuildPolicy()
+        {
+            const float W = 290f, Row = 20f;
+            for (int i = _policy.childCount - 1; i >= 0; i--) Destroy(_policy.GetChild(i).gameObject);
+            if (_policy.GetComponent<Image>() == null) Ui.Rounded(_policy, Palette.Outline.WithAlpha(0.94f), 12).raycastTarget = true;
+
+            float y = 10f;
+            Ui.Display(Ui.Box("Title", _policy, 12, y, W - 24, 22), UiText.PolicyTitle, 18, TextAlignmentOptions.Left);
+            y += 24f;
+            var key = new List<string>();
+            for (int i = 0; i < SlotColours.Length; i++)
+                key.Add($"<color=#{ColorUtility.ToHtmlStringRGB(SlotColours[i])}>{UiText.PolicySlots[i]}</color>");
+            Ui.Body(Ui.Box("Key", _policy, 12, y, W - 24, 30), string.Format(UiText.PolicyKey, string.Join(" · ", key)),
+                10, Palette.SubtleText);
+            y += 32f;
+
+            var value = _graph.value;
+            var valueSlots = new List<(int, Color)>();
+            if (value?.nodes != null)
+                foreach (var node in value.nodes)
+                    if (node < _nodes.Count) valueSlots.Add((node, NodeColours[_nodes[node].Node.type]));
+            string estimate = value?.estimate.HasValue == true ? value.estimate.Value.ToString("+0.00;-0.00") : "–";
+            PolicyRow(y, W, UiText.PolicyValue, estimate, null, valueSlots);
+            y += Row + 6f;
+
+            var actions = new List<GraphAction>(_graph.actions ?? new List<GraphAction>());
+            actions.Sort((a, b) => (b.probability ?? 0f).CompareTo(a.probability ?? 0f));
+            if (actions.Count == 0)
+            {
+                Ui.Body(Ui.Box("None", _policy, 12, y, W - 24, 30), UiText.PolicyNoActions, 11, Palette.SubtleText);
+                y += 32f;
+            }
+            for (int i = 0; i < actions.Count && i < MaxActionRows; i++)
+            {
+                var a = actions[i];
+                var slots = new List<(int, Color)>();
+                var nodes = new[] { a.actor, a.target, a.context, a.option, a.global };
+                for (int s = 0; s < nodes.Length; s++)
+                    if (nodes[s].HasValue) slots.Add((nodes[s].Value, SlotColours[s]));
+                string share = a.probability.HasValue ? $"{a.probability.Value:0%}" : "";
+                PolicyRow(y, W, a.text, share, a.probability, slots);
+                y += Row;
+            }
+            if (actions.Count > MaxActionRows)
+            {
+                Ui.Body(Ui.Box("More", _policy, 12, y + 2, W - 24, 16),
+                    string.Format(UiText.PolicyMore, actions.Count - MaxActionRows), 11, Palette.SubtleText);
+                y += Row;
+            }
+            _policy.sizeDelta = new Vector2(W, y + 8f);
+        }
+
+        void PolicyRow(float y, float width, string text, string right, float? share, List<(int, Color)> slots)
+        {
+            var row = Ui.Box("Row", _policy, 8, y, width - 16, 20);
+            Ui.Rounded(row, Color.white.WithAlpha(0.06f), 5).raycastTarget = true;
+            if (share.HasValue)
+                Ui.Rounded(Ui.Box("Share", row, 0, 0, (width - 16) * Mathf.Clamp01(share.Value), 20),
+                    Palette.HumanAccent.WithAlpha(0.55f), 5);
+            var label = Ui.Text(Ui.Box("Text", row, 6, 0, width - 70, 20), text, Ui.Theme.Nunito, 11, Color.white,
+                TextAlignmentOptions.Left);
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            Ui.Text(Ui.Box("Right", row, width - 66, 0, 44, 20), right, Ui.Theme.NunitoBlack, 11, Color.white,
+                TextAlignmentOptions.Right);
+            var hover = row.gameObject.AddComponent<GraphNodeHover>();
+            hover.Entered += () => { if (!_pinned) SetFocus(row, slots, false); };
+            hover.Exited += () => { if (!_pinned && _focusRow == row) SetFocus(null, null, false); };
+            var button = row.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.onClick.AddListener(() =>
+            {
+                if (_pinned && _focusRow == row) SetFocus(null, null, false);
+                else SetFocus(row, slots, true);
+            });
+        }
+
+        /// <summary>Draws lines from the row's input nodes to the row and fades every other node.</summary>
+        void SetFocus(RectTransform row, List<(int, Color)> slots, bool pin)
+        {
+            _focusRow = row;
+            _pinned = pin && row != null;
+            _focus.Clear();
+            if (slots != null) _focus.AddRange(slots);
+            var lit = new HashSet<int>();
+            foreach (var (node, _) in _focus) lit.Add(node);
+            foreach (var n in _nodes) n.Group.alpha = _focus.Count == 0 || lit.Contains(n.Node.id) ? 1f : 0.25f;
             _dirty = true;
         }
     }

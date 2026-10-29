@@ -312,7 +312,7 @@ def test_graph_has_the_gnn_nodes_and_edges_from_the_humans_side():
     session = GameSession(card_set)
     session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 2, "scenario": {
         "hand": [unit_card.id], "play": [unit_card.id], "opponent_play": [unit_card.id],
-        "opponent_hand": [unit_card.id]}})
+        "opponent_hand": [unit_card.id], "mana": 10}})
     graph = session.handle({"type": "graph"})["graph"]
     nodes = graph["nodes"]
     assert [n["id"] for n in nodes] == list(range(len(nodes)))
@@ -332,12 +332,32 @@ def test_graph_has_the_gnn_nodes_and_edges_from_the_humans_side():
         elif e["type"] in ("part_of", "matches", "bound_to"):
             assert (types[e["src"]], types[e["dst"]]) == ("ability", "card")
     assert {"belongs_to", "faces", "part_of", "next"} <= {e["type"] for e in graph["edges"]}
+    legal = session.handle({"type": "state"})["state"]["legal_actions"]
+    assert [a["index"] for a in graph["actions"]] == [a["index"] for a in legal]
+    for a in graph["actions"]:
+        assert a["probability"] is None and types[a["global"]] == "global"
+        assert all(a[slot] is None or types[a[slot]] == "card" for slot in ("actor", "target"))
+        assert all(a[slot] is None or types[a[slot]] == "ability" for slot in ("context", "option"))
+    assert any(a["type"] == "play" and a["actor"] is not None for a in graph["actions"])
+    assert graph["value"]["estimate"] is None
+    assert [types[n] for n in graph["value"]["nodes"]] == ["global", "player", "player"]
 
 
 def test_graph_returns_every_gnn_layer():
     session = GameSession(fixture_set())
-    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1})
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1, "scenario": {"mana": 3}})
     session._net = create_model("gnn", hidden=32, num_layers=2)
     graph = session.handle({"type": "graph"})["graph"]
     assert graph["embedding"] == "gnn" and graph["layers"] == 3
     assert all(len(n["vectors"]) == 3 and len(n["vectors"][0]) == graph["dim"] for n in graph["nodes"])
+    probabilities = [a["probability"] for a in graph["actions"]]
+    assert probabilities and abs(sum(probabilities) - 1) < 1e-2
+    assert -1 <= graph["value"]["estimate"] <= 1
+
+
+def test_graph_has_no_actions_on_the_ais_decision():
+    session = GameSession(fixture_set())
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1})
+    while session.game.state.decision_player == 0:
+        session.handle({"type": "act", "action_index": 0})
+    assert session.handle({"type": "graph"})["graph"]["actions"] == []
