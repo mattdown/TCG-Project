@@ -5,14 +5,15 @@ using UnityEngine.UI;
 namespace Tcg.View
 {
     /// <summary>
-    /// A node's vector as a column of cells, top to bottom: orange for positive values, blue for negative,
-    /// fading to navy at zero. Values are read against a shared scale so nodes compare at a glance.
+    /// A node's vector as a column of cells, top to bottom: light for positive values, dark for negative,
+    /// mid grey at zero. Greyscale, so the node types' colours stay the loudest thing on screen. Values
+    /// are read against a shared scale so nodes compare at a glance.
     /// </summary>
     public class EmbeddingGlyph : MaskableGraphic
     {
-        public static readonly Color Positive = Palette.Hex("#FB923C");
-        public static readonly Color Negative = Palette.Hex("#38BDF8");
-        static readonly Color Zero = Palette.Outline;
+        public static readonly Color Positive = Palette.Hex("#F4F5F7");
+        public static readonly Color Negative = Palette.Hex("#15181D");
+        static readonly Color Zero = Palette.Hex("#6E747D");
 
         IList<float> _values;
         float _scale = 1f;

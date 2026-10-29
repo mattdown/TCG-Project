@@ -12,11 +12,11 @@ namespace Tcg.Board
     /// <summary>
     /// The state graph the GNN reads (the server's graph request), drawn over a darkened board.
     /// Card nodes sit on their cards with the card's ability graph unfolded below them, the player
-    /// nodes on the heroes and the global node by the turn counter. Each node shows its vector
-    /// (EmbeddingGlyph) in a frame coloured by node type; edges are coloured by edge type, and the
+    /// nodes on the heroes and the global node by the turn counter. Each node is a disc coloured by
+    /// node type, with its vector (EmbeddingGlyph, greyscale) as a column inside; edges are coloured by edge type, and the
     /// legend hides an edge type when tapped. Nodes follow the cards every frame, so the graph
-    /// keeps up with the board's animations. The POLICY button opens a list of the legal actions
-    /// and the value: hovering one (or tapping, to keep it) draws lines from the nodes its head reads.
+    /// keeps up with the board's animations. Top right, the legal actions and the value, with the
+    /// legend below them: hovering a row (or tapping, to keep it) draws lines from the nodes its head reads.
     /// </summary>
     public class GraphOverlay : MonoBehaviour
     {
@@ -62,7 +62,10 @@ namespace Tcg.Board
             Palette.Hex("#FFE14D"), Palette.Hex("#FF4D5E"), Palette.Hex("#22BCC9"), Palette.Hex("#FF6FD8"),
             Palette.Hex("#E9EEF8"),
         };
-        const int MaxActionRows = 14;
+        /// <summary>The value head's inputs, in UiText.ValueSlots order: global, you, opponent.</summary>
+        static readonly Color[] ValueSlotColours = { SlotColours[4], Palette.Hex("#4ADE80"), Palette.Hex("#FF9F43") };
+        const int MaxActionRows = 10;
+        const float PanelWidth = 290f, PanelTop = 70f, PanelGap = 8f;
 
         class NodeView
         {
@@ -70,6 +73,7 @@ namespace Tcg.Board
             public RectTransform Rect;
             public CanvasGroup Group;
             public EmbeddingGlyph Glyph;
+            public Image Frame, Back, Resolving;
             public Vector2 Position;
             public float Size;
             public int Layer, Index, Count;  // ability nodes: the place in their card's graph
@@ -100,8 +104,7 @@ namespace Tcg.Board
         int _hover = -1;
         bool _dirty;
 
-        RectTransform _policy;
-        Image _policyFace;
+        RectTransform _policy, _legend;
         readonly List<(int node, Color colour)> _focus = new List<(int, Color)>();
         RectTransform _focusRow;  // the action or value row whose inputs are drawn
         bool _pinned;
@@ -123,15 +126,7 @@ namespace Tcg.Board
             view._edges.raycastTarget = false;
             view._nodeLayer = Ui.Stretch("Nodes", view._area, 0, 0, 0, 0);
             view.BuildLegend(panel);
-            view._policy = Ui.Box("Policy", panel, 12, 70, 290, 100);
-            view._policy.gameObject.SetActive(false);
-            var policyToggle = Ui.Box("PolicyToggle", panel, 136, 690, 72, 22, bottom: true);
-            Ui.Pill(policyToggle, UiText.PolicyButton, Palette.CardNavy, 11, display: false);
-            view._policyFace = policyToggle.Find("Face").GetComponent<Image>();
-            var policyButton = policyToggle.gameObject.AddComponent<Button>();
-            policyButton.targetGraphic = policyToggle.GetComponent<Image>();
-            policyToggle.GetComponent<Image>().raycastTarget = true;
-            policyButton.onClick.AddListener(view.TogglePolicy);
+            view._policy = Ui.Node("Policy", panel);
 
             view._tooltip = Ui.Node("Tooltip", panel);
             view._tooltip.anchorMin = view._tooltip.anchorMax = new Vector2(0.5f, 0.5f);
@@ -220,17 +215,20 @@ namespace Tcg.Board
             var frame = Ui.Rounded(rt, NodeColours.TryGetValue(node.type, out var c) ? c : Color.white, 4);
             frame.raycastTarget = true;
             var group = rt.gameObject.AddComponent<CanvasGroup>();
-            Ui.Rounded(Ui.Stretch("Back", rt, 2, 2, 2, 2), Palette.Outline, 3);
-            var vector = Ui.Stretch("Vector", rt, 2, 2, 2, 2).gameObject;
-            vector.AddComponent<CanvasRenderer>();
-            var glyph = vector.AddComponent<EmbeddingGlyph>();
+            var back = Ui.Rounded(Ui.Stretch("Back", rt, 0, 0, 0, 0), Palette.Outline, 3);
+            // The vector is a column inside the disc; its rect is set by Place.
+            var vector = Ui.Node("Vector", rt);
+            vector.anchorMin = vector.anchorMax = new Vector2(0.5f, 0.5f);
+            vector.gameObject.AddComponent<CanvasRenderer>();
+            var glyph = vector.gameObject.AddComponent<EmbeddingGlyph>();
             glyph.raycastTarget = false;
-            if (node.resolving)
-                Ui.Outline(Ui.Stretch("Resolving", rt, -4, -4, -4, -4), Palette.GlowSelected, 6);
+            var resolving = node.resolving
+                ? Ui.Outline(Ui.Stretch("Resolving", rt, -4, -4, -4, -4), Palette.GlowSelected, 6) : null;
             var hover = rt.gameObject.AddComponent<GraphNodeHover>();
             hover.Entered += () => SetHover(node.id);
             hover.Exited += () => { if (_hover == node.id) SetHover(-1); };
-            return new NodeView { Node = node, Rect = rt, Group = group, Glyph = glyph };
+            return new NodeView { Node = node, Rect = rt, Group = group, Glyph = glyph, Frame = frame, Back = back,
+                Resolving = resolving };
         }
 
         /// <summary>
@@ -330,7 +328,9 @@ namespace Tcg.Board
                         Place(n, BoundsOf(hero).center, 40);
                         break;
                     case "global":
-                        Place(n, BoundsOf(_board.TurnText.rectTransform).center + new Vector2(0, 48), 36);
+                        // By the turn counter, but clear of the policy and legend panels over it.
+                        var turn = BoundsOf(_board.TurnText.rectTransform).center + new Vector2(0, 48);
+                        Place(n, new Vector2(Mathf.Min(turn.x, area.xMax - 12f - PanelWidth - 30f), turn.y), 36);
                         break;
                 }
             }
@@ -373,9 +373,20 @@ namespace Tcg.Board
             n.Position = position;
             n.Size = size;
             n.Rect.anchoredPosition = position;
-            n.Rect.sizeDelta = new Vector2(Mathf.Max(8f, size * 0.5f), size);  // a column: it's a vector
+            n.Rect.sizeDelta = new Vector2(size, size);
+            // Round nodes: a disc in the node type's colour, a navy ring inside, the vector as a column.
+            float ring = Mathf.Max(2f, size * 0.16f);
+            SetRadius(n.Frame, size / 2f);
+            n.Back.rectTransform.offsetMin = new Vector2(ring, ring);
+            n.Back.rectTransform.offsetMax = new Vector2(-ring, -ring);
+            SetRadius(n.Back, size / 2f - ring);
+            if (n.Resolving != null) SetRadius(n.Resolving, size / 2f + 4f);
+            n.Glyph.rectTransform.sizeDelta = new Vector2(Mathf.Max(2f, size * 0.3f), size * 0.56f);
             _dirty = true;
         }
+
+        static void SetRadius(Image img, float radius) =>
+            img.pixelsPerUnitMultiplier = Ui.SliceRadius / Mathf.Max(radius, 0.5f);
 
         Rect BoundsOf(RectTransform rt)
         {
@@ -483,37 +494,40 @@ namespace Tcg.Board
 
         void BuildLegend(RectTransform panel)
         {
-            const float W = 220f, Row = 17f;
-            var legend = Ui.Node("Legend", panel);
+            const float W = PanelWidth, Row = 17f;
+            var legend = _legend = Ui.Node("Legend", panel);
             Ui.Rounded(legend, Palette.Outline.WithAlpha(0.94f), 12).raycastTarget = true;
             float y = 10f;
             Ui.Display(Ui.Box("Title", legend, 12, y, W - 24, 22), UiText.GraphTitle, 18, TextAlignmentOptions.Left);
             y += 24f;
-            _caption = Ui.Body(Ui.Box("Caption", legend, 12, y, W - 24, 28), "", 11, Palette.SubtleText);
-            y += 30f;
+            _caption = Ui.Body(Ui.Box("Caption", legend, 12, y, W - 24, 16), "", 11, Palette.SubtleText);
+            y += 20f;
 
             Ui.Text(Ui.Box("NodesHeader", legend, 12, y, W - 24, Row), UiText.GraphNodes, Ui.Theme.NunitoBlack, 12,
                 Color.white, TextAlignmentOptions.Left);
             y += Row;
             for (int i = 0; i < NodeOrder.Length; i++)
             {
-                float x = 12 + i % 2 * (W - 24) / 2f;
-                var row = Ui.Box(NodeOrder[i], legend, x, y + i / 2 * Row, (W - 24) / 2f, Row);
-                Ui.Rounded(Ui.Box("Swatch", row, 0, 3, 11, 11), NodeColours[NodeOrder[i]], 3);
+                float x = 12 + i % 4 * (W - 24) / 4f;
+                var row = Ui.Box(NodeOrder[i], legend, x, y, (W - 24) / 4f, Row);
+                Ui.Rounded(Ui.Box("Swatch", row, 0, 3, 11, 11), NodeColours[NodeOrder[i]], 5.5f);
                 Ui.Text(Ui.Box("Label", row, 17, 0, 80, Row), NodeOrder[i], Ui.Theme.Nunito, 11, Color.white,
                     TextAlignmentOptions.Left);
             }
-            y += Row * 2 + 4;
+            y += Row + 4;
 
             Ui.Text(Ui.Box("EdgesHeader", legend, 12, y, W - 24, Row), UiText.GraphEdges, Ui.Theme.NunitoBlack, 12,
                 Color.white, TextAlignmentOptions.Left);
             y += Row;
-            foreach (var type in EdgeOrder)
+            float column = (W - 16) / 2f;
+            int rows = (EdgeOrder.Length + 1) / 2;  // two columns, filled top to bottom
+            for (int i = 0; i < EdgeOrder.Length; i++)
             {
-                var row = Ui.Box(type, legend, 8, y, W - 16, Row);
+                string type = EdgeOrder[i];
+                var row = Ui.Box(type, legend, 8 + i / rows * column, y + i % rows * Row, column, Row);
                 Ui.Img(row, null, Color.clear).raycastTarget = true;
-                Ui.Img(Ui.Box("Swatch", row, 4, 6.5f, 22, 4), null, EdgeStyles[type].Colour.WithAlpha(1f));
-                var label = Ui.Text(Ui.Box("Label", row, 34, 0, W - 50, Row), Name(type), Ui.Theme.Nunito, 11,
+                Ui.Img(Ui.Box("Swatch", row, 4, 6.5f, 18, 4), null, EdgeStyles[type].Colour.WithAlpha(1f));
+                var label = Ui.Text(Ui.Box("Label", row, 28, 0, column - 30, Row), Name(type), Ui.Theme.Nunito, 11,
                     Color.white, TextAlignmentOptions.Left);
                 var group = row.gameObject.AddComponent<CanvasGroup>();
                 var button = row.gameObject.AddComponent<Button>();
@@ -521,12 +535,11 @@ namespace Tcg.Board
                 string t = type;
                 button.onClick.AddListener(() => ToggleEdges(t));
                 _edgeRows[type] = (group, label);
-                y += Row;
             }
-            y += 4f;
-            Ui.Body(Ui.Box("Hint", legend, 12, y, W - 24, 44), UiText.GraphHint, 10, Palette.SubtleText);
-            y += 48f;
-            Ui.Anchor(legend, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-12, -70), new Vector2(W, y));
+            y += rows * Row + 4f;
+            Ui.Body(Ui.Box("Hint", legend, 12, y, W - 24, 28), UiText.GraphHint, 10, Palette.SubtleText);
+            y += 32f;
+            Ui.Anchor(legend, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-12, -PanelTop), new Vector2(W, y));
         }
 
         void ToggleEdges(string type)
@@ -538,39 +551,31 @@ namespace Tcg.Board
 
         // --- policy and value
 
-        void TogglePolicy()
-        {
-            bool open = !_policy.gameObject.activeSelf;
-            _policy.gameObject.SetActive(open);
-            _policyFace.color = open ? Palette.HumanAccent : Palette.CardNavy;
-            if (!open) SetFocus(null, null, false);
-        }
-
         /// <summary>
         /// The legal actions, likeliest first, and the value. Each row's slots are the nodes its
         /// head reads after message passing; an empty policy slot uses a learned "empty" vector.
         /// </summary>
         void BuildPolicy()
         {
-            const float W = 290f, Row = 20f;
+            const float W = PanelWidth, Row = 20f;
             for (int i = _policy.childCount - 1; i >= 0; i--) Destroy(_policy.GetChild(i).gameObject);
             if (_policy.GetComponent<Image>() == null) Ui.Rounded(_policy, Palette.Outline.WithAlpha(0.94f), 12).raycastTarget = true;
 
             float y = 10f;
             Ui.Display(Ui.Box("Title", _policy, 12, y, W - 24, 22), UiText.PolicyTitle, 18, TextAlignmentOptions.Left);
             y += 24f;
-            var key = new List<string>();
-            for (int i = 0; i < SlotColours.Length; i++)
-                key.Add($"<color=#{ColorUtility.ToHtmlStringRGB(SlotColours[i])}>{UiText.PolicySlots[i]}</color>");
-            Ui.Body(Ui.Box("Key", _policy, 12, y, W - 24, 30), string.Format(UiText.PolicyKey, string.Join(" · ", key)),
-                10, Palette.SubtleText);
-            y += 32f;
+            Ui.Body(Ui.Box("Key", _policy, 12, y, W - 24, 30),
+                string.Format(UiText.PolicyKey, SlotKey(UiText.PolicySlots, SlotColours)), 10, Palette.SubtleText);
+            y += 30f;
+            Ui.Body(Ui.Box("ValueKey", _policy, 12, y, W - 24, 16),
+                string.Format(UiText.PolicyValueKey, SlotKey(UiText.ValueSlots, ValueSlotColours)), 10, Palette.SubtleText);
+            y += 18f;
 
             var value = _graph.value;
             var valueSlots = new List<(int, Color)>();
             if (value?.nodes != null)
-                foreach (var node in value.nodes)
-                    if (node < _nodes.Count) valueSlots.Add((node, NodeColours[_nodes[node].Node.type]));
+                for (int i = 0; i < value.nodes.Count && i < ValueSlotColours.Length; i++)
+                    if (value.nodes[i] < _nodes.Count) valueSlots.Add((value.nodes[i], ValueSlotColours[i]));
             string estimate = value?.estimate.HasValue == true ? value.estimate.Value.ToString("+0.00;-0.00") : "–";
             PolicyRow(y, W, UiText.PolicyValue, estimate, null, valueSlots);
             y += Row + 6f;
@@ -599,7 +604,17 @@ namespace Tcg.Board
                     string.Format(UiText.PolicyMore, actions.Count - MaxActionRows), 11, Palette.SubtleText);
                 y += Row;
             }
-            _policy.sizeDelta = new Vector2(W, y + 8f);
+            // Top right, with the legend below it.
+            Ui.Anchor(_policy, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-12, -PanelTop), new Vector2(W, y + 8f));
+            _legend.anchoredPosition = new Vector2(-12, -PanelTop - (y + 8f) - PanelGap);
+        }
+
+        static string SlotKey(string[] names, Color[] colours)
+        {
+            var key = new List<string>();
+            for (int i = 0; i < names.Length; i++)
+                key.Add($"<color=#{ColorUtility.ToHtmlStringRGB(colours[i])}>{names[i]}</color>");
+            return string.Join(" · ", key);
         }
 
         void PolicyRow(float y, float width, string text, string right, float? share, List<(int, Color)> slots)
