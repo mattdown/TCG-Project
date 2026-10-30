@@ -137,19 +137,9 @@ namespace Tcg.Board
         void OnEndTurnPressed()
         {
             if (_busy || _state == null) return;
-            if (_state.game_over)
-            {
-                NewGame(Opponent);
-                return;
-            }
-            if (_state.InMulligan)
-            {
-                Execute(new MulliganCommand(Interaction.MulliganSelection));
-                return;
-            }
-            var action = PrimaryAction(_state);
+            var action = EndTurnAction(_state);
             if (action == null) return;
-            Board.SetEndTurnButton(action.text.ToUpperInvariant(), false);
+            Board.SetEndTurnButton(false);
             Execute(new ActionCommand(action));
         }
 
@@ -174,7 +164,7 @@ namespace Tcg.Board
 
             if (!_state.game_over && !_state.HumanDecides)
             {
-                Board.SetEndTurnButton(UiText.Waiting, false);
+                Board.SetEndTurnButton(false);
                 // Leave the AI's ability prompt up a little longer, so it can be read.
                 yield return new WaitForSeconds(_state.pending != null ? AiStepDelay * 2f : AiStepDelay);
                 Network.Send<StateResponse>(new Request("ai_move"), ai =>
@@ -191,18 +181,7 @@ namespace Tcg.Board
             _busy = busy;
             Interaction.Interactive = !busy && _state != null && _state.HumanDecides;
             Board.SetEndTurnGlow(!busy && NothingLeftButEndTurn(_state));
-            if (busy || _state == null)
-            {
-                if (busy) Board.SetEndTurnButton(Board.EndTurnLabel.text, false);
-                return;
-            }
-            if (_state.game_over)
-            {
-                Board.SetEndTurnButton(UiText.NewGame, true);
-                return;
-            }
-            var action = PrimaryAction(_state);
-            Board.SetEndTurnButton(action != null ? action.text.ToUpperInvariant() : UiText.Waiting, action != null);
+            Board.SetEndTurnButton(!busy && _state != null && EndTurnAction(_state) != null);
         }
 
         /// <summary>
@@ -221,17 +200,8 @@ namespace Tcg.Board
             return canEnd;
         }
 
-        /// <summary>The legal action the button stands for: end_turn, or keep_hand during the mulligan.</summary>
-        static GameAction PrimaryAction(GameState s)
-        {
-            GameAction keep = null;
-            foreach (var a in s.legal_actions)
-            {
-                if (a.type == ActionTypes.EndTurn) return a;
-                if (a.type == ActionTypes.KeepHand) keep = a;
-            }
-            return keep;
-        }
+        /// <summary>END TURN's action, while it's legal (not during the mulligan or after the game).</summary>
+        static GameAction EndTurnAction(GameState s) => Commands.Find(s, a => a.type == ActionTypes.EndTurn);
 
         bool Check(Response r)
         {

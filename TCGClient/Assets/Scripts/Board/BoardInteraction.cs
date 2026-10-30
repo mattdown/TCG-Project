@@ -186,7 +186,15 @@ namespace Tcg.Board
             if (_dragged != card) return;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(Board.TopLayer, e.position, e.pressEventCamera, out var p);
             _finger.anchoredPosition = p;
-            var hover = FindHover(e);
+            if (!_arrowMode)
+            {
+                // Held above the finger, clear of its text, tilting with the motion.
+                card.Rect.anchoredPosition = p + new Vector2(0f, 130f);
+                float tilt = Mathf.Clamp(-e.delta.x * 0.6f, -8f, 8f);
+                card.Rect.localRotation = Quaternion.Slerp(card.Rect.localRotation, Quaternion.Euler(0, 0, tilt), 0.3f);
+                card.Rect.localScale = Vector3.Lerp(card.Rect.localScale, Vector3.one * 0.95f, 0.35f);
+            }
+            var hover = FindHover(e, card);
             if (hover != _hover)
             {
                 ClearHover();
@@ -203,25 +211,19 @@ namespace Tcg.Board
                 Arrow.transform.SetAsLastSibling();
                 _finger.SetAsLastSibling();
             }
-            else
-            {
-                // Held above the finger, tilting with the motion.
-                card.Rect.anchoredPosition = p + new Vector2(0f, 70f);
-                float tilt = Mathf.Clamp(-e.delta.x * 0.6f, -8f, 8f);
-                card.Rect.localRotation = Quaternion.Slerp(card.Rect.localRotation, Quaternion.Euler(0, 0, tilt), 0.3f);
-                card.Rect.localScale = Vector3.Lerp(card.Rect.localScale, Vector3.one * 0.95f, 0.35f);
-            }
         }
 
-        GameAction FindHover(PointerEventData e)
+        /// <summary>A play counts where the held card's centre is, since it hangs above the finger; attacks follow the finger.</summary>
+        GameAction FindHover(PointerEventData e, CardView card)
         {
             var cam = e.pressEventCamera;
+            var centre = RectTransformUtility.WorldToScreenPoint(cam, card.Rect.position);
             foreach (var a in _options)
             {
                 switch (a.type)
                 {
                     case ActionTypes.Play:
-                        if (_field.Contains(e.position, cam)) return a;
+                        if (_field.Contains(centre, cam)) return a;
                         break;
                     case ActionTypes.AttackHero:
                         if (RectTransformUtility.RectangleContainsScreenPoint(Board.OpponentHero, e.position, cam)) return a;

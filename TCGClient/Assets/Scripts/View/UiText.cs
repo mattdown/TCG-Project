@@ -11,7 +11,7 @@ namespace Tcg.View
         public const string Hand = "Hand";
         public const string Turn = "TURN";
         public const string NewGame = "NEW GAME";
-        public const string Waiting = "WAIT";
+        public const string EndTurn = "END TURN";
         public const string Connecting = "Connecting to the game server…";
         public const string YouWin = "You win!";
         public const string YouLose = "You lose";
@@ -101,7 +101,7 @@ namespace Tcg.View
         public const string MulliganTitle = "Choose cards to put back";
         public const string MulliganText = "Tap the cards to put back (tap again to keep one). You draw a new card for each.";
         public const string PutBack = "PUT BACK";
-        public const string Keep = "KEEP";
+        public const string Confirm = "CONFIRM";
         public const string FinalScore = "{0} {1} · {2} {3}";
     }
 }

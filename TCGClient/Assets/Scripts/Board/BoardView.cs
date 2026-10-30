@@ -184,9 +184,10 @@ namespace Tcg.Board
         /// <summary>A point in TopLayer space for a world position.</summary>
         public Vector2 ToTop(Vector3 world) => TopLayer.InverseTransformPoint(world);
 
-        public void SetEndTurnButton(string label, bool interactable)
+        /// <summary>END TURN keeps its label; it only greys out while it isn't yours to press.</summary>
+        public void SetEndTurnButton(bool interactable)
         {
-            EndTurnLabel.text = label;
+            EndTurnLabel.text = UiText.EndTurn;
             EndTurnButton.interactable = interactable;
         }
 

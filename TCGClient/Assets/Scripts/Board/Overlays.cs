@@ -172,15 +172,15 @@ namespace Tcg.Board
 
     /// <summary>
     /// The mulligan (not designed yet, kept simple): the hand large; tap cards to pick the ones to
-    /// put back (tap again to keep one), then KEEP. Picking is local: nothing goes to the server
-    /// until KEEP, which sends the whole choice as a MulliganCommand.
+    /// put back (tap again to keep one), then CONFIRM. Picking is local: nothing goes to the server
+    /// until CONFIRM, which sends the whole choice as a MulliganCommand.
     /// </summary>
     public class MulliganView : MonoBehaviour, ICardInputHandler
     {
         const float Spacing = 162f;
         static readonly Color BadgeRed = Palette.Hex("#C42A3A");
 
-        /// <summary>KEEP: put back these cards (in hand order), then keep the hand.</summary>
+        /// <summary>CONFIRM: put back these cards (in hand order), then keep the hand.</summary>
         public event Action<IReadOnlyList<int>> KeepRequested;
 
         /// <summary>The cards picked to put back, in hand order.</summary>
@@ -199,7 +199,6 @@ namespace Tcg.Board
         RectTransform _cards;
         CardView _prefab;
         Button _keep;
-        TMP_Text _keepText;
         readonly Dictionary<int, CardView> _views = new Dictionary<int, CardView>();
         readonly HashSet<int> _selected = new HashSet<int>();
         GameState _state;
@@ -217,7 +216,7 @@ namespace Tcg.Board
             Ui.Anchor(view._cards, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -345), Vector2.zero);
             var keep = Ui.Node("Keep", root);
             Ui.Anchor(keep, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -560), new Vector2(220, 60));
-            view._keep = Ui.Button(keep, UiText.Keep, Palette.Gold, Palette.GoldLip, 22, out view._keepText);
+            view._keep = Ui.Button(keep, UiText.Confirm, Palette.Gold, Palette.GoldLip, 22, out _);
             view._keep.onClick.AddListener(() => view.KeepRequested?.Invoke(view.Selection));
             root.gameObject.SetActive(false);
             return view;
@@ -230,7 +229,7 @@ namespace Tcg.Board
             transform.SetAsLastSibling();
             var hand = s.Human.hand ?? new List<CardInstance>();
             var seen = new HashSet<int>();
-            // Cards the server already has marked (after a failed KEEP) count as picked.
+            // Cards the server already has marked (after a failed CONFIRM) count as picked.
             foreach (int uid in s.Human.mulligan_marked ?? new List<int>()) _selected.Add(uid);
 
             for (int i = 0; i < hand.Count; i++)
@@ -255,7 +254,6 @@ namespace Tcg.Board
             }
             _selected.IntersectWith(seen);
             var keepAction = Commands.Find(s, a => a.type == ActionTypes.KeepHand);
-            _keepText.text = keepAction != null ? keepAction.text.ToUpperInvariant() : UiText.Keep;
             _keep.interactable = keepAction != null;
             Refresh();
         }
