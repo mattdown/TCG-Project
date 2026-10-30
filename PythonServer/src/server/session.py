@@ -22,7 +22,7 @@ from src.agents.base import Agent
 from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
-from src.cards.abilities import render
+from src.cards.abilities import Renderer, render
 from src.cards.schema import CardSet
 from src.cards.tokens import tokens_of
 from src.game.actions import Action, ActionType
@@ -178,11 +178,17 @@ class GameSession:
     def view(self) -> dict:
         """The game as the human player sees it."""
         g, s = self.game, self.game.state
+        human_decides = s.decision_player == self.human_seat and not g.is_over
+        main_decision = human_decides and s.phase == Phase.MAIN and not s.pending
 
         def card_view(uid):
             c = g.card(uid)
             view = {"uid": uid, "card_id": c.card.id, "attacked": c.attacked, "fresh": c.fresh, "damage": c.damage,
                     "cost": g.play_cost(uid) if c.zone == Zone.HAND else c.card.cost}
+            if (main_decision and c.zone == Zone.HAND and g.play_cost(uid) <= s.players[c.owner].mana
+                    and g.unusable(uid)):
+                # Affordable, but it would have nothing to choose, so it can't be played: say why.
+                view["unusable"] = f"{c.card.name} has nothing to target."
             if c.card.type == "unit":
                 # Current values, with abilities' changes: the client shows them against the card's own.
                 view.update({"power": g.stat(uid, "power"), "health": g.stat(uid, "health"),
@@ -208,7 +214,6 @@ class GameSession:
                 "discard": [card_view(u) for u in ps.discard],
                 "mulligan_marked": ps.mulligan_marked if p == self.human_seat else None,
             })
-        human_decides = s.decision_player == self.human_seat and not g.is_over
         legal = g.legal_actions() if human_decides else []
         return {
             "turn": s.turn,
@@ -233,8 +238,14 @@ class GameSession:
             return None
         frame, node = decision
         card = self.game.card(frame.source).card
-        return {"source": frame.source, "card_id": card.id, "kind": node.kind,
+        view = {"source": frame.source, "card_id": card.id, "kind": node.kind,
                 "chooser": self.game.state.decision_player, "ability_text": render(card.abilities[frame.ability], card.type)}
+        if node.kind == "choose_one":
+            # Every option, so the client can grey out the ones with nothing to choose.
+            usable = self.game.usable_options()
+            view["options"] = [{"option": i, "text": Renderer(card.type).steps(o), "usable": i in usable}
+                               for i, o in enumerate(node.data["options"])]
+        return view
 
     def _preview(self, action: Action) -> dict | None:
         """What a play or an attack would do: the action tried on a copy of the game, up to the

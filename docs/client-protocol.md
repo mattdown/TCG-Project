@@ -314,7 +314,7 @@ captured before decks became one aspect plus neutral, so a replay of seed 7 now 
 | `mulligan_marked` | uids the human has marked to put back during the mulligan |
 | `hero_health`, `max_mana` | 30 and 10: a full hero and the most crystals |
 | `legal_actions` | empty unless it's the human's decision |
-| `pending` | `null`, or the ability waiting for a choice: `source` (uid), `card_id`, `kind` (`choose`, `may`, `choose_one`), `chooser` (seat), `ability_text`. Show it as a prompt ("Oyster Fisher: choose a unit") with the legal actions as the answers |
+| `pending` | `null`, or the ability waiting for a choice: `source` (uid), `card_id`, `kind` (`choose`, `may`, `choose_one`), `chooser` (seat), `ability_text`, and for `choose_one`, `options`: every option as `{"option", "text", "usable"}` (`usable` false: it has nothing to choose, so it isn't a legal action; show it greyed out). The client shows the legal actions as the answers when the choice is yours (older servers send no `options`: then the `choose_option` actions are the options) |
 
 **Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
 whole game, so use it to track a card's GameObject as it moves between zones. `card_id`
@@ -338,6 +338,7 @@ raised stats in green and lowered ones in red without working anything out:
 | `can_attack` | it's its owner's turn and it can attack now (has attack actions in `legal_actions` when it's yours) |
 | `frozen` | can't attack on its owner's next turn |
 | `hidden` | Elusive and hasn't attacked yet: enemies can't attack it or choose it |
+| `unusable` | your hand only, on your main-phase decision: affordable, but it can't be played now (an action with nothing to choose), with the reason to show, e.g. `"Bolt has nothing to target."`; absent otherwise |
 
 **Actions**: `card` is the uid of the acting or played card, `target` the uid of the attacked
 unit or chosen card, `option` the ability or option index. Action types:

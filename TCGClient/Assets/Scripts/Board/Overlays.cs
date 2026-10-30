@@ -25,6 +25,8 @@ namespace Tcg.Board
         static readonly Color OffFace = Palette.Hex("#6E7486"), OffLip = Palette.Hex("#454A5A");
 
         public event Action<GameAction> ActionChosen;
+        /// <summary>PLAY tapped on a card that can't be played now: why not.</summary>
+        public event Action<string> Refused;
         /// <summary>An arrow: -1 for the previous card, +1 for the next.</summary>
         public event Action<int> Stepped;
         public bool IsOpen => gameObject.activeSelf;
@@ -36,6 +38,7 @@ namespace Tcg.Board
         TMP_Text _count;
         readonly List<GameObject> _built = new List<GameObject>();
         GameAction _playAction;
+        string _unusable;
 
         public static InspectView Create(RectTransform parent, CardView prefab)
         {
@@ -77,7 +80,11 @@ namespace Tcg.Board
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = row.childForceExpandHeight = true;
             view._play = Ui.Button(Ui.Node("Play", view._buttons), UiText.PlayButton, PlayFace, PlayLip, 19, out _);
-            view._play.onClick.AddListener(() => view.Choose(view._playAction));
+            view._play.onClick.AddListener(() =>
+            {
+                if (view._playAction == null && view._unusable != null) view.Refused?.Invoke(view._unusable);
+                else view.Choose(view._playAction);
+            });
             view._playFace = view._play.transform.Find("Face").GetComponent<Image>();
             view._playLip = view._play.transform.Find("Lip").GetComponent<Image>();
 
@@ -162,7 +169,9 @@ namespace Tcg.Board
 
             _buttons.gameObject.SetActive(inHand);
             // Greyed out, not just faded, when the card can't be played now.
-            _play.interactable = _playAction != null;
+            // An unusable card's grey PLAY still answers a tap, with the reason.
+            _unusable = inHand ? instance?.unusable : null;
+            _play.interactable = _playAction != null || _unusable != null;
             _playFace.color = _playAction != null ? PlayFace : OffFace;
             _playLip.color = _playAction != null ? PlayLip : OffLip;
             LayoutRebuilder.ForceRebuildLayoutImmediate(_column);

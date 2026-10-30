@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace Tcg.View
 {
-    public enum CardMark { None, Playable, Selected, Target }
+    public enum CardMark { None, Playable, Selected, Target, Unusable }
 
     /// <summary>While a unit's arrow is out: a valid duel target, or the one under the finger.</summary>
     public enum TargetRing { None, Valid, Hovered }
@@ -136,7 +136,8 @@ namespace Tcg.View
             if (glow)
             {
                 Color c = mark == CardMark.Playable ? Palette.GlowPlayable
-                    : mark == CardMark.Selected ? Palette.GlowSelected : Palette.GlowTarget;
+                    : mark == CardMark.Selected ? Palette.GlowSelected
+                    : mark == CardMark.Unusable ? Palette.GlowUnusable : Palette.GlowTarget;
                 GlowHalo.color = c.WithAlpha(mark == CardMark.Selected ? 0.75f : 0.65f);
             }
             Visual.anchoredPosition = new Vector2(0f, mark == CardMark.Selected ? SelectedLift : 0f);

@@ -361,3 +361,22 @@ def test_graph_has_no_actions_on_the_ais_decision():
     while session.game.state.decision_player == 0:
         session.handle({"type": "act", "action_index": 0})
     assert session.handle({"type": "graph"})["graph"]["actions"] == []
+
+
+def test_unusable_actions_and_options_say_so():
+    enemy = {"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}
+    hit = {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 2}
+    draw = {"effect": "draw", "target": "you", "amount": 1}
+    bolt = Card("BOLT", "Bolt", "action", ("aspect_1",), 1, 0, 0, abilities=({"kind": "on_resolve", "steps": [enemy, hit]},))
+    charm = Card("CHARM", "Charm", "action", ("aspect_1",), 1, 0, 0,
+                 abilities=({"kind": "on_resolve", "steps": [{"choose_one": [[enemy, hit], [draw]]}]},))
+    session = GameSession(CardSet("unusable", [bolt, charm] + generate_vanilla_set().cards[:30]))
+    state = session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 2, "scenario": {
+        "hand": ["BOLT", "CHARM"], "mana": 1}})["state"]
+    hand = {c["card_id"]: c for c in state["players"][0]["hand"]}
+    assert hand["BOLT"]["unusable"] == "Bolt has nothing to target." and "unusable" not in hand["CHARM"]
+    assert not any(a["type"] == "play" and a["card"] == hand["BOLT"]["uid"] for a in state["legal_actions"])
+
+    play = next(a for a in state["legal_actions"] if a["type"] == "play" and a["card"] == hand["CHARM"]["uid"])
+    pending = session.handle({"type": "act", "action_index": play["index"]})["state"]["pending"]
+    assert [o["usable"] for o in pending["options"]] == [False, True]

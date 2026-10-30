@@ -72,6 +72,7 @@ namespace Tcg.Board
 
             _inspect = InspectView.Create(root, Board.CardPrefab);
             _inspect.ActionChosen += a => CommandIssued?.Invoke(new ActionCommand(a));
+            _inspect.Refused += reason => Board.Toast(reason);
             _inspect.Stepped += StepInspect;
             _mulligan = MulliganView.Create(root, Board.CardPrefab);
             _mulligan.KeepRequested += putBack => CommandIssued?.Invoke(new MulliganCommand(putBack));
@@ -94,8 +95,8 @@ namespace Tcg.Board
             else _gameOver.Hide();
             if (_inspect.IsOpen) _inspect.Hide();
 
-            // An ability waiting on a choice: the prompt, and a gold ring on each card it can pick.
-            if (s.pending != null && !s.game_over) _choice.Show(s, defs, opponentName);
+            // An ability waiting on your choice: the answers, and a gold ring on each card it can pick.
+            if (s.pending != null && !s.game_over && s.pending.chooser == s.human_seat) _choice.Show(s, defs);
             else _choice.Hide();
             foreach (var a in s.legal_actions)
                 if (a.type == ActionTypes.ChooseTarget && a.target.HasValue)
@@ -338,7 +339,12 @@ namespace Tcg.Board
             }
             else
             {
-                Board.Relayout();  // snap back
+                // Dropped on the field but it can't be played now: say why, then snap back.
+                string reason = Find(Board.State.Human.hand, card.Uid)?.unusable;
+                var centre = RectTransformUtility.WorldToScreenPoint(e.pressEventCamera, card.Rect.position);
+                if (reason != null && RectTransformUtility.RectangleContainsScreenPoint(_field.Rect, centre, e.pressEventCamera))
+                    Board.Toast(reason);
+                Board.Relayout();
             }
         }
 

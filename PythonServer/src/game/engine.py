@@ -191,6 +191,30 @@ class Game:
         frame = self.state.pending[-1]
         return frame, self._ability(frame).nodes[frame.node]
 
+    def unusable(self, uid: int) -> bool:
+        """An action card whose ability opens by choosing a card when there's none to choose (in
+        every option, for "choose one"): it would do nothing, so it can't be played."""
+        c = self.card(uid)
+        if c.card.type != "action":
+            return False
+        frames = [Frame(uid, c.owner, i) for i, a in enumerate(compiled(c.card)) if a.kind == "on_resolve"]
+        return bool(frames) and all(self._opens_unusable(f, self._ability(f).nodes[0].next) for f in frames)
+
+    def usable_options(self) -> list[int]:
+        """The pending "choose one" options that don't open with a choice that has nothing to choose
+        (all of them, if none do)."""
+        frame, node = self.pending_decision()
+        usable = [i for i, b in enumerate(node.branches) if not self._opens_unusable(frame, b)]
+        return usable or list(range(len(node.branches)))
+
+    def _opens_unusable(self, frame: Frame, index: int) -> bool:
+        node = self._ability(frame).nodes[index]
+        if node.kind == "choose":
+            return not self._choose_options(frame, node)
+        if node.kind == "choose_one":
+            return all(self._opens_unusable(frame, b) for b in node.branches)
+        return False
+
     def legal_actions(self) -> list[Action]:
         s = self.state
         if s.phase == Phase.GAME_OVER:
@@ -206,7 +230,8 @@ class Game:
         actions = []
         board_full = len(ps.play) >= self.config.max_board
         for uid in ps.hand:
-            if self.play_cost(uid) <= ps.mana and (s.cards[uid].card.type != "unit" or not board_full):
+            if (self.play_cost(uid) <= ps.mana and (s.cards[uid].card.type != "unit" or not board_full)
+                    and not self.unusable(uid)):
                 actions.append(Action(ActionType.PLAY, uid))
         if ps.spare_spore:
             actions.append(Action(ActionType.SPARE_SPORE))
@@ -464,7 +489,7 @@ class Game:
             return [Action(ActionType.CHOOSE_TARGET, frame.source, uid) for uid in self._choose_options(frame, node)]
         if node.kind == "may":
             return [Action(ActionType.ACCEPT, frame.source), Action(ActionType.DECLINE, frame.source)]
-        return [Action(ActionType.CHOOSE_OPTION, frame.source, option=i) for i in range(len(node.branches))]
+        return [Action(ActionType.CHOOSE_OPTION, frame.source, option=i) for i in self.usable_options()]
 
     def _decide(self, action: Action):
         frame, node = self.pending_decision()

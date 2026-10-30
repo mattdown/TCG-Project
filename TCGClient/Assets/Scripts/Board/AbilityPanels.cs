@@ -10,13 +10,15 @@ using UnityEngine.UI;
 namespace Tcg.Board
 {
     /// <summary>
-    /// The prompt for an ability waiting on a choice (state.pending): the source card's name and
-    /// text, plus a button per answer that isn't a card (Yes / No, choose-one options). Card
-    /// answers (choose_target) are tapped on the board, where they're highlighted.
+    /// The prompt for an ability waiting on your choice (state.pending): the source card's name
+    /// and text, so the choice keeps its context, plus a button per answer that isn't a card
+    /// (Yes / No, choose-one options). Card answers (choose_target) are tapped on the board, where
+    /// they're highlighted. The AI's choices aren't shown: the spotlight already showed its card.
     /// </summary>
     public class ChoiceBanner : MonoBehaviour
     {
         static readonly Color NoFace = Palette.Hex("#7B8BB8"), NoLip = Palette.Hex("#4E5D88");
+        static readonly Color OffFace = Palette.Hex("#6E7486"), OffLip = Palette.Hex("#454A5A");
 
         public event Action<GameAction> AnswerChosen;
 
@@ -58,41 +60,54 @@ namespace Tcg.Board
             return view;
         }
 
-        public void Show(GameState s, IReadOnlyDictionary<string, CardDef> defs, string opponentName)
+        /// <summary>Shows <paramref name="s"/>'s pending choice, which is yours.</summary>
+        public void Show(GameState s, IReadOnlyDictionary<string, CardDef> defs)
         {
             var p = s.pending;
             foreach (var go in _built) Destroy(go);
             _built.Clear();
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
-
             string source = defs.TryGetValue(p.card_id, out var def) ? def.name : p.card_id;
-            string who = p.chooser == s.human_seat ? "" : string.Format(UiText.OpponentChoosing, opponentName) + " · ";
-            _text.text = $"{who}<b>{source}:</b> {CardText.Ability(p.ability_text).Replace("\n", "  ")}";
+            _text.text = $"<b>{source}:</b> {CardText.Ability(p.ability_text).Replace("\n", "  ")}";
 
             bool targets = false;
             foreach (var a in s.legal_actions)
             {
-                if (a.type == ActionTypes.ChooseTarget)
+                if (a.type == ActionTypes.ChooseTarget) targets = true;
+                else if (a.type == ActionTypes.Accept || a.type == ActionTypes.Decline)
                 {
-                    targets = true;
-                    continue;
+                    bool no = a.type == ActionTypes.Decline;
+                    Answer(a.text, 140, no ? NoFace : Palette.Gold, no ? NoLip : Palette.GoldLip, a);
                 }
-                if (a.type != ActionTypes.Accept && a.type != ActionTypes.Decline && a.type != ActionTypes.ChooseOption) continue;
-                var rt = Ui.Node("Answer", _buttons);
-                var element = rt.gameObject.AddComponent<LayoutElement>();
-                element.minWidth = 120;
-                element.preferredWidth = a.type == ActionTypes.ChooseOption ? 380 : 140;
-                bool no = a.type == ActionTypes.Decline;
-                var answer = a;
-                Ui.Button(rt, a.text, no ? NoFace : Palette.Gold, no ? NoLip : Palette.GoldLip, 17, out var label)
-                    .onClick.AddListener(() => AnswerChosen?.Invoke(answer));
-                label.textWrappingMode = TextWrappingModes.Normal;
-                _built.Add(rt.gameObject);
+                else if (a.type == ActionTypes.ChooseOption && p.options == null)
+                    Answer(a.text, 380, Palette.Gold, Palette.GoldLip, a);  // a server without the options list
             }
-            _hint.gameObject.SetActive(targets && p.chooser == s.human_seat);
+            // "Choose one": every option, the ones with nothing to choose greyed out.
+            if (p.options != null)
+                foreach (var o in p.options)
+                {
+                    var answer = Commands.Find(s, a => a.type == ActionTypes.ChooseOption && a.option == o.option);
+                    bool usable = o.usable && answer != null;
+                    Answer(o.text, 380, usable ? Palette.Gold : OffFace, usable ? Palette.GoldLip : OffLip, usable ? answer : null);
+                }
+            _hint.gameObject.SetActive(targets);
             _buttons.gameObject.SetActive(_built.Count > 0);
             LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)transform);
+        }
+
+        /// <summary>An answer button; with no action it's greyed out and does nothing.</summary>
+        void Answer(string text, float width, Color face, Color lip, GameAction action)
+        {
+            var rt = Ui.Node("Answer", _buttons);
+            var element = rt.gameObject.AddComponent<LayoutElement>();
+            element.minWidth = 120;
+            element.preferredWidth = width;
+            var button = Ui.Button(rt, text, face, lip, 17, out var label);
+            button.onClick.AddListener(() => AnswerChosen?.Invoke(action));
+            button.interactable = action != null;
+            label.textWrappingMode = TextWrappingModes.Normal;
+            _built.Add(rt.gameObject);
         }
 
         public void Hide() => gameObject.SetActive(false);

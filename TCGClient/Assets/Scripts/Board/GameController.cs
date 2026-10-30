@@ -27,7 +27,7 @@ namespace Tcg.Board
         public int Seed = -1;
         [Tooltip("Pause between the AI's decisions, in seconds.")]
         public float AiStepDelay = 0.6f;
-        [Tooltip("How long the opponent's played cards, abilities and choices stay up to read; a tap skips it.")]
+        [Tooltip("How long the opponent's played cards and abilities stay up to read; a tap skips it.")]
         public float ReadHold = 3f;
 
         readonly Dictionary<string, CardDef> _cards = new Dictionary<string, CardDef>();
@@ -168,9 +168,7 @@ namespace Tcg.Board
             if (!_state.game_over && !_state.HumanDecides)
             {
                 Board.SetEndTurnButton(false);
-                // The AI choosing for an ability: leave its prompt up long enough to read; a tap moves on.
-                if (_state.pending != null) yield return BoardView.WaitOrTap(ReadHold);
-                else yield return new WaitForSeconds(AiStepDelay);
+                yield return new WaitForSeconds(AiStepDelay);
                 Network.Send<StateResponse>(new Request("ai_move"), ai =>
                 {
                     if (Check(ai)) StartCoroutine(Advance(ai));

@@ -80,7 +80,9 @@ module (`src/game/terms.py`), so a rename is a single change.
   can attack again, "start of turn" effects trigger, draw a card. Then the main phase, then
   "end of turn" effects.
 - **Main phase actions:**
-  - play a card by paying its cost in mana
+  - play a card by paying its cost in mana. An action card whose ability opens by choosing a
+    card can't be played when there's nothing to choose (in every option, for "choose one"); a
+    "choose one" only offers the options that have something to choose (all of them, if none do)
   - attack with a unit
   - end the turn
 - **Attacks.**

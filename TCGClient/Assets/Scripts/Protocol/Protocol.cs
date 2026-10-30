@@ -126,6 +126,7 @@ namespace Tcg.Protocol
         public bool can_attack;  // it's its owner's turn and it can attack now
         public bool frozen;      // can't attack on its owner's next turn
         public bool hidden;      // Elusive and hasn't attacked yet: enemies can't target it
+        public string unusable;  // in your hand: affordable, but it can't be played now, and why
     }
 
     public class PlayerState
@@ -211,6 +212,14 @@ namespace Tcg.Protocol
         public string kind;      // "choose" | "may" | "choose_one"
         public int chooser;
         public string ability_text;
+        public List<PendingOption> options;  // choose_one: every option, usable or not
+    }
+
+    public class PendingOption
+    {
+        public int option;
+        public string text;
+        public bool usable;  // false: it opens with a choice that has nothing to choose
     }
 
     public class UidAmount

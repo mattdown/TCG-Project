@@ -351,3 +351,30 @@ def test_a_token_returned_to_hand_is_gone():
     give_mana(game, 1, 1)
     game.step(Action(ActionType.PLAY, gust_uid))
     assert game.card(token).zone == Zone.DISCARD and token not in game.state.players[0].hand
+
+
+ENEMY_UNIT = {"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}
+HIT_IT = {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 2}
+
+
+def test_an_action_with_nothing_to_choose_cant_be_played():
+    game = started_game()
+    bolt = put_in_hand(game, 0, action(ENEMY_UNIT, HIT_IT, name="Bolt"))
+    give_mana(game, 0, 1)
+    assert game.unusable(bolt) and Action(ActionType.PLAY, bolt) not in game.legal_actions()
+    put_in_play(game, 1, unit(health=3))
+    assert not game.unusable(bolt) and Action(ActionType.PLAY, bolt) in game.legal_actions()
+
+
+def test_choose_one_offers_only_options_with_something_to_choose():
+    draw = {"effect": "draw", "amount": 1, "target": "you"}
+    charm = action({"choose_one": [[ENEMY_UNIT, HIT_IT], [draw]]}, name="Charm")
+    game = started_game()
+    uid = put_in_hand(game, 0, charm)
+    give_mana(game, 0, 1)
+    assert not game.unusable(uid)  # the draw option still does something
+    game.step(Action(ActionType.PLAY, uid))
+    assert [a.option for a in game.legal_actions()] == [1]
+
+    only_targets = action({"choose_one": [[ENEMY_UNIT, HIT_IT], [ENEMY_UNIT, HIT_IT]]}, name="Twin")
+    assert game.unusable(put_in_hand(game, 0, only_targets))

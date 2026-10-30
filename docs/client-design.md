@@ -96,6 +96,8 @@ States:
 | Selected | lifted 10 px, gold glow |
 | Target | red glow |
 | Playable (in hand), or can still attack (your units) | green glow |
+| Affordable but can't be played now (an action with nothing to target: `unusable`) | yellow glow; dropping it on the field, or PLAY on the inspect screen, shows the reason in a short popup |
+| A "choose one" option with nothing to choose | its answer button is greyed out |
 | END TURN with nothing else left to do | the button pulses with a gold glow |
 
 ## Interaction
@@ -136,7 +138,7 @@ Drag previews come from each legal action's server-side `preview`
 - **The opponent's cards, to read:** before an action's result plays out, the card the opponent
   played and each of their cards whose ability fires (on either player's action) is shown large in
   the middle ("Opponent plays" / "Opponent's ability") over a dimmed board for 3 s
-  (`GameController.ReadHold`); the AI's ability choice prompt stays up as long. A tap skips.
+  (`GameController.ReadHold`). A tap skips.
 - **The opponent's turn:** one `ai_move` every 0.6 s. A played card flies in from their hand, an
   added energy flies to their gems as a card back, a duel shows the arrow for half a second, a
   score pulses the unit. Damage ("-2"), defeats, VP gains and card moves come from each action
@@ -150,9 +152,10 @@ Drag previews come from each legal action's server-side `preview`
   - *Action cards:* no power, health or crowns. Played by dragging onto the field; the card
     shows large in the middle while it resolves, then fades to the discard pile.
   - *Stats:* current values from the server, green above the printed value, red below.
-  - *Choices:* a banner across the divider with the source card's name and the ability text.
-    Cards that can be chosen get a gold ring and are tapped; Yes / No and choose-one options are
-    buttons. The AI's choices show the banner too ("heuristic is choosing"), a little longer.
+  - *Choices:* yours only, as a banner across the divider with the source card's name and the
+    ability text, so the choice keeps its context. Cards that can be chosen get a gold ring and a
+    "Tap a highlighted card" hint; Yes / No and choose-one options are buttons, the options with
+    nothing to choose greyed out. The AI's choices show nothing: the spotlight already showed its card.
   - *Inspect:* a box per keyword with the server's reminder text, the full card text, and chips
     for attacked, fresh, damage, frozen and hidden.
   - *Feedback:* the cards in `result.abilities` pulse gold in order; healing, stat changes,

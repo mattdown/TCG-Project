@@ -204,6 +204,22 @@ namespace Tcg.Board
             EndTurnGlow.DOFade(0.95f, 0.7f).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo);
         }
 
+        /// <summary>A short notice over everything, e.g. why a card can't be played; it fades by itself.</summary>
+        public void Toast(string text)
+        {
+            var rt = Ui.Node("Toast", Root);
+            Ui.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(0f, 44f));
+            Ui.Pill(rt, text, Palette.CardNavy, 18, display: false);
+            rt.SetAsLastSibling();
+            var group = rt.gameObject.AddComponent<CanvasGroup>();
+            group.blocksRaycasts = false;
+            var seq = DOTween.Sequence();
+            seq.Append(rt.DOPunchScale(Vector3.one * 0.08f, 0.3f, 6));
+            seq.AppendInterval(1.8f);
+            seq.Append(group.DOFade(0f, 0.4f));
+            seq.OnComplete(() => Destroy(rt.gameObject));
+        }
+
         /// <summary>A one-line notice (server errors, connection problems); null or empty hides it.</summary>
         public void ShowMessage(string text)
         {
@@ -452,7 +468,8 @@ namespace Tcg.Board
                     view.Rect.position = from;  // drawn: in from your deck
                 Place(view, centre, Vector3.one, Quaternion.Euler(0f, 0f, angle), animate);
                 view.Rect.SetSiblingIndex(i);
-                view.SetMark(playable.Contains(c.uid) ? CardMark.Playable : CardMark.None);
+                view.SetMark(playable.Contains(c.uid) ? CardMark.Playable
+                    : c.unusable != null ? CardMark.Unusable : CardMark.None);
                 _zoneOf[c.uid] = "hand";
             }
         }
