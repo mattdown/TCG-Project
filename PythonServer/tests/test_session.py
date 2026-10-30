@@ -2,6 +2,7 @@ from dataclasses import replace
 
 import pytest
 
+from src.cards.art import art_key
 from src.cards.coverage import generate_coverage_set
 from src.cards.schema import Card, CardSet
 from src.cards.vanilla import generate_vanilla_set
@@ -167,6 +168,15 @@ def test_card_set_includes_ability_text():
     cards = ability_session().handle({"type": "card_set"})["cards"]
     assert cards[0]["ability_text"] == ["When you play this unit, draw a card. Deal 1 damage to chosen enemy unit."]
     assert cards[0]["abilities"][0]["kind"] == "triggered"
+
+
+def test_card_set_names_each_cards_art():
+    """Art is keyed by how the card looks (name, subtitle, habitat), so regenerated sets reuse it."""
+    assert art_key("Porcini Baker", "Up Before Dawn", ("aspect_4",)) == "porcini-baker--up-before-dawn--meadow"
+    assert art_key("Lion's-mane Chef", "Retired (Mostly)", ()) == "lion-s-mane-chef--retired-mostly--neutral"
+    assert art_key("Ember Volley", "", ("aspect_1",)) == "ember-volley--ember"
+    cards = ability_session().handle({"type": "card_set"})["cards"]
+    assert all(c["art"] == art_key(c["name"], c["subtitle"], c["aspects"]) for c in cards)
 
 
 def test_pending_decision_and_previews_dont_reveal_draws():

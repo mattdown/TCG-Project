@@ -153,5 +153,11 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   Assets**, or `-executeMethod ClientAssetBuilder.BuildAll` in batch mode). Change layout there,
   not by hand: a rebuild overwrites the prefab and scene. Placeholder sprites come from
   `TCGClient/Tools/make_placeholder_sprites.py` (`uv run --no-project --with pillow python Tools/make_placeholder_sprites.py`).
+- **Card art:** `Tools/card_art/card_art.py` (a written scene per card in `scenes.json` + the
+  shared style → Gemini → `ArtSource/cards/` → shrink to `Assets/Resources/CardArt/`); see the
+  docstring and docs/theme.md, "Generating card art". Scenes and art are keyed by name, subtitle
+  and habitat (`src/cards/art.py`), never card ID: `card_set` sends each card's `art` key and
+  `CardView` loads it, or a placeholder silhouette if there's no image. It uses its own key (`TCG_ART_GEMINI_KEY` or `~/.config/tcg-art.key`),
+  never `GEMINI_API_KEY`, which is a work key.
 - **NetMQ shutdown:** `NetMQConfig.Cleanup` can hang in Unity; it runs on the network thread,
   which is abandoned if slow. Never call it on the main thread (it froze the editor).

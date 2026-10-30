@@ -100,6 +100,7 @@ stats and names here.
 | `keywords` | `{"guard": true, "duelist": 2}`: flags are `true`, Duelist and Armor carry a number. Show them as `Guard.`, `Duelist +2.` (see the keyword rules below) |
 | `abilities` | ability trees (the grammar in [technical-plan.md](technical-plan.md) section 3); the client doesn't need to read them |
 | `ability_text` | one line of card text per ability, e.g. `"When you play this unit, draw a card."`: show these in the text box |
+| `art` | the card's image, named after its name, subtitle and habitat (`"porcini-baker--up-before-dawn--meadow"`, `src/cards/art.py`): the client loads `Resources/CardArt/<art>` and shows a placeholder when there's no image yet |
 | `token` | `true` for a **token**: a unit an ability summons (`"Summon two 1/1 Sporelings."`), never in a deck. Tokens come after the set's cards, with ids like `"token:Sporeling-1/1"`, so a summoned unit's `card_id` is found like any other. They cost 0, are neutral, and may have a job and a keyword |
 
 The response also has `keywords`: each keyword's player-facing name, whether it carries a

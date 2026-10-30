@@ -96,6 +96,7 @@ namespace Tcg.Protocol
         public List<string> traits;
         public Dictionary<string, JToken> keywords;  // true, or a number for Duelist / Armor
         public List<string> ability_text;
+        public string art;  // the card's image, Resources/CardArt/<art>, if it has been generated
 
         public bool IsAction => type == "action";
     }

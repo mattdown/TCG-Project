@@ -23,6 +23,7 @@ from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
 from src.cards.abilities import Renderer, render
+from src.cards.art import art_key
 from src.cards.schema import CardSet
 from src.cards.tokens import tokens_of
 from src.game.actions import Action, ActionType
@@ -69,10 +70,12 @@ class GameSession:
     # --- handlers
 
     def _card_set(self, _):
-        cards = [{**c.to_dict(), "ability_text": [render(a, c.type) for a in c.abilities]} for c in self.card_set.cards]
+        cards = [{**c.to_dict(), "ability_text": [render(a, c.type) for a in c.abilities],
+                  "art": art_key(c.name, c.subtitle, c.aspects)} for c in self.card_set.cards]
         # Tokens the cards can summon, so the client can show them like any card.
         tokens = {t.id: t for c in self.card_set.cards for t in tokens_of(c)}
-        cards += [{**t.to_dict(), "ability_text": [], "token": True} for t in tokens.values()]
+        cards += [{**t.to_dict(), "ability_text": [], "token": True, "art": art_key(t.name, t.subtitle, t.aspects)}
+                  for t in tokens.values()]
         keywords = {k: {"name": KEYWORD_NAMES[k], "numbered": KEYWORDS[k], "rule": KEYWORD_RULES[k]} for k in KEYWORDS}
         aspects = {a: {"name": ASPECT_NAMES[a], "description": ASPECT_DESCRIPTIONS[a]} for a in ASPECTS}
         aspects[NEUTRAL] = {"name": NEUTRAL_NAME, "description": NEUTRAL_DESCRIPTION}

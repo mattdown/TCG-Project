@@ -47,6 +47,10 @@ namespace Tcg.View
         [Tooltip("Placeholder art: 4 silhouettes per aspect, aspect-major (aspect_1 first).")]
         public Sprite[] ArtSprites;
         public const int ArtPerAspect = 4;
+        const string ArtFolder = "CardArt/";
+        const float ArtRaise = 0.1f;  // art taller than the window loses 40% of the overflow at the top, 60% at the bottom
+        static readonly System.Collections.Generic.Dictionary<string, Sprite> LoadedArt = new();
+        Vector2? _placeholderSize;
         [Tooltip("Units have the power orb and health shield painted on; action cards don't.")]
         public Sprite UnitFrame, ActionFrame;
 
@@ -94,7 +98,7 @@ namespace Tcg.View
         {
             int aspect = Palette.AspectNumber(def.aspects != null && def.aspects.Count > 0 ? def.aspects[0] : null);
             AspectTag.color = Palette.Aspect(aspect);
-            Art.sprite = PickArt(def, aspect);
+            ShowArt(def, aspect);
             Frame.sprite = FrameShadow.sprite = def.IsAction ? ActionFrame : UnitFrame;
 
             // The name on the banner; the subtitle (the character's version) on the tab under it.
@@ -196,6 +200,40 @@ namespace Tcg.View
             if (string.IsNullOrEmpty(text)) return;
             _badgeText.text = text;
             _badge.Find("Face").GetComponent<Image>().color = background;
+        }
+
+        /// <summary>
+        /// The card's generated art (Resources/CardArt/&lt;def.art&gt;) covering the oval window, cropped
+        /// more from the bottom than the top so tall caps fit; a placeholder silhouette until it's generated.
+        /// </summary>
+        void ShowArt(CardDef def, int aspect)
+        {
+            var art = Art.rectTransform;
+            if (_placeholderSize == null) _placeholderSize = art.sizeDelta;
+            var sprite = LoadArt(def.art);
+            if (sprite == null)
+            {
+                Art.sprite = PickArt(def, aspect);
+                art.sizeDelta = _placeholderSize.Value;
+                art.anchoredPosition = Vector2.zero;
+                return;
+            }
+            Art.sprite = sprite;
+            var window = ((RectTransform)art.parent).rect.size;
+            float aspectRatio = sprite.rect.width / sprite.rect.height;
+            var size = window.x / window.y > aspectRatio
+                ? new Vector2(window.x, window.x / aspectRatio)
+                : new Vector2(window.y * aspectRatio, window.y);
+            art.sizeDelta = size;
+            art.anchoredPosition = new Vector2(0f, -ArtRaise * (size.y - window.y));
+        }
+
+        static Sprite LoadArt(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            if (!LoadedArt.TryGetValue(key, out var sprite))
+                LoadedArt[key] = sprite = Resources.Load<Sprite>(ArtFolder + key);  // null is cached too
+            return sprite;
         }
 
         Sprite PickArt(CardDef def, int aspect)

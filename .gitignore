@@ -9,6 +9,8 @@ Blog/build/
 wandb/
 
 # --- Unity (TCGClient/) ---
+# Full-size generated card art: backed up outside git; the build uses Assets/Art/Cards
+TCGClient/ArtSource/
 TCGClient/[Ll]ibrary/
 TCGClient/[Tt]emp/
 TCGClient/[Oo]bj/

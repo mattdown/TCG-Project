@@ -121,6 +121,30 @@ turkey tail, honey fungus, bioluminescent ghost fungus, snowcap.
 - **For release:** aim for a recognisable house style rather than imitating a specific
   studio.
 
+### Generating card art
+
+`TCGClient/Tools/card_art/card_art.py` builds each card's prompt from two parts: a scene written
+for that card (`scenes.json`: one character in one concrete moment, like the oyster fisher
+below) and the style every card shares (`art_direction.STYLE`, with the glow in the card's
+habitat colour). It writes the prompts as editable JSONL in `Tools/card_art/prompts/`,
+generates the missing images with a Gemini image model from the prompt alone, and shrinks them
+for the build.
+
+Scenes and images are named after the card's name, subtitle and habitat, not its ID
+("porcini-baker--up-before-dawn--meadow"), so a regenerated set reuses every scene and image
+whose card it still has. Cards without a scene get a brief (look, job, setting, card text) in
+`prompts/<set>_briefs.json`; write their scenes into `scenes.json` and run `prompts` again.
+Full-size images go to `TCGClient/ArtSource/cards/` (outside `Assets`, gitignored, backed up to
+iCloud Drive in `TCG-Project/card-art`), and 640×800 JPEGs to `Assets/Resources/CardArt/` (in git). The server sends each card's key in
+`card_set` (`art`, from `src/cards/art.py`), and `CardView` loads that image, or a placeholder silhouette
+if it hasn't been generated.
+After generating, refresh the backup:
+`rsync -a TCGClient/ArtSource/cards/ ~/Library/Mobile\ Documents/com~apple~CloudDocs/TCG-Project/card-art/`.
+
+Generating uses a Gemini API key of the art's own, from `TCG_ART_GEMINI_KEY` or
+`~/.config/tcg-art.key`. The script never reads `GEMINI_API_KEY` (set for other work) and
+refuses an art key equal to it, so image costs can't land on another account.
+
 ### Preview prompts (Gemini)
 
 **Card art: Oyster Fisher (Bog)**
