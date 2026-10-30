@@ -128,7 +128,7 @@ Drag previews come from each legal action's server-side `preview`
 
 ## Built without a design (simple placeholders, same style)
 
-- **Mulligan:** the hand large over a dimmed board; tap cards to put back (they dim with a
+- **Mulligan:** the hand large over a dimmed board; tap cards to put back (they darken, still opaque, with a
   PUT BACK badge; tap again to keep one), then CONFIRM. Picking is local: CONFIRM sends the
   whole choice at once (a `mulligan` act per card, then `keep_hand`). END TURN always reads
   END TURN and is greyed out during the mulligan, the opponent's turn and after the game.

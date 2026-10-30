@@ -144,6 +144,17 @@ namespace Tcg.View
 
         public void SetDimmed(bool dimmed) => Group.alpha = dimmed ? 0.4f : 1f;
 
+        /// <summary>
+        /// Shades the card dark but keeps it opaque, so nothing behind it shows through. It tints
+        /// each part's renderer, not its colour, so binding the card again keeps the shade.
+        /// </summary>
+        public void SetDarkened(bool dark)
+        {
+            var tint = dark ? new Color(0.38f, 0.38f, 0.38f, 1f) : Color.white;
+            foreach (var g in Visual.GetComponentsInChildren<Graphic>(true))
+                if (_badge == null || !g.transform.IsChildOf(_badge)) g.canvasRenderer.SetColor(tint);
+        }
+
         public void SetTargetRing(TargetRing ring)
         {
             TargetOutline.gameObject.SetActive(ring != TargetRing.None);

@@ -284,7 +284,7 @@ namespace Tcg.Board
             foreach (var kv in _views)
             {
                 bool picked = _selected.Contains(kv.Key);
-                kv.Value.SetDimmed(picked);
+                kv.Value.SetDarkened(picked);
                 kv.Value.SetBadge(picked ? UiText.PutBack : null, BadgeRed);
             }
         }
