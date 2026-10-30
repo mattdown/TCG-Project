@@ -690,7 +690,7 @@ class Game:
     def _damage_hero(self, p: int, amount: int):
         if amount <= 0:
             return
-        self.state.players[p].health -= amount
+        self.state.players[p].health = max(self.state.players[p].health - amount, 0)  # overkill stops at 0
         if self._result:
             self._result.hero_damage[p] = self._result.hero_damage.get(p, 0) + amount
         if self.state.players[p].health <= 0:

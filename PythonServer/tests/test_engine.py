@@ -152,6 +152,7 @@ def test_attacking_the_hero_and_winning():
     game.card(attacker).attacked = False
     game.step(Action(ActionType.ATTACK_HERO, attacker))
     assert game.is_over and game.state.winner == 0 and game.legal_actions() == []
+    assert game.state.players[1].health == 0  # overkill doesn't take it below 0
 
 
 def test_charge_attacks_the_turn_its_played_and_zero_power_cant_attack():
