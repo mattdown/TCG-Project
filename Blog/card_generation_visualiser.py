@@ -10,10 +10,13 @@ so this uses PythonServer's environment.
 The page plays a timeline (2 s per decision) built from the card's derivation (src/cards/trace.py): every
 decision the sampler made, its options and the one it took. It has a scrubber for checking the
 timing. It starts on --seed and bakes in a pool of other cards for its "New card" button, so the
-page needs no server. --render steps that timeline frame by frame in Chrome and joins the frames with ffmpeg,
+page needs no server. The card is drawn like the Unity client's, on its painted frame: web-sized copies of
+the client's art (TCGClient/Assets/Art/Sprites) are in Blog/art and baked into the page. --render steps that timeline frame by frame in Chrome and joins the frames with ffmpeg,
 so the video is smooth and the same every time.
 """
 import argparse
+import base64
+import json
 import random
 import shutil
 import subprocess
@@ -25,6 +28,7 @@ from src.cards.abilities import Renderer, render as card_text  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("card_generation_visualiser.html")
 OUT = Path(__file__).parent / "build"
+ART = Path(__file__).with_name("art")  # card_frame.webp, card_frame_action.webp, card_art.webp
 WIDTH, HEIGHT = 1920, 1080
 
 
@@ -68,6 +72,12 @@ def text_stages(kept: dict) -> list[dict]:
     return stages
 
 
+def card_art() -> str:
+    """The frame and art as data URIs, so the page stays one file."""
+    uris = {f.stem: "data:image/webp;base64," + base64.b64encode(f.read_bytes()).decode() for f in sorted(ART.glob("*.webp"))}
+    return f"<script>window.CARD_ART = {json.dumps(uris)};</script>"
+
+
 def render(html: Path, video: Path, fps: int):
     """Steps the page's timeline with window.seek(t) and pipes a screenshot of each frame to ffmpeg."""
     from playwright.sync_api import sync_playwright  # only needed for --render
@@ -106,7 +116,7 @@ def main():
     args = parser.parse_args()
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(page(pool_data(args.seed, args.pool), TEMPLATE))
+    args.out.write_text(page(pool_data(args.seed, args.pool), TEMPLATE).replace("<!--CARD_ART-->", card_art()))
     print(f"Wrote {args.out}")
     if args.render:
         render(args.out, args.out.with_suffix(".mp4"), args.fps)

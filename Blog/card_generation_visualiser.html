@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ability Tree</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:ital,wght@0,600;0,700;0,800;0,900;1,700&display=swap">
 <style>
 :root {
   --outline: #0E1733; --panel: #16203D; --bg: #1E2C55; --bg-deep: #0A1029; --light: #E9EEF8;
@@ -32,10 +32,29 @@ html, body { margin: 0; height: 100%; background: #05081A; overflow: hidden; }
 .odds { position: absolute; right: 64px; bottom: 56px; text-align: right; }
 .odds .n { font: 400 48px/1.1 "Lilita One", system-ui; color: var(--gold); text-shadow: 0 3px 0 var(--outline); }
 .odds .l { font: 700 21px Nunito; color: var(--muted); }
-#cardbox { position: absolute; left: 1330px; top: 170px; width: 420px; }
-#cardbox .card { --w: 420px; cursor: default; }
-#cardbox .card.no-art .art svg { visibility: hidden; }
-#cardbox .trait:empty { display: none; }
+#cardbox { position: absolute; left: 1330px; top: 150px; width: 420px; }
+/* The card as the Unity client draws it: everything placed on the painted frame (Art/Sprites/card_frame*.png,
+   1342x2000) at the same frame pixels as ClientAssetBuilder, as percentages; type sizes in card units (--u). */
+.pcard { --w: 420px; --u: calc(var(--w) / 151.2); position: relative; width: var(--w); aspect-ratio: 1342 / 2000; }
+.pcard > * { position: absolute; }
+.pcard .art { left: 19.67%; top: 10.9%; width: 63.79%; height: 43.1%; overflow: hidden; background: #0A1022; }
+.pcard .art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
+.pcard.no-art .art img { visibility: hidden; }
+.pcard .frame { inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 calc(var(--u) * 4) 0 rgba(10, 16, 34, .5)); }
+.pcard .num, .pcard .name { display: grid; place-items: center; font-family: "Lilita One", system-ui; color: #fff; white-space: nowrap;
+  -webkit-text-stroke: .16em #0E1733; paint-order: stroke fill; text-shadow: 0 .07em 0 #0E1733; }
+.pcard .cost { left: 9.31%; top: 8%; width: 14.9%; height: 10%; font-size: calc(var(--u) * 20); }
+.pcard .power { left: 9.31%; top: 86%; width: 13.41%; height: 9%; font-size: calc(var(--u) * 18); }
+.pcard .health { left: 80.85%; top: 85.6%; width: 13.04%; height: 8.75%; font-size: calc(var(--u) * 18); padding-bottom: 1.5%; box-sizing: border-box; }
+.pcard .name { left: 16.02%; top: 54.6%; width: 70.04%; height: 7.5%; font-size: calc(var(--u) * 13); overflow: hidden; }
+.pcard .sub { left: 32.79%; top: 63.4%; width: 36.14%; height: 4.5%; display: grid; place-items: center; white-space: nowrap; overflow: hidden;
+  font: italic 700 calc(var(--u) * 8.5) Nunito; color: #3A2717; }
+.pcard .text { left: 18.63%; top: 69.25%; width: 64.83%; height: 19%; display: flex; flex-direction: column; justify-content: safe center;
+  overflow: hidden; text-align: center; font: 700 calc(var(--u) * 10)/1.15 Nunito; color: #3A2717; }
+.pcard .text b { font-weight: 900; }
+.pcard .tag { left: 50%; top: 98%; transform: translate(-50%, -50%); padding: 0 .9em; line-height: 1.33; border-radius: .6em;
+  background: #16203D; border: calc(var(--u) * 1.5) solid var(--aspect); font: 900 calc(var(--u) * 9) Nunito; letter-spacing: .04em; color: #D6E0F5; }
+.pcard .tag:empty { display: none; }
 .shade.right { left: auto; top: 0; bottom: 0; width: 780px; background: linear-gradient(90deg, rgba(13, 21, 53, 0), rgba(13, 21, 53, .92) 40%); }
 .final { position: absolute; left: 1200px; width: 680px; top: 800px; text-align: center; }
 .final .n { font: 400 64px/1.1 "Lilita One", system-ui; color: var(--gold); text-shadow: 0 4px 0 var(--outline); }
@@ -69,6 +88,7 @@ body.render #controls { display: none; }
 </div>
 
 <!--CARD_KIT-->
+<!--CARD_ART-->
 <!--LAB_DATA-->
 <script>
 // The timeline: the card's derivation (src/cards/trace.py) laid out as a tree, one beat per decision.
@@ -411,13 +431,44 @@ function cardAt(t) {
     const s = { type: "unit", name: "", subtitle: "", cost: "", power: "", health: "", aspect: null, keywords: [],
       traits: [""], text: "", art: false };
     for (const e of done) e.f(s);
-    $("cardbox").innerHTML = cardHtml({ card: s, card_type: s.type, kind: A.kind, text: s.text, index: 0 });
-    $("cardbox").querySelector(".card").classList.toggle("no-art", !s.art);
-    fitText($("cardbox"));
+    $("cardbox").innerHTML = paintedCard(s, A.kind);
+    fitPainted($("cardbox"));
   }
   // A gold glow when something on the card has just been decided.
   const since = done.length ? t - done[done.length - 1].t : Infinity, glow = since < 0.7 ? 1 - since / 0.7 : 0;
   $("cardbox").style.filter = glow ? `drop-shadow(0 0 ${32 * glow}px rgba(255, 201, 60, ${0.9 * glow}))` : "none";
+}
+
+function paintedCard(c, kind) {
+  // The card on its painted frame, like the client's CardView; the aspect shows as the job tag's rim.
+  const unit = c.type === "unit", art = window.CARD_ART;
+  const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
+  return `<div class="pcard ${unit ? "" : "action"} ${c.art ? "" : "no-art"}" style="--aspect:${ASPECT_COLOURS[c.aspect] || NEUTRAL_COLOUR}">
+    <div class="art"><img src="${art.card_art}" alt=""></div>
+    <img class="frame" src="${unit ? art.card_frame : art.card_frame_action}" alt="">
+    <div class="num cost">${c.cost}</div>
+    <div class="name">${esc(c.name)}</div>
+    <div class="sub">${esc(c.subtitle)}</div>
+    <div class="text"><div>${kw ? kw + "<br>" : ""}${abilityHtml({ kind, text: c.text })}</div></div>
+    <div class="tag">${esc(unit ? c.traits[0] : "Action")}</div>
+    ${unit ? `<div class="num power">${c.power}</div><div class="num health">${c.health}</div>` : ""}
+  </div>`;
+}
+
+function fitPainted(root) {
+  // Shrink to fit between the client's auto-size bounds (name 13 → 8, subtitle 8.5 → 5, text 10 → 5 card units).
+  const unit = parseFloat(getComputedStyle(root.querySelector(".pcard")).getPropertyValue("--w")) / 151.2;
+  const fit = (selector, max, min, fits) => {
+    const el = root.querySelector(selector);
+    for (let size = max; size >= min; size -= 0.25) {
+      el.style.fontSize = size * unit + "px";
+      if (fits(el)) break;
+    }
+  };
+  const wide = (el) => el.scrollWidth <= el.clientWidth + 1;
+  fit(".name", 13, 8, wide);
+  fit(".sub", 8.5, 5, wide);
+  fit(".text", 10, 5, (el) => el.scrollHeight <= el.clientHeight + 1);
 }
 
 // ------------------------------------------------------------------ setup and playback
@@ -486,7 +537,7 @@ async function init() {
   if (query.has("render")) document.body.classList.add("render");
   await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);
   $("subtitle").textContent = "Every random choice the generator made, and the card they add up to";
-  if (!SHOW_ODDS) $("cardbox").style.top = (H - 420 * 1.4) / 2 + "px";  // nothing under it: centre it
+  if (!SHOW_ODDS) $("cardbox").style.top = (H - 420 * 2000 / 1342) / 2 + "px";  // nothing under it: centre it
   shownCard = Math.max(0, CARDS.findIndex((c) => String(c.seed) === query.get("seed")));  // a shared link's card
   load(CARDS[shownCard]);
   $("new").addEventListener("click", newCard);
