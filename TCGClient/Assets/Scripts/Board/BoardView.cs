@@ -25,6 +25,8 @@ namespace Tcg.Board
         const float BackVisible = 62f;     // how far the opponent's hand hangs into the board
         const float BackMaxWidth = 520f;   // narrower than yours, clear of their mana in the top right
         const float Move = 0.3f;
+        const float BashGap = 26f;      // between attacker and target as it lines up
+        const float BashOverlap = 22f;  // how far the attacker's edge sinks into the target on impact
 
         public UiTheme Theme;
         [Tooltip("The painted mana crystal, full and spent.")]
@@ -267,6 +269,42 @@ namespace Tcg.Board
             arrow.Hide();
             actor.SetMark(CardMark.None);
             target?.SetTargetRing(TargetRing.None);
+        }
+
+        /// <summary>
+        /// An attack, either side's, before the state changes: the attacker lines up with its target
+        /// (below it from your row, above it from theirs), draws back, then bashes into it. The
+        /// result and the new layout follow, so a survivor slides home and a defeated one dies where it hit.
+        /// </summary>
+        public IEnumerator Bash(GameAction action)
+        {
+            if (action == null || !action.card.HasValue ||
+                (action.type != ActionTypes.Attack && action.type != ActionTypes.AttackHero)) yield break;
+            var actor = CardByUid(action.card.Value);
+            if (actor == null) yield break;
+            bool fromBelow = IsHumanUnit(actor.Uid);
+            var target = action.type == ActionTypes.AttackHero ? (fromBelow ? OpponentHero : HumanHero)
+                : action.target.HasValue ? CardByUid(action.target.Value)?.Rect : null;
+            if (target == null) yield break;
+
+            var rt = actor.Rect;
+            rt.DOKill();
+            actor.SetMark(CardMark.None);
+            rt.SetParent(TopLayer, true);  // over both rows; the next layout puts it back
+            float unit = Root.lossyScale.y;
+            float reach = (rt.rect.height * rt.lossyScale.y + target.rect.height * target.lossyScale.y) / 2f;
+            var side = fromBelow ? Vector3.down : Vector3.up;
+            var centre = target.TransformPoint(target.rect.center);  // hero panels pivot on a corner
+            var face = centre + side * (reach + BashGap * unit);
+            var hit = centre + side * (reach - BashOverlap * unit);
+
+            var seq = DOTween.Sequence();
+            seq.Append(rt.DOMove(face, 0.3f).SetEase(Ease.OutCubic));
+            seq.Join(rt.DOScale(rt.localScale * 1.08f, 0.3f).SetEase(Ease.OutCubic));
+            seq.Join(rt.DOLocalRotateQuaternion(Quaternion.identity, 0.3f));
+            seq.Append(rt.DOMove(face + side * 16f * unit, 0.12f).SetEase(Ease.OutQuad));
+            seq.Append(rt.DOMove(hit, 0.09f).SetEase(Ease.InQuad));
+            yield return seq.WaitForCompletion();
         }
 
         // --- layout

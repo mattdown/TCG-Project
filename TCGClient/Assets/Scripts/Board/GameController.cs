@@ -165,6 +165,7 @@ namespace Tcg.Board
                 yield return Board.ShowAction(r.action, Interaction.Arrow);
             }
             bool animate = _state != null;
+            if (animate) yield return Board.Bash(r.action);
             _state = r.state;
             Board.Render(_state, _cards, _opponentName, animate, r.action);
             Interaction.OnStateChanged(_state, _cards, _opponentName);
