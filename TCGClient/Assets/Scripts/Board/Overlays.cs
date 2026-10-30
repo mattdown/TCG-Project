@@ -5,14 +5,16 @@ using Tcg.View;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Tcg.Board
 {
     /// <summary>
     /// Tap to inspect (the mockup's "Landscape inspect"): the card at about 2x over a dimmed board,
-    /// a box for anything that needs explaining, and PLAY / ADD ENERGY for hand cards, enabled only
-    /// when the matching legal action exists. Tap anywhere to close.
+    /// a box for anything that needs explaining, and PLAY for hand cards, enabled only when the
+    /// legal action exists. Arrows (or the ← → keys) step to the other cards on the board without
+    /// closing it. Tap anywhere to close.
     /// </summary>
     public class InspectView : MonoBehaviour
     {
@@ -20,15 +22,18 @@ namespace Tcg.Board
         static readonly Color ChipOpponent = Palette.Hex("#A8321F");
         static readonly Color ChipNeutral = Palette.Hex("#2E4680");
         static readonly Color PlayFace = Palette.Hex("#5BC84E"), PlayLip = Palette.Hex("#2F8A27");
+        static readonly Color OffFace = Palette.Hex("#6E7486"), OffLip = Palette.Hex("#454A5A");
 
         public event Action<GameAction> ActionChosen;
+        /// <summary>An arrow: -1 for the previous card, +1 for the next.</summary>
+        public event Action<int> Stepped;
         public bool IsOpen => gameObject.activeSelf;
 
         CardView _card;
         RectTransform _chips, _column, _buttons;
-        Button _play;
-        TMP_Text _playText;
-        GameObject _note;
+        Button _play, _prev, _next;
+        Image _playFace, _playLip;
+        TMP_Text _count;
         readonly List<GameObject> _built = new List<GameObject>();
         GameAction _playAction;
 
@@ -51,7 +56,12 @@ namespace Tcg.Board
             chipLayout.childControlWidth = chipLayout.childControlHeight = false;
             chipLayout.childForceExpandWidth = chipLayout.childForceExpandHeight = false;
 
-            view._column = Ui.Box("Column", root, 660, 122, 340, 400);
+            view._prev = Arrow(root, "Previous", UiText.Previous, 222, view, -1);
+            view._next = Arrow(root, "Next", UiText.Next, 300 + CardView.Width * Scale + 22, view, 1);
+            view._count = Ui.Body(Ui.Box("Count", root, 300, 122 + CardView.Height * Scale + 10, CardView.Width * Scale, 24),
+                "", 14, Palette.SubtleText, TextAlignmentOptions.Center);
+
+            view._column = Ui.Box("Column", root, 700, 122, 340, 400);
             var col = view._column.gameObject.AddComponent<VerticalLayoutGroup>();
             col.spacing = 12;
             col.childControlWidth = col.childControlHeight = true;
@@ -59,23 +69,49 @@ namespace Tcg.Board
             col.childForceExpandHeight = false;
             view._column.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            view._buttons = Ui.Node("Buttons", view._column);
-            var buttonsSize = view._buttons.gameObject.AddComponent<LayoutElement>();
-            buttonsSize.minHeight = buttonsSize.preferredHeight = 66;
-            buttonsSize.flexibleHeight = 0;
+            // Pinned level with the card's bottom edge, so it stays put however many boxes there are.
+            const float buttonHeight = 56f;
+            view._buttons = Ui.Box("Buttons", root, 700, 122 + CardView.Height * Scale - buttonHeight, 340, buttonHeight);
             var row = view._buttons.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.spacing = 12;
-            row.padding = new RectOffset(0, 0, 10, 0);
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = row.childForceExpandHeight = true;
-            view._play = Ui.Button(Ui.Node("Play", view._buttons), "PLAY", PlayFace, PlayLip, 19, out view._playText);
+            view._play = Ui.Button(Ui.Node("Play", view._buttons), UiText.PlayButton, PlayFace, PlayLip, 19, out _);
             view._play.onClick.AddListener(() => view.Choose(view._playAction));
-            view._note = Ui.Body(Ui.Node("Note", view._column), UiText.ButtonsNote, 13, Palette.SubtleText).gameObject;
+            view._playFace = view._play.transform.Find("Face").GetComponent<Image>();
+            view._playLip = view._play.transform.Find("Lip").GetComponent<Image>();
 
             Ui.Body(Ui.TopStrip("Hint", root, 0, 652, 24), UiText.TapToClose, 14, Palette.SubtleText,
                 TextAlignmentOptions.Center);
             root.gameObject.SetActive(false);
             return view;
+        }
+
+        static Button Arrow(RectTransform root, string name, string label, float x, InspectView view, int step)
+        {
+            const float size = 56f;
+            var rt = Ui.Box(name, root, x, 122 + (CardView.Height * Scale - size) / 2f, size, size);
+            var button = Ui.Button(rt, label, ChipNeutral, Palette.Hex("#1C2C55"), 20, out _, size / 2f);
+            rt.Find("Face/Shine").gameObject.SetActive(false);  // reads as a grey smear on a round button
+            button.onClick.AddListener(() => view.Stepped?.Invoke(step));
+            return button;
+        }
+
+        /// <summary>Where this card is among the ones the arrows step through (1-based), and how many there are.</summary>
+        public void SetPosition(int position, int count)
+        {
+            _prev.interactable = position > 1;
+            _next.interactable = position < count;
+            _count.text = count > 1 ? string.Format(UiText.InspectCount, position, count) : "";
+        }
+
+        void Update()
+        {
+            var keys = Keyboard.current;
+            if (keys == null) return;
+            if (keys.leftArrowKey.wasPressedThisFrame && _prev.interactable) Stepped?.Invoke(-1);
+            else if (keys.rightArrowKey.wasPressedThisFrame && _next.interactable) Stepped?.Invoke(1);
+            else if (keys.escapeKey.wasPressedThisFrame) Hide();
         }
 
         public void Show(CardDef def, CardInstance instance, string owner, bool inHand, GameState s)
@@ -85,7 +121,11 @@ namespace Tcg.Board
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
             _card.Bind(def, instance);
-            _card.SetMark(CardMark.None);
+            // The board's green glow: a hand card you can play, or your unit that can still attack.
+            _playAction = inHand ? Commands.Find(s, a => a.card == instance?.uid && a.type == ActionTypes.Play) : null;
+            bool ready = _playAction != null || (!inHand && instance != null && Commands.Find(s, a =>
+                a.card == instance.uid && (a.type == ActionTypes.Attack || a.type == ActionTypes.AttackHero)) != null);
+            _card.SetMark(ready ? CardMark.Playable : CardMark.None);
 
             Chip(owner, owner == UiText.OpponentsUnit ? ChipOpponent : owner == UiText.YourUnit ? Palette.HumanAccent : ChipNeutral);
             if (!inHand && instance != null)
@@ -119,16 +159,10 @@ namespace Tcg.Board
                     string.Format(UiText.HealthText, instance.damage), index++);
 
             _buttons.gameObject.SetActive(inHand);
-            _note.SetActive(inHand);
-            if (inHand)
-            {
-                _playAction = null;
-                foreach (var a in s.legal_actions)
-                    if (a.card == instance?.uid && a.type == ActionTypes.Play) _playAction = a;
-                int cost = _playAction?.preview != null ? _playAction.preview.ManaFor(s.human_seat) : instance?.cost ?? def.cost;
-                _playText.text = string.Format(UiText.PlayButton, cost);
-                _play.interactable = _playAction != null;
-            }
+            // Greyed out, not just faded, when the card can't be played now.
+            _play.interactable = _playAction != null;
+            _playFace.color = _playAction != null ? PlayFace : OffFace;
+            _playLip.color = _playAction != null ? PlayLip : OffLip;
             LayoutRebuilder.ForceRebuildLayoutImmediate(_column);
         }
 

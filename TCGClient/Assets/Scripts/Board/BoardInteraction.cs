@@ -34,6 +34,7 @@ namespace Tcg.Board
         public IReadOnlyList<int> MulliganSelection => _mulligan.Selection;
 
         InspectView _inspect;
+        int _inspected;
         MulliganView _mulligan;
         GameOverView _gameOver;
         ChoiceBanner _choice;
@@ -71,6 +72,7 @@ namespace Tcg.Board
 
             _inspect = InspectView.Create(root, Board.CardPrefab);
             _inspect.ActionChosen += a => CommandIssued?.Invoke(new ActionCommand(a));
+            _inspect.Stepped += StepInspect;
             _mulligan = MulliganView.Create(root, Board.CardPrefab);
             _mulligan.KeepRequested += putBack => CommandIssued?.Invoke(new MulliganCommand(putBack));
             _gameOver = GameOverView.Create(root);
@@ -119,10 +121,39 @@ namespace Tcg.Board
                         return;
                     }
             }
+            Inspect(card);
+        }
+
+        /// <summary>The cards the inspect arrows step through, in screen order: their units, yours, your hand.</summary>
+        List<int> InspectOrder()
+        {
+            var s = Board.State;
+            var order = new List<int>();
+            foreach (var zone in new[] { s.Opponent.play, s.Human.play, s.Human.hand })
+                if (zone != null)
+                    foreach (var c in zone)
+                        if (Board.CardByUid(c.uid)?.Def != null) order.Add(c.uid);
+            return order;
+        }
+
+        void Inspect(CardView card)
+        {
+            var s = Board.State;
             CardInstance instance = Find(s.Human.hand, card.Uid) ?? Find(s.Human.play, card.Uid) ?? Find(s.Opponent.play, card.Uid);
             string owner = Board.IsInHumanHand(card.Uid) ? UiText.InYourHand
                 : Board.IsHumanUnit(card.Uid) ? UiText.YourUnit : UiText.OpponentsUnit;
             _inspect.Show(card.Def, instance, owner, Board.IsInHumanHand(card.Uid), s);
+            var order = InspectOrder();
+            _inspected = card.Uid;
+            _inspect.SetPosition(order.IndexOf(card.Uid) + 1, order.Count);
+        }
+
+        void StepInspect(int step)
+        {
+            var order = InspectOrder();
+            int at = order.IndexOf(_inspected) + step;
+            var card = at >= 0 && at < order.Count ? Board.CardByUid(order[at]) : null;
+            if (card != null) Inspect(card);
         }
 
         static CardInstance Find(List<CardInstance> cards, int uid)

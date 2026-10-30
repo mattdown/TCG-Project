@@ -25,8 +25,9 @@ namespace Tcg.View
 
         // Inspect.
         public const string TapToClose = "Tap anywhere to close";
-        public const string PlayButton = "PLAY · {0}";
-        public const string ButtonsNote = "Buttons do the same as dragging. They’re greyed out when the action isn’t allowed.";
+        public const string PlayButton = "PLAY";
+        public const string Previous = "◀", Next = "▶";
+        public const string InspectCount = "{0} / {1}";
         public const string YourUnit = "Your unit";
         public const string OpponentsUnit = "Opponent’s unit";
         public const string InYourHand = "In your hand";

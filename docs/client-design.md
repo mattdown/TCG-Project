@@ -115,7 +115,7 @@ bright in its action colour under the finger, with a label. Highlights come from
 | Drag a hand card | your side of the field | `play` | green zone, "Drop to play · N mana"; a light slot shows where it lands; the crystals it will spend are outlined |
 | Drag an arrow from a unit | an enemy unit | `attack` | valid targets get red rings, others dim; the hovered one shows the result ("Defeated", "Takes 2") |
 | Drag an arrow from a unit | the enemy hero | `attack_hero` | the hero panel glows red; the heart shows the health left, in gold |
-| Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; hand cards also get a PLAY button, greyed out when not legal |
+| Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; the card keeps its green glow if it can be played or attack; hand cards also get a PLAY button, grey when not legal; ◀ ▶ arrows (or the ← → keys) step through the other cards on the board (their units, yours, your hand) with a "3 / 9" count, greyed at either end |
 
 Rules behind the highlights (from `src/game/engine.py`): any enemy unit can be attacked, but
 while the enemy has a Guard unit, attacks must go to one; hidden Elusive units can't be
