@@ -247,7 +247,7 @@ namespace Tcg.Board
         {
             _heroRing.gameObject.SetActive(option);
             _heroRing.color = hovered ? Palette.GlowTarget : Palette.GlowTarget.WithAlpha(0.45f);
-            int health = State?.Opponent.health ?? 0;
+            int health = Mathf.Max(State?.Opponent.health ?? 0, 0);
             // The heart shows the health it would have left, in gold, while an attack on it is under the finger.
             bool preview = hovered && damage > 0;
             OpponentHealthText.text = (preview ? Mathf.Max(health - damage, 0) : health).ToString();
@@ -722,6 +722,7 @@ namespace Tcg.Board
 
         void SetHealth(RectTransform fill, float fullWidth, TMP_Text label, int health, bool animate)
         {
+            health = Mathf.Max(health, 0);  // never shown below 0, whatever the server sends
             float t = Mathf.Clamp01(health / (float)HeroHealth);
             var size = new Vector2(fullWidth * t, fill.sizeDelta.y);
             fill.DOKill();

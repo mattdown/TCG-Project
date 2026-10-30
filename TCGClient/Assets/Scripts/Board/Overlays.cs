@@ -363,7 +363,8 @@ namespace Tcg.Board
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
             _title.text = s.winner == null ? UiText.Draw : s.winner == s.human_seat ? UiText.YouWin : UiText.YouLose;
-            _score.text = string.Format(UiText.FinalScore, UiText.You, s.Human.health, opponentName, s.Opponent.health);
+            _score.text = string.Format(UiText.FinalScore, UiText.You, Mathf.Max(s.Human.health, 0), opponentName,
+                Mathf.Max(s.Opponent.health, 0));
         }
 
         public void Hide() => gameObject.SetActive(false);
