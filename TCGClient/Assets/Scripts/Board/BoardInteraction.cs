@@ -124,15 +124,13 @@ namespace Tcg.Board
             Inspect(card);
         }
 
-        /// <summary>The cards the inspect arrows step through, in screen order: their units, yours, your hand.</summary>
-        List<int> InspectOrder()
+        /// <summary>The cards the inspect arrows step through: your hand, from a hand card; nothing, from the board.</summary>
+        List<int> InspectOrder(int uid)
         {
-            var s = Board.State;
             var order = new List<int>();
-            foreach (var zone in new[] { s.Opponent.play, s.Human.play, s.Human.hand })
-                if (zone != null)
-                    foreach (var c in zone)
-                        if (Board.CardByUid(c.uid)?.Def != null) order.Add(c.uid);
+            if (!Board.IsInHumanHand(uid)) return order;
+            foreach (var c in Board.State.Human.hand)
+                if (Board.CardByUid(c.uid)?.Def != null) order.Add(c.uid);
             return order;
         }
 
@@ -143,14 +141,14 @@ namespace Tcg.Board
             string owner = Board.IsInHumanHand(card.Uid) ? UiText.InYourHand
                 : Board.IsHumanUnit(card.Uid) ? UiText.YourUnit : UiText.OpponentsUnit;
             _inspect.Show(card.Def, instance, owner, Board.IsInHumanHand(card.Uid), s);
-            var order = InspectOrder();
+            var order = InspectOrder(card.Uid);
             _inspected = card.Uid;
             _inspect.SetPosition(order.IndexOf(card.Uid) + 1, order.Count);
         }
 
         void StepInspect(int step)
         {
-            var order = InspectOrder();
+            var order = InspectOrder(_inspected);
             int at = order.IndexOf(_inspected) + step;
             var card = at >= 0 && at < order.Count ? Board.CardByUid(order[at]) : null;
             if (card != null) Inspect(card);

@@ -13,8 +13,8 @@ namespace Tcg.Board
     /// <summary>
     /// Tap to inspect (the mockup's "Landscape inspect"): the card at about 2x over a dimmed board,
     /// a box for anything that needs explaining, and PLAY for hand cards, enabled only when the
-    /// legal action exists. Arrows (or the ← → keys) step to the other cards on the board without
-    /// closing it. Tap anywhere to close.
+    /// legal action exists. From a hand card, arrows (or the ← → keys) step through your hand
+    /// without closing it. Tap anywhere to close.
     /// </summary>
     public class InspectView : MonoBehaviour
     {
@@ -97,9 +97,11 @@ namespace Tcg.Board
             return button;
         }
 
-        /// <summary>Where this card is among the ones the arrows step through (1-based), and how many there are.</summary>
+        /// <summary>Where this card is among the ones the arrows step through (1-based); fewer than 2 hides the arrows.</summary>
         public void SetPosition(int position, int count)
         {
+            _prev.gameObject.SetActive(count > 1);
+            _next.gameObject.SetActive(count > 1);
             _prev.interactable = position > 1;
             _next.interactable = position < count;
             _count.text = count > 1 ? string.Format(UiText.InspectCount, position, count) : "";
@@ -109,8 +111,8 @@ namespace Tcg.Board
         {
             var keys = Keyboard.current;
             if (keys == null) return;
-            if (keys.leftArrowKey.wasPressedThisFrame && _prev.interactable) Stepped?.Invoke(-1);
-            else if (keys.rightArrowKey.wasPressedThisFrame && _next.interactable) Stepped?.Invoke(1);
+            if (keys.leftArrowKey.wasPressedThisFrame && _prev.isActiveAndEnabled && _prev.interactable) Stepped?.Invoke(-1);
+            else if (keys.rightArrowKey.wasPressedThisFrame && _next.isActiveAndEnabled && _next.interactable) Stepped?.Invoke(1);
             else if (keys.escapeKey.wasPressedThisFrame) Hide();
         }
 
