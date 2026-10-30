@@ -152,8 +152,9 @@ Drag previews come from each legal action's server-side `preview`
   - *Action cards:* no power, health or crowns. Played by dragging onto the field; the card
     shows large in the middle while it resolves, then fades to the discard pile.
   - *Stats:* current values from the server, green above the printed value, red below.
-  - *Choices:* yours only, as a banner across the divider with the source card's name and the
-    ability text, so the choice keeps its context. Cards that can be chosen get a gold ring and a
+  - *Choices:* yours only, as a banner with the source card's name and the ability text, so the
+    choice keeps its context. It docks at the bottom where the hand was (the hand slides down out
+    of the way), so both rows' stats stay readable; the unit whose ability is asking glows gold. Cards that can be chosen get a gold ring and a
     "Tap a highlighted card" hint; Yes / No and choose-one options are buttons, the options with
     nothing to choose greyed out. The AI's choices show nothing: the spotlight already showed its card.
   - *Inspect:* a box per keyword with the server's reminder text, the full card text, and chips

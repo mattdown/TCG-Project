@@ -29,6 +29,7 @@ namespace Tcg.Board
         const float BashGap = 26f;      // between attacker and target as it lines up
         const float BashOverlap = 22f;  // how far the attacker's edge sinks into the target on impact
         const float SpotlightScale = 1.7f;
+        const float HandAway = -260f;  // how far the hand slides down while you make a choice
 
         public UiTheme Theme;
         [Tooltip("The painted mana crystal, full and spent.")]
@@ -145,6 +146,12 @@ namespace Tcg.Board
             LayoutBacks(opponent.hand_count);
             _handGroup.alpha = s.InMulligan ? 0f : 1f;
             _handGroup.blocksRaycasts = !s.InMulligan;
+            // Your choice's banner docks where the hand is, so the hand slides away, out of the way of the board.
+            bool choosing = s.pending != null && s.pending.chooser == s.human_seat && !s.game_over;
+            var handAt = new Vector2(0f, choosing ? HandAway : 0f);
+            Hand.DOKill();
+            if (animate) Hand.DOAnchorPos(handAt, Move).SetEase(Ease.OutCubic);
+            else Hand.anchoredPosition = handAt;
 
             OpponentNameText.text = opponentName;
             OpponentInfoText.text = $"{UiText.Deck} {opponent.deck_count}\n{UiText.Hand} {opponent.hand_count}";

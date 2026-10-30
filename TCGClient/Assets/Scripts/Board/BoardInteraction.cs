@@ -101,6 +101,9 @@ namespace Tcg.Board
             foreach (var a in s.legal_actions)
                 if (a.type == ActionTypes.ChooseTarget && a.target.HasValue)
                     Board.CardByUid(a.target.Value)?.SetChoiceRing(true);
+            // The unit whose ability is asking (an action card's isn't on the board) glows gold.
+            if (s.pending != null && s.pending.chooser == s.human_seat && !s.game_over)
+                Board.CardByUid(s.pending.source)?.SetMark(CardMark.Selected);
             _dev.transform.SetAsLastSibling();
             if (_help.IsOpen) _help.transform.SetAsLastSibling();  // the AI may move while you read it
         }

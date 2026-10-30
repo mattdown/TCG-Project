@@ -29,7 +29,9 @@ namespace Tcg.Board
         public static ChoiceBanner Create(RectTransform parent)
         {
             var root = Ui.Node("Choice", parent);
-            Ui.Anchor(root, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -269), new Vector2(880, 60));
+            // Docked where the hand was (it slides away), centred in the 249 units between your row's
+            // cards and the bottom edge, so both rows stay readable.
+            Ui.Anchor(root, new Vector2(0.5f, 0), new Vector2(0.5f, 0.5f), new Vector2(0, 124), new Vector2(760, 60));
             var view = root.gameObject.AddComponent<ChoiceBanner>();
             Ui.Rounded(root, Palette.Gold, 16).raycastTarget = true;
             Ui.Rounded(Ui.Stretch("Face", root, 3, 3, 3, 3), Palette.CardNavy.WithAlpha(0.97f), 13)
@@ -81,7 +83,7 @@ namespace Tcg.Board
                     Answer(a.text, 140, no ? NoFace : Palette.Gold, no ? NoLip : Palette.GoldLip, a);
                 }
                 else if (a.type == ActionTypes.ChooseOption && p.options == null)
-                    Answer(a.text, 380, Palette.Gold, Palette.GoldLip, a);  // a server without the options list
+                    Answer(a.text, 340, Palette.Gold, Palette.GoldLip, a);  // a server without the options list
             }
             // "Choose one": every option, the ones with nothing to choose greyed out.
             if (p.options != null)
@@ -89,7 +91,7 @@ namespace Tcg.Board
                 {
                     var answer = Commands.Find(s, a => a.type == ActionTypes.ChooseOption && a.option == o.option);
                     bool usable = o.usable && answer != null;
-                    Answer(o.text, 380, usable ? Palette.Gold : OffFace, usable ? Palette.GoldLip : OffLip, usable ? answer : null);
+                    Answer(o.text, 340, usable ? Palette.Gold : OffFace, usable ? Palette.GoldLip : OffLip, usable ? answer : null);
                 }
             _hint.gameObject.SetActive(targets);
             _buttons.gameObject.SetActive(_built.Count > 0);
