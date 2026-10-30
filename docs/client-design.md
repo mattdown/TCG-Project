@@ -133,6 +133,10 @@ Drag previews come from each legal action's server-side `preview`
   whole choice at once (a `mulligan` act per card, then `keep_hand`). END TURN always reads
   END TURN and is greyed out during the mulligan, the opponent's turn and after the game.
 - **Game over:** result, final VP for both players, NEW GAME.
+- **The opponent's cards, to read:** before an action's result plays out, the card the opponent
+  played and each of their cards whose ability fires (on either player's action) is shown large in
+  the middle ("Opponent plays" / "Opponent's ability") over a dimmed board for 3 s
+  (`GameController.ReadHold`); the AI's ability choice prompt stays up as long. A tap skips.
 - **The opponent's turn:** one `ai_move` every 0.6 s. A played card flies in from their hand, an
   added energy flies to their gems as a card back, a duel shows the arrow for half a second, a
   score pulses the unit. Damage ("-2"), defeats, VP gains and card moves come from each action

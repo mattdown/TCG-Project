@@ -5,6 +5,7 @@ using Tcg.Protocol;
 using Tcg.View;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Tcg.Board
@@ -27,6 +28,7 @@ namespace Tcg.Board
         const float Move = 0.3f;
         const float BashGap = 26f;      // between attacker and target as it lines up
         const float BashOverlap = 22f;  // how far the attacker's edge sinks into the target on impact
+        const float SpotlightScale = 1.7f;
 
         public UiTheme Theme;
         [Tooltip("The painted mana crystal, full and spent.")]
@@ -308,6 +310,73 @@ namespace Tcg.Board
             yield return seq.WaitForCompletion();
         }
 
+        /// <summary>
+        /// The opponent's cards worth reading before their effects play out: the card they played,
+        /// then each of their cards whose ability starts resolving (on either player's action).
+        /// Each is held large in the middle for <paramref name="hold"/> seconds, or until a tap.
+        /// </summary>
+        public IEnumerator Spotlight(GameAction action, float hold)
+        {
+            var r = action?.result;
+            if (r == null || State == null) yield break;
+            var shown = new List<int>();
+            if (action.type == ActionTypes.Play && action.card.HasValue && action.player != State.human_seat)
+                foreach (var m in r.moves)
+                    if (m.uid == action.card && m.card_id != null && Defs.TryGetValue(m.card_id, out var def))
+                    {
+                        shown.Add(m.uid.Value);
+                        yield return ShowCard(def, string.Format(UiText.OpponentPlays, OpponentName), hold);
+                        break;
+                    }
+            foreach (int uid in r.abilities)
+            {
+                var view = CardByUid(uid);
+                if (shown.Contains(uid) || !IsOpponentUnit(uid) || view?.Def == null) continue;
+                shown.Add(uid);
+                yield return ShowCard(view.Def, string.Format(UiText.OpponentAbility, OpponentName), hold);
+            }
+        }
+
+        IEnumerator ShowCard(CardDef def, string caption, float hold)
+        {
+            var root = Ui.Stretch("Spotlight", TopLayer, 0, 0, 0, 0);
+            var group = root.gameObject.AddComponent<CanvasGroup>();
+            Ui.Scrim(root, "Scrim", 0.5f);  // catches the tap, so it doesn't land on the board
+            var card = Instantiate(CardPrefab, root);
+            card.Bind(def, null);
+            card.Input.Handler = null;
+            card.Group.blocksRaycasts = false;
+            card.Rect.anchorMin = card.Rect.anchorMax = new Vector2(0.5f, 0.5f);
+            card.Rect.anchoredPosition = new Vector2(0f, 10f);
+            card.Rect.localScale = Vector3.one * SpotlightScale * 0.7f;
+            card.Rect.DOScale(SpotlightScale, 0.25f).SetEase(Ease.OutBack);
+            float half = CardView.Height * SpotlightScale / 2f;
+            Ui.Display(At(root, half + 34f), caption, 24);
+            Ui.Body(At(root, -half - 22f), UiText.TapToContinue, 14, Palette.SubtleText, TextAlignmentOptions.Center);
+            group.alpha = 0f;
+            group.DOFade(1f, 0.15f);
+
+            yield return WaitOrTap(hold);
+            group.DOFade(0f, 0.2f).OnComplete(() => Destroy(root.gameObject));
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        static RectTransform At(RectTransform parent, float y)
+        {
+            var rt = Ui.Node("Label", parent);
+            Ui.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 10f + y), new Vector2(600, 36));
+            return rt;
+        }
+
+        /// <summary>Waits <paramref name="seconds"/>, or less if the player taps or clicks anywhere.</summary>
+        public static IEnumerator WaitOrTap(float seconds)
+        {
+            float end = Time.time + seconds;
+            yield return null;  // not the tap that may have started this
+            while (Time.time < end && !(Pointer.current?.press.wasPressedThisFrame ?? false))
+                yield return null;
+        }
+
         // --- layout
 
         CardView CardFor(CardInstance c, RectTransform parent)
@@ -469,6 +538,7 @@ namespace Tcg.Board
                 if (m.to == Zones.Discard)
                 {
                     // An action card resolving, a unit defeated, or a card discarded from a hand.
+                    if (played && !human) continue;  // already shown large by Spotlight
                     if (view == null && m.card_id != null && Defs.TryGetValue(m.card_id, out var def))
                         view = ShowOutside(def, OpponentBacks.position);
                     if (view == null) continue;

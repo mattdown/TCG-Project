@@ -40,6 +40,9 @@ namespace Tcg.View
         // Abilities.
         public const string ChooseHint = "Tap a highlighted card";
         public const string OpponentChoosing = "{0} is choosing";
+        public const string OpponentPlays = "{0} plays";
+        public const string OpponentAbility = "{0}’s ability";
+        public const string TapToContinue = "Tap to continue";
         public const string CardTextTitle = "Card text";
         public const string FrozenChip = "Frozen: can't attack next turn";
         public const string HiddenChip = "Hidden until it attacks";
