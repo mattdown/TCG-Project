@@ -85,7 +85,7 @@ namespace Tcg.Board
 
         BoardView _board;
         GameObject _panel;
-        Image _toggleFace;
+        RectTransform _toggle;
         RectTransform _area, _nodeLayer;
         GraphEdges _edges;
         TMP_Text _caption;
@@ -131,14 +131,14 @@ namespace Tcg.Board
             view._tooltip = Ui.Node("Tooltip", panel);
             view._tooltip.anchorMin = view._tooltip.anchorMax = new Vector2(0.5f, 0.5f);
             view._tooltip.pivot = new Vector2(0.5f, 0f);
-            view._tooltipText = Ui.Pill(view._tooltip, "", Palette.UiNavy, 12, display: false);
+            view._tooltipText = Ui.Pill(view._tooltip, "", Palette.Night, 12, display: false);
             view._tooltip.gameObject.SetActive(false);
             panel.gameObject.SetActive(false);
 
             var toggle = Ui.Node("Toggle", root);  // under the DEV button
             Ui.Anchor(toggle, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-22, -90), new Vector2(48, 22));
-            Ui.Pill(toggle, UiText.GraphButton, Palette.CardNavy, 11, display: false);
-            view._toggleFace = toggle.Find("Face").GetComponent<Image>();
+            Ui.Pill(toggle, UiText.GraphButton, Palette.Glass, 11, display: false);
+            view._toggle = toggle;
             var button = toggle.gameObject.AddComponent<Button>();
             button.targetGraphic = toggle.GetComponent<Image>();
             toggle.GetComponent<Image>().raycastTarget = true;
@@ -150,7 +150,7 @@ namespace Tcg.Board
         {
             bool open = !IsOpen;
             _panel.SetActive(open);
-            _toggleFace.color = open ? Palette.HumanAccent : Palette.CardNavy;
+            Ui.TintPill(_toggle, open ? Palette.HumanAccent : Palette.Glass);
             if (!open) return;
             transform.SetAsLastSibling();
             if (_graph == null) _caption.text = UiText.GraphLoading;
@@ -216,7 +216,7 @@ namespace Tcg.Board
             var frame = Ui.Rounded(rt, NodeColours.TryGetValue(node.type, out var c) ? c : Color.white, 4);
             frame.raycastTarget = true;
             var group = rt.gameObject.AddComponent<CanvasGroup>();
-            var back = Ui.Rounded(Ui.Stretch("Back", rt, 0, 0, 0, 0), Palette.Outline, 3);
+            var back = Ui.Rounded(Ui.Stretch("Back", rt, 0, 0, 0, 0), Palette.Shadow, 3);
             // The vector is a column inside the disc; its rect is set by Place.
             var vector = Ui.Node("Vector", rt);
             vector.anchorMin = vector.anchorMax = new Vector2(0.5f, 0.5f);
@@ -497,14 +497,14 @@ namespace Tcg.Board
         {
             const float W = PanelWidth, Row = 17f;
             var legend = _legend = Ui.Node("Legend", panel);
-            Ui.Rounded(legend, Palette.Outline.WithAlpha(0.94f), 12).raycastTarget = true;
+            Ui.Rounded(legend, Palette.Shadow.WithAlpha(0.94f), 12).raycastTarget = true;
             float y = 10f;
             Ui.Display(Ui.Box("Title", legend, 12, y, W - 24, 22), UiText.GraphTitle, 18, TextAlignmentOptions.Left);
             y += 24f;
             _caption = Ui.Body(Ui.Box("Caption", legend, 12, y, W - 24, 16), "", 11, Palette.SubtleText);
             y += 20f;
 
-            Ui.Text(Ui.Box("NodesHeader", legend, 12, y, W - 24, Row), UiText.GraphNodes, Ui.Theme.NunitoBlack, 12,
+            Ui.Text(Ui.Box("NodesHeader", legend, 12, y, W - 24, Row), UiText.GraphNodes, Ui.Theme.BodyBold, 12,
                 Color.white, TextAlignmentOptions.Left);
             y += Row;
             for (int i = 0; i < NodeOrder.Length; i++)
@@ -512,12 +512,12 @@ namespace Tcg.Board
                 float x = 12 + i % 4 * (W - 24) / 4f;
                 var row = Ui.Box(NodeOrder[i], legend, x, y, (W - 24) / 4f, Row);
                 Ui.Rounded(Ui.Box("Swatch", row, 0, 3, 11, 11), NodeColours[NodeOrder[i]], 5.5f);
-                Ui.Text(Ui.Box("Label", row, 17, 0, 80, Row), NodeOrder[i], Ui.Theme.Nunito, 11, Color.white,
+                Ui.Text(Ui.Box("Label", row, 17, 0, 80, Row), NodeOrder[i], Ui.Theme.Body, 11, Color.white,
                     TextAlignmentOptions.Left);
             }
             y += Row + 4;
 
-            Ui.Text(Ui.Box("EdgesHeader", legend, 12, y, W - 24, Row), UiText.GraphEdges, Ui.Theme.NunitoBlack, 12,
+            Ui.Text(Ui.Box("EdgesHeader", legend, 12, y, W - 24, Row), UiText.GraphEdges, Ui.Theme.BodyBold, 12,
                 Color.white, TextAlignmentOptions.Left);
             y += Row;
             float column = (W - 16) / 2f;
@@ -528,7 +528,7 @@ namespace Tcg.Board
                 var row = Ui.Box(type, legend, 8 + i / rows * column, y + i % rows * Row, column, Row);
                 Ui.Img(row, null, Color.clear).raycastTarget = true;
                 Ui.Img(Ui.Box("Swatch", row, 4, 6.5f, 18, 4), null, EdgeStyles[type].Colour.WithAlpha(1f));
-                var label = Ui.Text(Ui.Box("Label", row, 28, 0, column - 30, Row), Name(type), Ui.Theme.Nunito, 11,
+                var label = Ui.Text(Ui.Box("Label", row, 28, 0, column - 30, Row), Name(type), Ui.Theme.Body, 11,
                     Color.white, TextAlignmentOptions.Left);
                 var group = row.gameObject.AddComponent<CanvasGroup>();
                 var button = row.gameObject.AddComponent<Button>();
@@ -560,7 +560,7 @@ namespace Tcg.Board
         {
             const float W = PanelWidth, Row = 20f;
             for (int i = _policy.childCount - 1; i >= 0; i--) Destroy(_policy.GetChild(i).gameObject);
-            if (_policy.GetComponent<Image>() == null) Ui.Rounded(_policy, Palette.Outline.WithAlpha(0.94f), 12).raycastTarget = true;
+            if (_policy.GetComponent<Image>() == null) Ui.Rounded(_policy, Palette.Shadow.WithAlpha(0.94f), 12).raycastTarget = true;
 
             float y = 10f;
             Ui.Display(Ui.Box("Title", _policy, 12, y, W - 24, 22), UiText.PolicyTitle, 18, TextAlignmentOptions.Left);
@@ -625,10 +625,10 @@ namespace Tcg.Board
             if (share.HasValue)
                 Ui.Rounded(Ui.Box("Share", row, 0, 0, (width - 16) * Mathf.Clamp01(share.Value), 20),
                     Palette.HumanAccent.WithAlpha(0.55f), 5);
-            var label = Ui.Text(Ui.Box("Text", row, 6, 0, width - 70, 20), text, Ui.Theme.Nunito, 11, Color.white,
+            var label = Ui.Text(Ui.Box("Text", row, 6, 0, width - 70, 20), text, Ui.Theme.Body, 11, Color.white,
                 TextAlignmentOptions.Left);
             label.overflowMode = TextOverflowModes.Ellipsis;
-            Ui.Text(Ui.Box("Right", row, width - 66, 0, 44, 20), right, Ui.Theme.NunitoBlack, 11, Color.white,
+            Ui.Text(Ui.Box("Right", row, width - 66, 0, 44, 20), right, Ui.Theme.BodyBold, 11, Color.white,
                 TextAlignmentOptions.Right);
             var hover = row.gameObject.AddComponent<GraphNodeHover>();
             hover.Entered += () => { if (!_pinned) SetFocus(row, slots, false); };

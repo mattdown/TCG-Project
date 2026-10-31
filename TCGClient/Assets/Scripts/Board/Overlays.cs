@@ -19,10 +19,8 @@ namespace Tcg.Board
     public class InspectView : MonoBehaviour
     {
         const float Scale = 2.1f;
-        static readonly Color ChipOpponent = Palette.Hex("#A8321F");
-        static readonly Color ChipNeutral = Palette.Hex("#2E4680");
-        static readonly Color PlayFace = Palette.Hex("#5BC84E"), PlayLip = Palette.Hex("#2F8A27");
-        static readonly Color OffFace = Palette.Hex("#6E7486"), OffLip = Palette.Hex("#454A5A");
+        static readonly Color ChipOpponent = Palette.OpponentAccent;
+        static readonly Color ChipNeutral = Palette.Glass;
 
         public event Action<GameAction> ActionChosen;
         /// <summary>PLAY tapped on a card that can't be played now: why not.</summary>
@@ -34,7 +32,6 @@ namespace Tcg.Board
         CardView _card;
         RectTransform _chips, _column, _buttons;
         Button _play, _prev, _next;
-        Image _playFace, _playLip;
         TMP_Text _count;
         readonly List<GameObject> _built = new List<GameObject>();
         GameAction _playAction;
@@ -79,14 +76,12 @@ namespace Tcg.Board
             row.spacing = 12;
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = row.childForceExpandHeight = true;
-            view._play = Ui.Button(Ui.Node("Play", view._buttons), UiText.PlayButton, PlayFace, PlayLip, 19, out _);
+            view._play = Ui.Button(Ui.Node("Play", view._buttons), UiText.PlayButton, Palette.GlowPlayable, 19, out _, true);
             view._play.onClick.AddListener(() =>
             {
                 if (view._playAction == null && view._unusable != null) view.Refused?.Invoke(view._unusable);
                 else view.Choose(view._playAction);
             });
-            view._playFace = view._play.transform.Find("Face").GetComponent<Image>();
-            view._playLip = view._play.transform.Find("Lip").GetComponent<Image>();
 
             Ui.Body(Ui.TopStrip("Hint", root, 0, 652, 24), UiText.TapToClose, 14, Palette.SubtleText,
                 TextAlignmentOptions.Center);
@@ -98,8 +93,8 @@ namespace Tcg.Board
         {
             const float size = 56f;
             var rt = Ui.Box(name, root, x, 122 + (CardView.Height * Scale - size) / 2f, size, size);
-            var button = Ui.Button(rt, label, ChipNeutral, Palette.Hex("#1C2C55"), 20, out _, size / 2f);
-            rt.Find("Face/Shine").gameObject.SetActive(false);  // reads as a grey smear on a round button
+            var button = Ui.Button(rt, label, Palette.Lantern, 20, out var text);
+            text.characterSpacing = 0f;
             button.onClick.AddListener(() => view.Stepped?.Invoke(step));
             return button;
         }
@@ -172,8 +167,8 @@ namespace Tcg.Board
             // An unusable card's grey PLAY still answers a tap, with the reason.
             _unusable = inHand ? instance?.unusable : null;
             _play.interactable = _playAction != null || _unusable != null;
-            _playFace.color = _playAction != null ? PlayFace : OffFace;
-            _playLip.color = _playAction != null ? PlayLip : OffLip;
+            bool playable = _playAction != null;
+            Ui.TintButton(_play, playable ? Palette.GlowPlayable : Palette.Muted, playable);
             LayoutRebuilder.ForceRebuildLayoutImmediate(_column);
         }
 
@@ -197,19 +192,15 @@ namespace Tcg.Board
         {
             var rt = Ui.Node("Tip", _column);
             rt.SetSiblingIndex(index);
-            Ui.Rounded(rt, Palette.Outline, 12);
-            var ring = Ui.Rounded(Ui.Stretch("Ring", rt, 3, 3, 3, 3), ChipNeutral, 9);
-            ring.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            var face = Ui.Rounded(Ui.Stretch("Face", rt, 5, 5, 5, 5), Palette.CardNavy, 7);
-            face.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Ui.Panel(rt, 12, Palette.Lantern.WithAlpha(0.45f), 0.86f);
             var layout = rt.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(16, 16, 12, 14);
             layout.spacing = 3;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            Ui.Display(Ui.Node("Title", rt), title, 18, TextAlignmentOptions.Left);
-            var body = Ui.Text(Ui.Node("Text", rt), text, Ui.Theme.Nunito, 14, Palette.TraitText, TextAlignmentOptions.TopLeft);
+            Ui.Display(Ui.Node("Title", rt), title, 18, TextAlignmentOptions.Left).color = Palette.Lantern;
+            var body = Ui.Text(Ui.Node("Text", rt), text, Ui.Theme.Body, 14, Palette.TraitText, TextAlignmentOptions.TopLeft);
             body.textWrappingMode = TextWrappingModes.Normal;
             _built.Add(rt.gameObject);
         }
@@ -261,7 +252,7 @@ namespace Tcg.Board
             Ui.Anchor(view._cards, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -345), Vector2.zero);
             var keep = Ui.Node("Keep", root);
             Ui.Anchor(keep, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -560), new Vector2(220, 60));
-            view._keep = Ui.Button(keep, UiText.Confirm, Palette.Gold, Palette.GoldLip, 22, out _);
+            view._keep = Ui.Button(keep, UiText.Confirm, Palette.Lantern, 21, out _, true);
             view._keep.onClick.AddListener(() => view.KeepRequested?.Invoke(view.Selection));
             root.gameObject.SetActive(false);
             return view;
@@ -352,16 +343,14 @@ namespace Tcg.Board
             Ui.Scrim(root, "Scrim", 0.7f).interactable = false;
             var panel = Ui.Node("Panel", root);
             Ui.Anchor(panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(460, 270));
-            Ui.Rounded(panel, Palette.Outline, 18);
-            Ui.Rounded(Ui.Stretch("Ring", panel, 3, 3, 3, 3), Palette.Hex("#2E4680"), 15);
-            Ui.Rounded(Ui.Stretch("Face", panel, 6, 6, 6, 6), Palette.UiNavy, 12);
+            Ui.Panel(panel, 18, Palette.Lantern.WithAlpha(0.5f), 0.9f);
             view._title = Ui.Display(Ui.TopStrip("Title", panel, 0, 34, 60), "", 48);
-            view._title.color = Palette.Gold;
-            view._score = Ui.Text(Ui.TopStrip("Score", panel, 0, 104, 30), "", Ui.Theme.NunitoBlack, 20, Color.white,
+            view._title.characterSpacing = 10f;
+            view._score = Ui.Text(Ui.TopStrip("Score", panel, 0, 104, 30), "", Ui.Theme.BodyBold, 20, Color.white,
                 TextAlignmentOptions.Center);
             var button = Ui.Node("NewGame", panel);
             Ui.Anchor(button, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(220, 60));
-            Ui.Button(button, UiText.NewGame, Palette.Gold, Palette.GoldLip, 22, out _)
+            Ui.Button(button, UiText.NewGame, Palette.Lantern, 21, out _, true)
                 .onClick.AddListener(() => view.NewGameRequested?.Invoke());
             root.gameObject.SetActive(false);
             return view;

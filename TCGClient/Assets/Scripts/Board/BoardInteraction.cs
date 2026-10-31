@@ -59,7 +59,9 @@ namespace Tcg.Board
             int below = root.Find("Fade").GetSiblingIndex() + 1;
 
             _field = DropZone.Create("PlayZone", root, Palette.GlowPlayable, PlayLabel, 0.18f);
-            Ui.Anchor(_field.Rect, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -282), new Vector2(1200, 198));
+            // Around your row of units, a little larger than the fullest row can be.
+            var row = Board.HumanUnits;
+            Ui.Anchor(_field.Rect, row.anchorMin, new Vector2(0.5f, 0.5f), row.anchoredPosition, BoardView.RowSize + Vector2.one * 24f);
             _field.PlaceLabel(new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), Vector2.zero);
             _field.Rect.SetSiblingIndex(below);
 

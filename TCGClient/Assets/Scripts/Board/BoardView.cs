@@ -18,9 +18,11 @@ namespace Tcg.Board
     /// </summary>
     public class BoardView : MonoBehaviour
     {
-        const float FieldScale = 0.86f;
-        const float RowGap = 14f;
-        const float MaxRowWidth = 900f;  // keeps a full row of 7 clear of the hero panels in the left corners
+        const float FieldScale = 0.96f;
+        const float RowGap = -15f;  // the frame art has ~7 px of clear margin per side, so a full row of 7 just fits, frames touching
+        const float MaxRowWidth = 920f;  // keeps a full row of 7 clear of the hero panels in the left corners
+        /// <summary>The most a row of units can take up, for the drop zone around your row.</summary>
+        public static Vector2 RowSize => new Vector2(MaxRowWidth, CardView.Height * FieldScale);
         const float HandStep = 118f;
         const float HandMaxWidth = 700f;
         const float BackVisible = 62f;     // how far the opponent's hand hangs into the board
@@ -207,7 +209,7 @@ namespace Tcg.Board
             EndTurnGlow.DOKill();
             EndTurnGlow.gameObject.SetActive(on);
             if (!on) return;
-            EndTurnGlow.color = Palette.Gold.WithAlpha(0.35f);
+            EndTurnGlow.color = Palette.Lantern.WithAlpha(0.35f);
             EndTurnGlow.DOFade(0.95f, 0.7f).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo);
         }
 
@@ -216,7 +218,7 @@ namespace Tcg.Board
         {
             var rt = Ui.Node("Toast", Root);
             Ui.Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 60f), new Vector2(0f, 44f));
-            Ui.Pill(rt, text, Palette.CardNavy, 18, display: false);
+            Ui.Pill(rt, text, Palette.Glass, 18, display: false);
             rt.SetAsLastSibling();
             var group = rt.gameObject.AddComponent<CanvasGroup>();
             group.blocksRaycasts = false;
@@ -274,7 +276,7 @@ namespace Tcg.Board
             // The heart shows the health it would have left, in gold, while an attack on it is under the finger.
             bool preview = hovered && damage > 0;
             OpponentHealthText.text = (preview ? Mathf.Max(health - damage, 0) : health).ToString();
-            OpponentHealthText.color = preview ? Palette.Gold : Color.white;
+            OpponentHealthText.color = preview ? Palette.Firefly : Color.white;
         }
 
         // --- the opponent's actions
@@ -734,7 +736,7 @@ namespace Tcg.Board
             var rt = Ui.Node("Float", TopLayer);
             rt.sizeDelta = new Vector2(200, 40);
             rt.position = world;
-            var label = Ui.Display(rt, text, 26);
+            var label = Ui.Number(rt, text, 26);
             label.color = colour;
             var seq = DOTween.Sequence();
             seq.Append(rt.DOAnchorPosY(rt.anchoredPosition.y + 50f, 0.9f).SetEase(Ease.OutCubic));

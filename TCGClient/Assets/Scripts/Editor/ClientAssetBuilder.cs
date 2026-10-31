@@ -32,8 +32,8 @@ public static class ClientAssetBuilder
 
     class Fonts
     {
-        public TMP_FontAsset Lilita, Nunito, NunitoBlack, NunitoItalic;
-        public Material LilitaOutline;
+        public TMP_FontAsset Display, Body, BodyBold, Numbers;
+        public Material DisplayShadow, NameInk, NumberOutline;
     }
 
     const string ThemePath = "Assets/Art/UiTheme.asset";
@@ -74,7 +74,7 @@ public static class ClientAssetBuilder
             ti.ReadTextureSettings(settings);
             settings.spriteMeshType = SpriteMeshType.FullRect;
             ti.SetTextureSettings(settings);
-            float border = file == "rounded" || file == "ring" ? SliceRadius * 4f : file == "glow" ? 40f * 4f : 0f;
+            float border = file == "rounded" || file == "ring" || file == "ring_thin" ? SliceRadius * 4f : file == "glow" ? 40f * 4f : 0f;
             ti.spriteBorder = new Vector4(border, border, border, border);
             ti.SaveAndReimport();
         }
@@ -112,16 +112,19 @@ public static class ClientAssetBuilder
         }
         theme.Rounded = Sprite("rounded");
         theme.Ring = Sprite("ring");
+        theme.RingThin = Sprite("ring_thin");
         theme.Glow = Sprite("glow");
         theme.Dot = Sprite("dot");
         theme.TargetRing = Sprite("target_ring");
         theme.ArrowHead = Sprite("arrow_head");
         theme.Stripes = Sprite("stripes");
         theme.Crown = Sprite("crown");
-        theme.Lilita = f.Lilita;
-        theme.Nunito = f.Nunito;
-        theme.NunitoBlack = f.NunitoBlack;
-        theme.LilitaOutline = f.LilitaOutline;
+        theme.Display = f.Display;
+        theme.DisplayShadow = f.DisplayShadow;
+        theme.Body = f.Body;
+        theme.BodyBold = f.BodyBold;
+        theme.Numbers = f.Numbers;
+        theme.NumberOutline = f.NumberOutline;
         EditorUtility.SetDirty(theme);
         AssetDatabase.SaveAssets();
         return theme;
@@ -135,50 +138,81 @@ public static class ClientAssetBuilder
     {
         var f = new Fonts
         {
-            Lilita = FontAsset("LilitaOne-Regular.ttf", "LilitaOne SDF"),
-            Nunito = FontAsset("Nunito-Bold.ttf", "Nunito Bold SDF"),
-            NunitoBlack = FontAsset("Nunito-Black.ttf", "Nunito Black SDF"),
+            Display = FontAsset("MarcellusSC-Regular.ttf", "MarcellusSC SDF"),
+            Body = FontAsset("Outfit-Medium.ttf", "Outfit Medium SDF"),
+            BodyBold = FontAsset("Outfit-Bold.ttf", "Outfit Bold SDF"),
+            Numbers = FontAsset("Outfit-ExtraBold.ttf", "Outfit ExtraBold SDF"),
         };
-        var italic = f.NunitoItalic = FontAsset("Nunito-BoldItalic.ttf", "Nunito BoldItalic SDF");
-        // Body text is Nunito 700; <b> (keywords, triggers) is 900 and <i> (flavour) the 700 italic.
-        f.Nunito.fontWeightTable[7].regularTypeface = f.NunitoBlack;
-        f.Nunito.fontWeightTable[4].italicTypeface = italic;
-        EditorUtility.SetDirty(f.Nunito);
+        // Body text is Outfit 500 and <b> (keywords, triggers) 800, so bold stands well clear of it.
+        // Outfit has no italic: <i> (flavour, subtitles) is TMP's slant.
+        f.Body.fontWeightTable[7].regularTypeface = f.Numbers;
+        EditorUtility.SetDirty(f.Body);
 
-        // Lilita One and Nunito lack some symbols, such as → (previews): fall back to DejaVu Sans.
+        // Neither font has every symbol, such as → (previews) or ❄: fall back to DejaVu Sans.
         var symbols = FontAsset("DejaVuSans-Bold.ttf", "DejaVuSans Bold SDF");
-        foreach (var font in new[] { f.Lilita, f.Nunito, f.NunitoBlack, italic })
+        foreach (var font in new[] { f.Display, f.Body, f.BodyBold, f.Numbers })
         {
             font.fallbackFontAssetTable ??= new List<TMP_FontAsset>();
             if (!font.fallbackFontAssetTable.Contains(symbols)) font.fallbackFontAssetTable.Add(symbols);
             EditorUtility.SetDirty(font);
         }
 
-        // White numbers and names with a dark outline and a drop shadow below.
-        string path = $"{FontDir}/LilitaOne Outline.mat";
+        // Titles over the art: a soft dark shadow, no hard outline.
+        f.DisplayShadow = FontMaterial(f.Display, "MarcellusSC Shadow", m =>
+        {
+            m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+            m.SetColor(ShaderUtilities.ID_UnderlayColor, Palette.Shadow.WithAlpha(0.85f));
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.35f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.3f);
+            m.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.6f);
+        });
+        // Card names, inked on the banner: Marcellus is all hairlines at card size, so thicken it and
+        // lift it off the wood with a faint parchment highlight below.
+        f.NameInk = FontMaterial(f.Display, "MarcellusSC Ink", m =>
+        {
+            m.SetFloat(ShaderUtilities.ID_FaceDilate, 0.4f);
+            m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+            m.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(1f, 0.95f, 0.8f, 0.35f));
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.6f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.4f);
+            m.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0f);
+        });
+        // Numbers on painted gems and orbs: a thin dark outline and a drop shadow below.
+        f.NumberOutline = FontMaterial(f.Numbers, "Outfit ExtraBold Outline", m =>
+        {
+            m.SetColor(ShaderUtilities.ID_OutlineColor, Palette.Shadow);
+            m.EnableKeyword(ShaderUtilities.Keyword_Outline);
+            m.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.25f);
+            m.SetFloat(ShaderUtilities.ID_FaceDilate, 0.12f);
+            m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+            m.SetColor(ShaderUtilities.ID_UnderlayColor, Palette.Shadow.WithAlpha(0.8f));
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.5f);
+            m.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.3f);
+            m.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.2f);
+        });
+        AssetDatabase.SaveAssets();
+        return f;
+    }
+
+    /// <summary>A material preset for <paramref name="font"/>, saved beside it and set up by <paramref name="setup"/>.</summary>
+    static Material FontMaterial(TMP_FontAsset font, string name, System.Action<Material> setup)
+    {
+        string path = $"{FontDir}/{name}.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null)
         {
-            m = new Material(f.Lilita.material);
+            m = new Material(font.material);
             AssetDatabase.CreateAsset(m, path);
         }
-        m.shader = f.Lilita.material.shader;
-        m.SetTexture(ShaderUtilities.ID_MainTex, f.Lilita.material.GetTexture(ShaderUtilities.ID_MainTex));
-        m.SetFloat(ShaderUtilities.ID_GradientScale, f.Lilita.material.GetFloat(ShaderUtilities.ID_GradientScale));
-        m.SetColor(ShaderUtilities.ID_OutlineColor, Palette.Outline);
-        m.EnableKeyword(ShaderUtilities.Keyword_Outline);
-        m.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.349f);
-        m.SetFloat(ShaderUtilities.ID_FaceDilate, 0.22f);
-        m.EnableKeyword(ShaderUtilities.Keyword_Underlay);
-        m.SetColor(ShaderUtilities.ID_UnderlayColor, Palette.Outline);
-        m.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0f);
-        m.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.6f);
-        m.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0.5f);
-        m.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0f);
+        m.shader = font.material.shader;
+        m.SetTexture(ShaderUtilities.ID_MainTex, font.material.GetTexture(ShaderUtilities.ID_MainTex));
+        m.SetFloat(ShaderUtilities.ID_GradientScale, font.material.GetFloat(ShaderUtilities.ID_GradientScale));
+        setup(m);
         EditorUtility.SetDirty(m);
-        f.LilitaOutline = m;
-        AssetDatabase.SaveAssets();
-        return f;
+        return m;
     }
 
     static TMP_FontAsset FontAsset(string ttf, string name)
@@ -247,8 +281,8 @@ public static class ClientAssetBuilder
         // Frozen: ice over the art. Hidden (Elusive, not attacked yet): a misty veil.
         var frozen = Stretch("Frozen", window, 0, 0, 0, 0);
         Img(frozen, null, Palette.Hex("#BDEBFF").WithAlpha(0.55f));
-        Text(Stretch("Flake", frozen, 0, 0, 0, 0), "❄", f.Lilita, 34, Palette.Hex("#F2FBFF"),
-            TextAlignmentOptions.Center, f.LilitaOutline);
+        Text(Stretch("Flake", frozen, 0, 0, 0, 0), "❄", f.Numbers, 34, Palette.Hex("#F2FBFF"),
+            TextAlignmentOptions.Center, f.NumberOutline);
         cv.FrozenOverlay = frozen.gameObject;
         frozen.gameObject.SetActive(false);
         var hidden = Stretch("Hidden", window, 0, 0, 0, 0);
@@ -258,20 +292,22 @@ public static class ClientAssetBuilder
 
         cv.Frame = Img(FrameBox("Frame", visual, 0, 0, FramePx.x, FramePx.y), cv.UnitFrame, Color.white);
 
-        // The name on the wooden banner; the subtitle on the tab under it.
-        cv.NameText = Text(FrameBox("Name", visual, 215, 1092, 940, 150), "Card name", f.Lilita, 13, Color.white,
-            TextAlignmentOptions.Center, f.LilitaOutline);
+        // The name inked on the parchment banner; the subtitle on the tab under it.
+        cv.NameText = Text(FrameBox("Name", visual, 215, 1092, 940, 150), "Card name", f.Display, 14.5f, Palette.ParchmentBold,
+            TextAlignmentOptions.Center, f.NameInk);
+        cv.NameText.characterSpacing = -3f;
         cv.NameText.enableAutoSizing = true;
-        cv.NameText.fontSizeMin = 8;
-        cv.NameText.fontSizeMax = 13;
-        cv.SubtitleText = Text(FrameBox("Subtitle", visual, 440, 1268, 485, 90), "", f.NunitoItalic, 8.5f,
+        cv.NameText.fontSizeMin = 7;
+        cv.NameText.fontSizeMax = 14.5f;
+        cv.SubtitleText = Text(FrameBox("Subtitle", visual, 440, 1268, 485, 90), "", f.Body, 8.5f,
             Palette.ParchmentText, TextAlignmentOptions.Center);
+        cv.SubtitleText.fontStyle = FontStyles.Italic;
         cv.SubtitleText.enableAutoSizing = true;
         cv.SubtitleText.fontSizeMin = 5f;
         cv.SubtitleText.fontSizeMax = 8.5f;
 
         // The parchment, kept clear of the power orb and the shield in its bottom corners.
-        cv.BodyText = Text(FrameBox("Text", visual, 250, 1385, 870, 380), "", f.Nunito, 10, Palette.ParchmentText,
+        cv.BodyText = Text(FrameBox("Text", visual, 250, 1385, 870, 380), "", f.Body, 10, Palette.ParchmentText,
             TextAlignmentOptions.Center);
         cv.BodyText.textWrappingMode = TextWrappingModes.Normal;
         cv.BodyText.lineSpacing = -12f;
@@ -283,7 +319,7 @@ public static class ClientAssetBuilder
         var tag = Node("Traits", visual);
         Anchor(tag, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 0), new Vector2(0, 12));
         cv.AspectTag = Rounded(tag, Palette.Aspect(1), 6);
-        var tagFill = Rounded(Stretch("Fill", tag, 1.5f, 1.5f, 1.5f, 1.5f), Palette.CardNavy, 5);
+        var tagFill = Rounded(Stretch("Fill", tag, 1.5f, 1.5f, 1.5f, 1.5f), Palette.Glass, 5);
         tagFill.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
         var tagLayout = tag.gameObject.AddComponent<HorizontalLayoutGroup>();
         tagLayout.padding = new RectOffset(8, 8, 0, 0);
@@ -291,9 +327,9 @@ public static class ClientAssetBuilder
         tagLayout.childForceExpandWidth = false;
         tagLayout.childForceExpandHeight = true;
         tag.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        cv.TraitText = Text(Node("Text", tag), "Unit", f.NunitoBlack, 9, Palette.TraitText, TextAlignmentOptions.Center);
+        cv.TraitText = Text(Node("Text", tag), "Unit", f.BodyBold, 9, Palette.TraitText, TextAlignmentOptions.Center);
         cv.TraitText.margin = new Vector4(0, 0, 0, 1);
-        cv.TraitText.characterSpacing = 4f;
+        cv.TraitText.characterSpacing = 6f;
         cv.TraitTag = tag;
 
         // The numbers sit on the frame's own gem (cost), orb (power) and shield (health).
@@ -327,7 +363,7 @@ public static class ClientAssetBuilder
 
     // --- the board
 
-    const float DividerY = 270f;  // between the unit rows (centres 160.5 and 380.5 down)
+    const float DividerY = 270f;  // between the unit rows (centres 157.5 and 383.5 down)
 
     static void BuildBoardScene(Fonts f, CardView cardPrefab, UiTheme theme)
     {
@@ -338,7 +374,7 @@ public static class ClientAssetBuilder
         var camera = cam.GetComponent<Camera>();
         camera.orthographic = true;
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = Palette.UiNavy;
+        camera.backgroundColor = Palette.Night;
         cam.transform.position = new Vector3(0, 0, -10);
 
         new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
@@ -382,9 +418,9 @@ public static class ClientAssetBuilder
 
         // The field: both rows of units either side of the arena's line.
         bv.OpponentUnits = Node("OpponentUnits", board);
-        Anchor(bv.OpponentUnits, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -160.5f), Vector2.zero);
+        Anchor(bv.OpponentUnits, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -157.5f), Vector2.zero);
         bv.HumanUnits = Node("HumanUnits", board);
-        Anchor(bv.HumanUnits, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -380.5f), Vector2.zero);
+        Anchor(bv.HumanUnits, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -383.5f), Vector2.zero);
 
         BuildHumanHero(bv, board, f);
         BuildManaAndButtons(bv, board, f);
@@ -410,21 +446,20 @@ public static class ClientAssetBuilder
         // The enemy hero's painted panel, top left. The whole panel is the attack_hero target.
         bv.OpponentHero = HeroPanel("Opponent", board, ArtSprite("hero_opponent.png"), HeroInset, HeroInset, false, f,
             out bv.OpponentNameText, out bv.OpponentHealthFill, out bv.OpponentHealthText);
-        bv.OpponentInfoText = Text(Box("OpponentInfo", board, HeroInset + HeroWidth + 6, HeroInset + 4, 160, 40), "", f.NunitoBlack, 13,
+        bv.OpponentInfoText = Text(Box("OpponentInfo", board, HeroInset + HeroWidth + 6, HeroInset + 4, 160, 40), "", f.BodyBold, 13,
             Palette.SubtleText, TextAlignmentOptions.TopLeft);
         bv.OpponentInfoText.lineSpacing = -8f;
 
         // The help button takes the top-right corner; the enemy's mana sits to its left.
         var help = Node("Help", board);
         Anchor(help, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -8), new Vector2(44, 44));
-        bv.HelpButton = Ui.Button(help, "?", Palette.HumanAccent, Palette.HumanLip, 24, out _, 12);
+        bv.HelpButton = Ui.Button(help, "?", Palette.Lantern, 22, out var helpLabel);
+        helpLabel.characterSpacing = 0f;
 
+        // The enemy's mana sits left of the help button, in the same glass pill as yours.
         var mana = Node("OpponentMana", board);
-        Anchor(mana, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-80, -14), new Vector2(400, 22));
-        bv.OpponentCrystals = GemRow(mana, new Vector2(20, 22), 0, out var opponentTray);
-        bv.OpponentManaText = Number(Node("Count", opponentTray), f, 16);
-        bv.OpponentManaText.rectTransform.sizeDelta = new Vector2(46, 22);
-        bv.OpponentManaText.gameObject.AddComponent<LayoutElement>().minWidth = 46;
+        Anchor(mana, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-80, -14), new Vector2(400, ManaPillHeight));
+        bv.OpponentCrystals = ManaPill(mana, f, out bv.OpponentManaText);
     }
 
     static void BuildHumanHero(BoardView bv, RectTransform board, Fonts f)
@@ -432,7 +467,7 @@ public static class ClientAssetBuilder
         // Your painted panel, bottom left; the deck count beside it is where drawn cards fly from.
         bv.HumanHero = HeroPanel("Human", board, ArtSprite("hero_you.png"), HeroInset, 720 - HeroInset - HeroHeight, true, f,
             out bv.HumanNameText, out bv.HumanHealthFill, out bv.HumanHealthText);
-        bv.HumanInfoText = Text(Box("HumanInfo", board, HeroInset + HeroWidth + 6, 720 - HeroInset - 26, 120, 22, bottom: true), "", f.NunitoBlack, 13,
+        bv.HumanInfoText = Text(Box("HumanInfo", board, HeroInset + HeroWidth + 6, 720 - HeroInset - 26, 120, 22, bottom: true), "", f.BodyBold, 13,
             Palette.SubtleText, TextAlignmentOptions.BottomLeft);
     }
 
@@ -467,7 +502,8 @@ public static class ClientAssetBuilder
         shine.offsetMax = new Vector2(-1, -1);
         Rounded(shine, Color.white.WithAlpha(0.35f), 1.5f);
 
-        name = Text(At("Name", 225, 692, 510, 78), "", f.Lilita, 13, Color.white, TextAlignmentOptions.Center, f.LilitaOutline);
+        name = Text(At("Name", 225, 692, 510, 78), "", f.Display, 13, Palette.LanternText, TextAlignmentOptions.Center,
+            f.DisplayShadow);
         name.enableAutoSizing = true;
         name.fontSizeMin = 7;
         name.fontSizeMax = 13;
@@ -477,73 +513,63 @@ public static class ClientAssetBuilder
 
     static void BuildManaAndButtons(BoardView bv, RectTransform board, Fonts f)
     {
-        // Your mana sits under END TURN, in rows of 5 so a full hand's fan stays clear of it.
+        // Bottom right, from the bottom up: your mana, END TURN, the turn, the Spare Spore.
         var mana = Node("HumanMana", board);
-        Anchor(mana, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 82), new Vector2(400, 61));
-        bv.HumanCrystals = GemRow(mana, new Vector2(26, 29), 5, out var humanTray);
-        bv.HumanManaText = Number(Node("Count", humanTray), f, 20);
-        bv.HumanManaText.rectTransform.sizeDelta = new Vector2(58, 28);
-        bv.HumanManaText.gameObject.AddComponent<LayoutElement>().minWidth = 58;
+        Anchor(mana, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-16, 16 + ManaPillHeight), new Vector2(400, ManaPillHeight));
+        bv.HumanCrystals = ManaPill(mana, f, out bv.HumanManaText);
 
-        // The Spare Spore: the second player's one-off +1 mana, shown while its action is legal.
-        var spore = Node("SpareSpore", board);
-        Anchor(spore, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-116, 190), new Vector2(190, 40));
-        bv.SpareSporeButton = Ui.Button(spore, "SPARE SPORE", Palette.Hex("#9152E0"), Palette.Hex("#5B2E99"), 13,
-            out bv.SpareSporeLabel, 10);
-        bv.SpareSporeLabel.textWrappingMode = TextWrappingModes.Normal;  // the server's text is long
-        bv.SpareSporeLabel.fontSizeMin = 8;
-        spore.gameObject.SetActive(false);
-
-        var pill = Node("Turn", board);
-        Anchor(pill, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 182), new Vector2(80, 25));
-        Rounded(pill, Palette.Gold, 14);
-        var inner = Rounded(Stretch("Inner", pill, 2, 2, 2, 2), Palette.Outline, 12);
-        inner.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-        var pillLayout = pill.gameObject.AddComponent<HorizontalLayoutGroup>();
-        pillLayout.padding = new RectOffset(14, 14, 4, 4);
-        pillLayout.childControlWidth = pillLayout.childControlHeight = true;
-        pillLayout.childForceExpandWidth = pillLayout.childForceExpandHeight = false;
-        var pillFit = pill.gameObject.AddComponent<ContentSizeFitter>();
-        pillFit.horizontalFit = pillFit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        bv.TurnText = Text(Node("Text", pill), "TURN 1", f.Lilita, 13, Palette.Gold, TextAlignmentOptions.Center);
-
-        // A soft gold glow behind END TURN, pulsed by BoardView when nothing else is left to do.
+        // A soft glow 25 units around END TURN, pulsed by BoardView when nothing else is left to do.
         var glow = Node("EndTurnGlow", board);
-        Anchor(glow, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-2, 170), new Vector2(224, 102));
-        bv.EndTurnGlow = Img(glow, _glow, Palette.Gold);
+        Anchor(glow, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-1, 143), new Vector2(226, 100));
+        bv.EndTurnGlow = Img(glow, _glow, Palette.Lantern);
         bv.EndTurnGlow.type = Image.Type.Sliced;
         glow.gameObject.SetActive(false);
 
         var button = Node("EndTurn", board);
-        Anchor(button, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-24, 148), new Vector2(180, 58));
-        Rounded(button, Palette.Outline, 14).raycastTarget = true;
-        Rounded(Stretch("Lip", button, 3, 3, 3, 3), Palette.GoldLip, 11);
-        var face = Rounded(Stretch("Face", button, 3, 3, 3, 9), Palette.Gold, 11);
-        var shine = Node("Shine", face.rectTransform);
-        shine.anchorMin = new Vector2(0, 1);
-        shine.anchorMax = new Vector2(1, 1);
-        shine.offsetMin = new Vector2(6, -5);
-        shine.offsetMax = new Vector2(-6, -1);
-        Rounded(shine, Color.white.WithAlpha(0.45f), 2);
-        bv.EndTurnLabel = Text(Stretch("Label", button, 8, 3, 8, 9), "END TURN", f.Lilita, 22, Color.white,
-            TextAlignmentOptions.Center, f.LilitaOutline);
-        bv.EndTurnLabel.enableAutoSizing = true;
-        bv.EndTurnLabel.fontSizeMin = 12;
-        bv.EndTurnLabel.fontSizeMax = 22;
-        bv.EndTurnButton = button.gameObject.AddComponent<Button>();
-        bv.EndTurnButton.targetGraphic = button.GetComponent<Image>();
-        bv.EndTurnButton.transition = Selectable.Transition.None;
-        // Disabled state: dim the whole button rather than one graphic.
-        button.gameObject.AddComponent<CanvasGroup>();
-        button.gameObject.AddComponent<ButtonDimmer>();
+        Anchor(button, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-26, 118), new Vector2(176, 50));
+        bv.EndTurnButton = Ui.Button(button, UiText.EndTurn, Palette.Lantern, 19, out bv.EndTurnLabel, primary: true);
+        bv.EndTurnLabel.characterSpacing = 14f;
+
+        // "TURN 6" between two faint rules.
+        var turn = Node("Turn", board);
+        Anchor(turn, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-26, 150), new Vector2(176, 20));
+        var turnLayout = turn.gameObject.AddComponent<HorizontalLayoutGroup>();
+        turnLayout.spacing = 10;
+        turnLayout.childAlignment = TextAnchor.MiddleCenter;
+        turnLayout.childControlWidth = turnLayout.childControlHeight = true;
+        turnLayout.childForceExpandWidth = turnLayout.childForceExpandHeight = false;
+        RuleLine(turn);
+        bv.TurnText = Text(Node("Text", turn), "TURN 1", f.Display, 13, Palette.SubtleText, TextAlignmentOptions.Center,
+            f.DisplayShadow);
+        bv.TurnText.characterSpacing = 14f;
+        RuleLine(turn);
+
+        // The Spare Spore: the second player's one-off +1 mana, shown while its action is legal.
+        var spore = Node("SpareSpore", board);
+        Anchor(spore, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-26, 216), new Vector2(176, 40));
+        bv.SpareSporeButton = Ui.Button(spore, "SPARE SPORE", Palette.Aspect(5), 13, out bv.SpareSporeLabel);
+        bv.SpareSporeLabel.characterSpacing = 0f;
+        bv.SpareSporeLabel.textWrappingMode = TextWrappingModes.Normal;  // the server's text is long
+        bv.SpareSporeLabel.fontSizeMin = 8;
+        spore.gameObject.SetActive(false);
+    }
+
+    /// <summary>A faint lantern-coloured rule that stretches to fill its row.</summary>
+    static void RuleLine(RectTransform row)
+    {
+        var line = Node("Rule", row);
+        Img(line, null, Palette.Lantern.WithAlpha(0.4f));
+        var size = line.gameObject.AddComponent<LayoutElement>();
+        size.flexibleWidth = 1;
+        size.preferredHeight = size.minHeight = 1;
     }
 
     static void BuildMessages(BoardView bv, RectTransform board, Fonts f)
     {
         var toast = Node("Message", board);
         Anchor(toast, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -269), new Vector2(900, 40));
-        Rounded(toast, Palette.Outline.WithAlpha(0.88f), 10);
-        bv.MessageText = Text(Stretch("Text", toast, 16, 4, 16, 4), "", f.NunitoBlack, 14, Color.white,
+        Ui.Panel(toast, 12f, null, 0.88f);
+        bv.MessageText = Text(Stretch("Text", toast, 16, 4, 16, 4), "", f.BodyBold, 14, Palette.LanternText,
             TextAlignmentOptions.Center);
         bv.MessageText.textWrappingMode = TextWrappingModes.Normal;
         bv.MessageText.enableAutoSizing = true;
@@ -553,65 +579,57 @@ public static class ClientAssetBuilder
 
     // --- pieces
 
+    const float ManaPillHeight = 32f;
+
     /// <summary>
-    /// A right-aligned row: mana crystals (a template crystal BoardView clones) then a count, in a
-    /// tray that sizes to them. With <paramref name="columns"/> the crystals wrap onto a second row
-    /// (0: one row).
-    /// The row and the tray size their children to fit (no nested ContentSizeFitters, which miss
-    /// the crystals BoardView adds each turn).
+    /// A right-aligned glass pill of mana crystals (a template crystal BoardView clones, up to 10 in
+    /// one row) and a count. Both players get the same one. The row and the pill size their
+    /// children to fit (no nested ContentSizeFitters, which miss the crystals BoardView adds each turn).
     /// </summary>
-    static RectTransform GemRow(RectTransform row, Vector2 gemSize, int columns, out RectTransform tray)
+    static RectTransform ManaPill(RectTransform row, Fonts f, out TMP_Text count)
     {
+        var gemSize = new Vector2(22, 22);
         var rowLayout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
         rowLayout.childAlignment = TextAnchor.MiddleRight;
         rowLayout.childControlWidth = true;
         rowLayout.childControlHeight = false;
         rowLayout.childForceExpandWidth = rowLayout.childForceExpandHeight = false;
 
-        const float gap = 3f;
-        int rows = columns > 0 ? Mathf.CeilToInt(10f / columns) : 1;  // up to 10 crystals
-        float height = rows * gemSize.y + (rows - 1) * gap;
-        tray = Node("Tray", row);
-        tray.sizeDelta = new Vector2(0, height);
-        var trayLayout = tray.gameObject.AddComponent<HorizontalLayoutGroup>();
-        trayLayout.childAlignment = TextAnchor.MiddleRight;
-        trayLayout.spacing = 8;
-        trayLayout.childControlWidth = true;
-        trayLayout.childControlHeight = false;
-        trayLayout.childForceExpandWidth = trayLayout.childForceExpandHeight = false;
+        var pill = Node("Pill", row);
+        pill.sizeDelta = new Vector2(0, ManaPillHeight);
+        Ui.Panel(pill, Ui.Round);
+        var pillLayout = pill.gameObject.AddComponent<HorizontalLayoutGroup>();
+        pillLayout.padding = new RectOffset(8, 12, 0, 0);
+        pillLayout.childAlignment = TextAnchor.MiddleRight;
+        pillLayout.spacing = 6;
+        pillLayout.childControlWidth = true;
+        pillLayout.childControlHeight = false;
+        pillLayout.childForceExpandWidth = pillLayout.childForceExpandHeight = false;
 
-        var gems = Node("Gems", tray);
-        gems.sizeDelta = new Vector2(0, height);
-        if (columns > 0)
-        {
-            var grid = gems.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = gemSize;
-            grid.spacing = new Vector2(gap, gap);
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = columns;
-            grid.childAlignment = TextAnchor.MiddleRight;
-        }
-        else
-        {
-            var gemsLayout = gems.gameObject.AddComponent<HorizontalLayoutGroup>();
-            gemsLayout.childAlignment = TextAnchor.MiddleRight;
-            gemsLayout.spacing = gap;
-            gemsLayout.childControlWidth = gemsLayout.childControlHeight = false;
-            gemsLayout.childForceExpandWidth = gemsLayout.childForceExpandHeight = false;
-        }
+        var gems = Node("Gems", pill);
+        gems.sizeDelta = new Vector2(0, gemSize.y);
+        var gemsLayout = gems.gameObject.AddComponent<HorizontalLayoutGroup>();
+        gemsLayout.childAlignment = TextAnchor.MiddleRight;
+        gemsLayout.spacing = 2;
+        gemsLayout.childControlWidth = gemsLayout.childControlHeight = false;
+        gemsLayout.childForceExpandWidth = gemsLayout.childForceExpandHeight = false;
 
-        // A painted crystal (BoardView swaps full / empty), over a gold glow shown on the ones a play would spend.
+        // A painted crystal (BoardView swaps full / empty), over a glow shown on the ones a play would spend.
         var gem = Node("Gem", gems);
         gem.sizeDelta = gemSize;
         var spend = Img(Stretch("Spend", gem, -gemSize.x * 0.25f, -gemSize.y * 0.25f, -gemSize.x * 0.25f, -gemSize.y * 0.25f),
             Ui.Theme.Dot, Palette.GlowSelected.WithAlpha(0.85f));
         spend.gameObject.SetActive(false);
         Img(Stretch("Crystal", gem, 0, 0, 0, 0), ArtSprite("mana_full.png"), Color.white);
+
+        count = Number(Node("Count", pill), f, 16);
+        count.rectTransform.sizeDelta = new Vector2(44, 22);
+        count.gameObject.AddComponent<LayoutElement>().minWidth = 44;
         return gems;
     }
 
     static TMP_Text Number(RectTransform rt, Fonts f, float size) =>
-        Text(rt, "0", f.Lilita, size, Color.white, TextAlignmentOptions.Center, f.LilitaOutline);
+        Text(rt, "0", f.Numbers, size, Color.white, TextAlignmentOptions.Center, f.NumberOutline);
 
     // --- layout helpers: the shared ones in Tcg.View.Ui
 

@@ -26,7 +26,7 @@ namespace Tcg.View
             vh.Clear();
             float length = Vector2.Distance(_a, _b) + Vector2.Distance(_b, _c);
             if (length < 1f) return;
-            Dots(vh, length, 4f, 16f, Palette.Outline);
+            Dots(vh, length, 4f, 16f, Palette.Shadow);
             Dots(vh, length, 17f, 9f, _colour);
         }
 

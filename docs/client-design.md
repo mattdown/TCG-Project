@@ -26,36 +26,57 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 > it. The enemy hero's whole panel is the `attack_hero` drop target, with a soft red glow while an
 > arrow is out and the health it would have left, in gold, in the heart under the finger.
 > Mana crystals are painted stones (`Art/Sprites/mana_full.png` / `mana_empty.png`) in a
-> row with a "4/6" count (yours in rows of 5 under END TURN); the ones a play would
-> spend get a gold disc behind them. The Spare Spore is a purple button left of
-> the turn pill, labelled with the action's text. Frozen units show ice and a ❄ over the art;
+> glass pill with a "4/6" count, the same for both players (one row of up to 10; yours under
+> END TURN, the enemy's left of the help button); the ones a play would spend get a gold disc
+> behind them. Above END TURN sit "TURN 6" between two faint rules and, when legal, the
+> Spare Spore, a purple-rimmed button labelled with the action's text. Frozen units show ice and a ❄ over the art;
 > hidden ones a lilac veil. Unit names leave the banner's right end to the power and health
 > badges.
 
 ## Look
 
-Reference: Clash Royale. Vibrant colours, chunky display type, thick dark outlines, buttons with
-a darker lip along the bottom edge, white numbers with a dark outline.
+**Lantern** (chosen 2026-10-31, replacing the earlier Clash Royale-style chrome): smoked-glass
+panels over the painted art, thin pale rims, and a teal light taken from the glowing caps in the
+forest background. The painted pieces (card frame, hero panels, mana stones, the arena) carry the
+fantasy; the chrome stays quiet and clean. The exploration canvas, with the two directions not
+taken (Heartwood: wood and parchment; Field Journal: paper tags and wax seals), is
+<https://claude.ai/artifact/1P5dgXmvijWPn852gzAhpK>.
+
+- **Panels and pills** (`Ui.Panel`, `Ui.Pill`): glass `#091310` at ~80% with a 1.5 px rim in
+  `#A0EBD7` at 30%; a tinted pill adds a faint wash and a rim in its colour.
+- **Buttons** (`Ui.Button`): an opaque glass pill with round ends (`View/RoundEnds.cs` keeps the
+  radius at half the height, in edit mode too), a rim and label in the accent, stronger on
+  primary buttons (END TURN, PLAY, CONFIRM). No glow as standard: only END TURN glows, when
+  nothing else is left to do. Pressed (`View/ButtonPress.cs`): the button sinks to 95% and its
+  glass lights up in the rim's colour. No lip, no shine, no thick outline.
+- **The client renders in linear colour space**, so translucent washes read much stronger than in
+  a browser mockup: washes are 2–5% and filled shapes that sit on a glow are opaque.
 
 | Token | Value |
 |---|---|
-| Outline / darkest navy | `#0E1733` |
-| Panel navy | `#16203D` (cards), `#1E2C55` (UI background) |
-| Light panel (card text box) | `#E9EEF8` |
-| Energy (cost gem, energy bar) | `#E24BD6`; spent / empty `#3A2558` |
-| Power | `#F08A24` |
+| Shadow (text outlines, drop shadows) | `#06100D` |
+| Night (camera, scrims) | `#0B1612` |
+| Glass (panels, buttons) | `#091310` |
+| Lantern (primary accent, playable glow) | `#7EF0D8`; its pale text `#E6FBF4` |
+| Firefly (warm accent: callouts, choices, previews) | `#F4C76B` |
+| Subtle text | `#A9C9BC` |
+| Parchment text / bold on parchment | `#4A3726` / `#1C1209` |
+| Card name ink | `#1C1209` (ParchmentBold) |
 | Health | `#E8364F` |
-| Score crowns, primary button | `#FFC93C`, lip `#D98A10` |
 | Stat above printed value | `#7CFF7C` |
 | Stat below printed value | `#FF8A96` |
-| Glows | playable `#81FF00`, selected `#FFE14D`, target `#FF4D5E` |
-| Field | checkerboard `#5E9C57` / `#5A9753`, 44 px squares, darkening to navy at the top and bottom edges |
+| Glows | playable `#7EF0D8`, selected `#FFE08A`, unusable `#F0A84A`, target `#FF6A5C` |
+| HUD fade | the arena darkens to `#050C0A` at the top and bottom edges |
 
 Aspect colours, one per `aspect_N`: Ember `#F0533A`, Bog `#2F86E8`, Moss `#43B04F`,
 Meadow `#F5B52E`, Glow `#9152E0`, Frost `#22BCC9`. Card art uses the aspect colour as a radial glow.
 The aspect names and the rest of the theme are in [theme.md](theme.md).
 
-Fonts: Lilita One for numbers, names and buttons; Nunito (700–900) for body text.
+Fonts (OFL, in `TCGClient/Assets/Fonts`): **Marcellus SC** for titles, card and hero names and
+button labels (so labels are written in title case: "End Turn"); **Outfit** for body text (500,
+with `<b>` at 800 and darker on parchment, so bold keywords and lead-ins stand out) and for numbers
+(800 with a thin dark outline). Outfit has no italic: subtitles use TMP's slant. The Outfit weights
+are static instances cut from the variable font with fontTools.
 
 ## Layout
 
@@ -64,11 +85,11 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 | Area | Where |
 |---|---|
 | Opponent bar | top strip: the enemy hero panel with deck and hand counts beside it (left); mana crystals and the help button, with the DEV / GNN dev buttons under it (right); painted card backs (`Art/Sprites/card_back.png`), the size of your cards, hang 62 px in at top centre in a mirror of your hand's fan |
-| Opponent units | one centred row near the top |
-| Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`), under a navy fade at the top and bottom for the HUD |
-| Your units | one centred row below the divider |
+| Opponent units | one centred row near the top: cards at 96% of hand size, frames touching in a full row of 7 so it never shrinks |
+| Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`), under a dark fade at the top and bottom for the HUD |
+| Your units | one centred row below the divider, the same size; the play zone that lights up for a drag is sized to the fullest row |
 | Your hero | bottom left: your hero panel, with the deck count beside it |
-| Your mana, END TURN | bottom right: turn number, END TURN button, and your mana crystals (rows of 5) with a ready/total count under it |
+| Your mana, END TURN | bottom right, from the bottom up: your mana pill, END TURN, the turn number |
 | Hand | fanned along the bottom centre, partly off-screen |
 
 ## The card
@@ -80,9 +101,9 @@ inspected. Every card on the field shows its full text.
   which has no power orb or health shield). The card art shows through the oval window. The
   builder places every part in the frame art's own pixels (`ClientAssetBuilder.FrameBox`).
 - **Cost:** on the frame's pink gem, top left.
-- **Name:** on the wooden banner under the art; the subtitle goes on the small tab below it.
+- **Name:** inked in Marcellus SC on the banner under the art, thickened (face dilate 0.4, max 14.5 pt) with a faint parchment highlight below, since its hairlines vanish at card size; the subtitle goes on the small tab below it.
 - **Text box:** the parchment, in dark brown. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
-- **Traits:** a small navy tag on the bottom edge, its rim in the aspect colour.
+- **Traits:** a small dark glass tag on the bottom edge, its rim in the aspect colour.
 - **Power:** on the gold orb, bottom left.
 - **Health:** on the red shield, bottom right, showing health *left* (damage lowers the number).
 
@@ -95,10 +116,10 @@ States:
 | Buffed / debuffed | stat number in green / red |
 | Selected | lifted 10 px, gold glow |
 | Target | red glow |
-| Playable (in hand), or can still attack (your units) | green glow |
+| Playable (in hand), or can still attack (your units) | teal glow |
 | Affordable but can't be played now (an action with nothing to target: `unusable`) | yellow glow; dropping it on the field, or PLAY on the inspect screen, shows the reason in a short popup |
 | A "choose one" option with nothing to choose | its answer button is greyed out |
-| END TURN with nothing else left to do | the button pulses with a gold glow |
+| END TURN with nothing else left to do | the button pulses with a teal glow |
 
 ## Interaction
 
@@ -117,7 +138,7 @@ bright in its action colour under the finger, with a label. Highlights come from
 | Drag a hand card | your side of the field | `play` | green zone, "Drop to play · N mana"; a light slot shows where it lands; the crystals it will spend are outlined |
 | Drag an arrow from a unit | an enemy unit | `attack` | valid targets get red rings, others dim; the hovered one shows the result ("Defeated", "Takes 2") |
 | Drag an arrow from a unit | the enemy hero | `attack_hero` | the hero panel glows red; the heart shows the health left, in gold |
-| Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; the card keeps its green glow if it can be played or attack; hand cards also get a PLAY button, grey when not legal; from a hand card, ◀ ▶ arrows (or the ← → keys) step through your hand with a "3 / 7" count, greyed at either end; board cards have no arrows |
+| Tap any card | — | inspect | the card at ~2× with an explanation box per keyword; the card keeps its teal glow if it can be played or attack; hand cards also get a PLAY button, grey when not legal; from a hand card, ◀ ▶ arrows (or the ← → keys) step through your hand with a "3 / 7" count, greyed at either end; board cards have no arrows |
 
 Rules behind the highlights (from `src/game/engine.py`): any enemy unit can be attacked, but
 while the enemy has a Guard unit, attacks must go to one; hidden Elusive units can't be

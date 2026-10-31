@@ -82,6 +82,7 @@ namespace Tcg.View
         {
             img.type = Image.Type.Sliced;
             img.pixelsPerUnitMultiplier = SliceRadius / Mathf.Max(radius, 0.5f);
+            if (radius >= Round) img.gameObject.AddComponent<RoundEnds>();
             return img;
         }
 
@@ -102,63 +103,116 @@ namespace Tcg.View
             return t;
         }
 
-        /// <summary>White Lilita One with the dark outline: numbers, names, button labels.</summary>
+        /// <summary>A title or label in Marcellus SC with a soft shadow, in the lantern's pale light.</summary>
         public static TextMeshProUGUI Display(RectTransform rt, string text, float size,
             TextAlignmentOptions align = TextAlignmentOptions.Center) =>
-            Text(rt, text, Theme.Lilita, size, Color.white, align, Theme.LilitaOutline);
+            Text(rt, text, Theme.Display, size, Palette.LanternText, align, Theme.DisplayShadow);
+
+        /// <summary>A white number in Outfit ExtraBold with a thin dark outline: stats, mana, damage.</summary>
+        public static TextMeshProUGUI Number(RectTransform rt, string text, float size,
+            TextAlignmentOptions align = TextAlignmentOptions.Center) =>
+            Text(rt, text, Theme.Numbers, size, Color.white, align, Theme.NumberOutline);
 
         public static TextMeshProUGUI Body(RectTransform rt, string text, float size, Color colour,
             TextAlignmentOptions align = TextAlignmentOptions.TopLeft)
         {
-            var t = Text(rt, text, Theme.NunitoBlack, size, colour, align);
+            var t = Text(rt, text, Theme.Body, size, colour, align);
             t.textWrappingMode = TextWrappingModes.Normal;
             return t;
         }
 
-        /// <summary>A pill label: coloured rounded box with a navy edge that fits its text.</summary>
-        public static TextMeshProUGUI Pill(RectTransform rt, string text, Color background, float size = 15f,
+        /// <summary>A thin rounded outline (1.5 px at radius 16): the rim of glass panels and buttons.</summary>
+        public static Image Rim(RectTransform rt, Color colour, float radius) =>
+            Sliced(Img(rt, Theme.RingThin, colour), radius);
+
+        /// <summary>
+        /// Smoked glass: a dark translucent fill with a thin pale rim. Returns the fill, which is
+        /// <paramref name="rt"/>'s own image; the rim is a child that layout groups ignore.
+        /// </summary>
+        public static Image Panel(RectTransform rt, float radius = 12f, Color? rim = null, float alpha = 0.8f)
+        {
+            var fill = Rounded(rt, Palette.Glass.WithAlpha(alpha), radius);
+            Ignored(Rim(Stretch("Rim", rt, 0, 0, 0, 0), rim ?? Palette.GlassRim, radius));
+            return fill;
+        }
+
+        /// <summary>
+        /// A glass pill that fits its text, washed and rimmed in <paramref name="tint"/>
+        /// (<see cref="Palette.Glass"/> for a plain one). <see cref="TintPill"/> recolours it.
+        /// </summary>
+        public static TextMeshProUGUI Pill(RectTransform rt, string text, Color tint, float size = 15f,
             bool display = true)
         {
-            Rounded(rt, Palette.Outline, 14);
-            var face = Rounded(Stretch("Face", rt, 2, 2, 2, 2), background, 12);
-            face.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Rounded(rt, Palette.Glass.WithAlpha(0.82f), Round);
+            Ignored(Rounded(Stretch("Wash", rt, 0, 0, 0, 0), Color.clear, Round));
+            Ignored(Rim(Stretch("Rim", rt, 0, 0, 0, 0), Color.clear, Round));
             var layout = rt.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset(13, 13, 5, 5);
+            layout.padding = new RectOffset(14, 14, 5, 6);
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = layout.childForceExpandHeight = false;
             var fit = rt.gameObject.AddComponent<ContentSizeFitter>();
             fit.horizontalFit = fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var label = Node("Text", rt);
-            return display ? Display(label, text, size) : Text(label, text, Theme.NunitoBlack, size, Color.white,
+            var t = display ? Display(label, text, size) : Text(label, text, Theme.BodyBold, size, Palette.LanternText,
                 TextAlignmentOptions.Center);
+            TintPill(rt, tint);
+            return t;
         }
 
-        /// <summary>A chunky button: navy edge, darker lip along the bottom, top shine, outlined label.</summary>
-        public static Button Button(RectTransform rt, string label, Color face, Color lip, float fontSize,
-            out TMP_Text text, float radius = 14f)
+        public static void TintPill(RectTransform pill, Color tint)
         {
-            var edge = Rounded(rt, Palette.Outline, radius);
-            edge.raycastTarget = true;
-            Rounded(Stretch("Lip", rt, 3, 3, 3, 3), lip, radius - 3);
-            var faceImg = Rounded(Stretch("Face", rt, 3, 3, 3, 9), face, radius - 3);
-            Rounded(TopStrip("Shine", faceImg.rectTransform, 6, 1, 4), Color.white.WithAlpha(0.45f), 2);
-            text = Display(Stretch("Label", rt, 8, 3, 8, 9), label, fontSize);
+            bool plain = tint == Palette.Glass;
+            pill.Find("Wash").GetComponent<Image>().color = plain ? Color.clear : tint.WithAlpha(0.12f);
+            pill.Find("Rim").GetComponent<Image>().color = plain ? Palette.GlassRim : tint.WithAlpha(0.9f);
+        }
+
+        /// <summary>
+        /// A glass button in <paramref name="accent"/>: a wash and rim of it over smoked glass, stronger
+        /// for <paramref name="primary"/>, and a pressed state (<see cref="ButtonPress"/>). Round ends
+        /// unless given a radius. <see cref="TintButton"/> recolours it.
+        /// </summary>
+        public static Button Button(RectTransform rt, string label, Color accent, float fontSize,
+            out TMP_Text text, bool primary = false, float radius = Round)
+        {
+            var hit = Img(rt, null, Color.clear);
+            hit.raycastTarget = true;
+            Rounded(Stretch("Fill", rt, 0, 0, 0, 0), Palette.Glass, radius);  // opaque: a glow behind would show through
+            Rounded(Stretch("Wash", rt, 0, 0, 0, 0), Color.clear, radius);
+            Rim(Stretch("Rim", rt, 0, 0, 0, 0), Color.clear, radius);
+            text = Display(Stretch("Label", rt, 10, 2, 10, 3), label, fontSize);
+            text.characterSpacing = 8f;
             text.enableAutoSizing = true;
             text.fontSizeMin = 10;
             text.fontSizeMax = fontSize;
             var button = rt.gameObject.AddComponent<Button>();
-            button.targetGraphic = edge;
+            button.targetGraphic = hit;
             button.transition = Selectable.Transition.None;
             rt.gameObject.AddComponent<CanvasGroup>();
             rt.gameObject.AddComponent<ButtonDimmer>();
+            rt.gameObject.AddComponent<ButtonPress>();
+            TintButton(button, accent, primary);
             return button;
         }
+
+        public static void TintButton(Button button, Color accent, bool primary)
+        {
+            var rt = button.transform;
+            // The project renders in linear space, where a translucent wash reads far stronger than in a browser.
+            rt.Find("Wash").GetComponent<Image>().color = accent.WithAlpha(primary ? 0.05f : 0.02f);
+            rt.Find("Rim").GetComponent<Image>().color = accent.WithAlpha(primary ? 0.95f : 0.55f);
+            rt.Find("Label").GetComponent<TMP_Text>().color = Color.Lerp(accent, Color.white, primary ? 0.75f : 0.6f);
+        }
+
+        /// <summary>Round ends: the radius follows half the shape's height (<see cref="RoundEnds"/>).</summary>
+        public const float Round = 999f;
+
+        static void Ignored(Graphic g) => g.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
 
         /// <summary>A full-screen tap catcher that dims what's under it.</summary>
         public static Button Scrim(RectTransform parent, string name, float alpha)
         {
             var rt = Stretch(name, parent, 0, 0, 0, 0);
-            var img = Img(rt, null, new Color(8 / 255f, 14 / 255f, 32 / 255f, alpha));
+            var img = Img(rt, null, Palette.Night.WithAlpha(alpha));
             img.raycastTarget = true;
             var b = rt.gameObject.AddComponent<Button>();
             b.transition = Selectable.Transition.None;

@@ -17,8 +17,6 @@ namespace Tcg.Board
     /// </summary>
     public class ChoiceBanner : MonoBehaviour
     {
-        static readonly Color NoFace = Palette.Hex("#7B8BB8"), NoLip = Palette.Hex("#4E5D88");
-        static readonly Color OffFace = Palette.Hex("#6E7486"), OffLip = Palette.Hex("#454A5A");
 
         public event Action<GameAction> AnswerChosen;
 
@@ -33,9 +31,7 @@ namespace Tcg.Board
             // cards and the bottom edge, so both rows stay readable.
             Ui.Anchor(root, new Vector2(0.5f, 0), new Vector2(0.5f, 0.5f), new Vector2(0, 124), new Vector2(760, 60));
             var view = root.gameObject.AddComponent<ChoiceBanner>();
-            Ui.Rounded(root, Palette.Gold, 16).raycastTarget = true;
-            Ui.Rounded(Ui.Stretch("Face", root, 3, 3, 3, 3), Palette.CardNavy.WithAlpha(0.97f), 13)
-                .gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Ui.Panel(root, 16, Palette.Firefly.WithAlpha(0.8f), 0.92f).raycastTarget = true;
             var layout = root.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(20, 20, 10, 12);
             layout.spacing = 8;
@@ -45,9 +41,9 @@ namespace Tcg.Board
             layout.childForceExpandHeight = false;
             root.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            view._text = Ui.Text(Ui.Node("Text", root), "", Ui.Theme.Nunito, 15, Color.white, TextAlignmentOptions.Center);
+            view._text = Ui.Text(Ui.Node("Text", root), "", Ui.Theme.Body, 15, Palette.LanternText, TextAlignmentOptions.Center);
             view._text.textWrappingMode = TextWrappingModes.Normal;
-            view._hint = Ui.Text(Ui.Node("Hint", root), UiText.ChooseHint, Ui.Theme.NunitoBlack, 13, Palette.Gold,
+            view._hint = Ui.Text(Ui.Node("Hint", root), UiText.ChooseHint, Ui.Theme.BodyBold, 13, Palette.Firefly,
                 TextAlignmentOptions.Center);
             view._buttons = Ui.Node("Buttons", root);
             var size = view._buttons.gameObject.AddComponent<LayoutElement>();
@@ -80,10 +76,10 @@ namespace Tcg.Board
                 else if (a.type == ActionTypes.Accept || a.type == ActionTypes.Decline)
                 {
                     bool no = a.type == ActionTypes.Decline;
-                    Answer(a.text, 140, no ? NoFace : Palette.Gold, no ? NoLip : Palette.GoldLip, a);
+                    Answer(a.text, 140, no ? Palette.Muted : Palette.Lantern, !no, a);
                 }
                 else if (a.type == ActionTypes.ChooseOption && p.options == null)
-                    Answer(a.text, 340, Palette.Gold, Palette.GoldLip, a);  // a server without the options list
+                    Answer(a.text, 340, Palette.Lantern, true, a);  // a server without the options list
             }
             // "Choose one": every option, the ones with nothing to choose greyed out.
             if (p.options != null)
@@ -91,7 +87,7 @@ namespace Tcg.Board
                 {
                     var answer = Commands.Find(s, a => a.type == ActionTypes.ChooseOption && a.option == o.option);
                     bool usable = o.usable && answer != null;
-                    Answer(o.text, 340, usable ? Palette.Gold : OffFace, usable ? Palette.GoldLip : OffLip, usable ? answer : null);
+                    Answer(o.text, 340, usable ? Palette.Lantern : Palette.Muted, usable, usable ? answer : null);
                 }
             _hint.gameObject.SetActive(targets);
             _buttons.gameObject.SetActive(_built.Count > 0);
@@ -99,13 +95,14 @@ namespace Tcg.Board
         }
 
         /// <summary>An answer button; with no action it's greyed out and does nothing.</summary>
-        void Answer(string text, float width, Color face, Color lip, GameAction action)
+        void Answer(string text, float width, Color accent, bool primary, GameAction action)
         {
             var rt = Ui.Node("Answer", _buttons);
             var element = rt.gameObject.AddComponent<LayoutElement>();
             element.minWidth = 120;
             element.preferredWidth = width;
-            var button = Ui.Button(rt, text, face, lip, 17, out var label);
+            var button = Ui.Button(rt, text, accent, 16, out var label, primary);
+            label.characterSpacing = 0f;
             button.onClick.AddListener(() => AnswerChosen?.Invoke(action));
             button.interactable = action != null;
             label.textWrappingMode = TextWrappingModes.Normal;
@@ -138,7 +135,7 @@ namespace Tcg.Board
             // Raycasts pass through the full-screen root except on its button and open panel.
             var toggle = Ui.Node("Toggle", root);  // under the help button, top right
             Ui.Anchor(toggle, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-22, -62), new Vector2(48, 22));
-            Ui.Pill(toggle, UiText.DevButton, Palette.CardNavy, 11, display: false);
+            Ui.Pill(toggle, UiText.DevButton, Palette.Glass, 11, display: false);
             var toggleButton = toggle.gameObject.AddComponent<Button>();
             toggleButton.targetGraphic = toggle.GetComponent<Image>();
             toggle.GetComponent<Image>().raycastTarget = true;
@@ -146,21 +143,20 @@ namespace Tcg.Board
 
             var panel = Ui.Node("Panel", root);
             Ui.Anchor(panel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620, 400));
-            Ui.Rounded(panel, Palette.Outline, 16).raycastTarget = true;
-            Ui.Rounded(Ui.Stretch("Face", panel, 3, 3, 3, 3), Palette.UiNavy, 13);
+            Ui.Panel(panel, 16, null, 0.96f).raycastTarget = true;
             Ui.Display(Ui.TopStrip("Title", panel, 0, 16, 32), UiText.DevTitle, 24);
-            Ui.Text(Ui.TopStrip("Help", panel, 24, 54, 54), UiText.DevHelp, Ui.Theme.Nunito, 12, Palette.SubtleText,
+            Ui.Text(Ui.TopStrip("Help", panel, 24, 54, 54), UiText.DevHelp, Ui.Theme.Body, 12, Palette.SubtleText,
                 TextAlignmentOptions.TopLeft).textWrappingMode = TextWrappingModes.Normal;
             view._input = CreateInput(Ui.TopStrip("Input", panel, 24, 112, 180));
             view._input.text = PlayerPrefs.GetString(PrefKey, UiText.DevDefault);
-            view._error = Ui.Text(Ui.TopStrip("Error", panel, 24, 298, 20), "", Ui.Theme.NunitoBlack, 13,
+            view._error = Ui.Text(Ui.TopStrip("Error", panel, 24, 298, 20), "", Ui.Theme.BodyBold, 13,
                 Palette.StatDown, TextAlignmentOptions.Left);
             var start = Ui.Node("Start", panel);
             Ui.Anchor(start, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-24, 20), new Vector2(160, 52));
-            Ui.Button(start, UiText.DevStart, Palette.Gold, Palette.GoldLip, 20, out _).onClick.AddListener(view.OnStartPressed);
+            Ui.Button(start, UiText.DevStart, Palette.Lantern, 18, out _, true).onClick.AddListener(view.OnStartPressed);
             var close = Ui.Node("Close", panel);
             Ui.Anchor(close, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-200, 20), new Vector2(130, 52));
-            Ui.Button(close, UiText.DevClose, Palette.Hex("#7B8BB8"), Palette.Hex("#4E5D88"), 18, out _)
+            Ui.Button(close, UiText.DevClose, Palette.Muted, 16, out _)
                 .onClick.AddListener(view.Toggle);
             view._panel = panel.gameObject;
             view._panel.SetActive(false);
@@ -173,13 +169,13 @@ namespace Tcg.Board
             Ui.Rounded(rt, Palette.TextBox, 10).raycastTarget = true;
             var area = Ui.Stretch("Text Area", rt, 12, 8, 12, 8);
             area.gameObject.AddComponent<RectMask2D>();
-            var text = Ui.Text(Ui.Stretch("Text", area, 0, 0, 0, 0), "", Ui.Theme.Nunito, 16, Palette.BodyText,
+            var text = Ui.Text(Ui.Stretch("Text", area, 0, 0, 0, 0), "", Ui.Theme.Body, 16, Palette.BodyText,
                 TextAlignmentOptions.TopLeft);
             text.textWrappingMode = TextWrappingModes.Normal;
             var input = rt.gameObject.AddComponent<TMP_InputField>();
             input.textViewport = area;
             input.textComponent = text;
-            input.fontAsset = Ui.Theme.Nunito;
+            input.fontAsset = Ui.Theme.Body;
             input.pointSize = 16;
             input.lineType = TMP_InputField.LineType.MultiLineNewline;
             input.targetGraphic = rt.GetComponent<Image>();

@@ -195,7 +195,7 @@ namespace Tcg.View
             _badge.gameObject.SetActive(!string.IsNullOrEmpty(text));
             if (string.IsNullOrEmpty(text)) return;
             _badgeText.text = text;
-            _badge.Find("Face").GetComponent<Image>().color = background;
+            Ui.TintPill(_badge, background);
         }
 
         /// <summary>

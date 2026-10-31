@@ -9,9 +9,9 @@ namespace Tcg.View
         public const string You = "You";
         public const string Deck = "Deck";
         public const string Hand = "Hand";
-        public const string Turn = "TURN";
-        public const string NewGame = "NEW GAME";
-        public const string EndTurn = "END TURN";
+        public const string Turn = "Turn";
+        public const string NewGame = "New Game";
+        public const string EndTurn = "End Turn";
         public const string Connecting = "Connecting to the game server…";
         public const string YouWin = "You win!";
         public const string YouLose = "You lose";
@@ -25,7 +25,7 @@ namespace Tcg.View
 
         // Inspect.
         public const string TapToClose = "Tap anywhere to close";
-        public const string PlayButton = "PLAY";
+        public const string PlayButton = "Play";
         public const string Previous = "◀", Next = "▶";
         public const string InspectCount = "{0} / {1}";
         public const string YourUnit = "Your unit";
@@ -50,8 +50,8 @@ namespace Tcg.View
         public const string DevButton = "DEV";
         public const string DevTitle = "Start a scenario";
         public const string DevHelp = "One key per line or separated by ;  Keys: hand, play, opponent_play, opponent_hand (card IDs, comma-separated; add \"attacked\" or \"damage=N\" after an ID in play), mana, opponent_mana, health, opponent_health, seed.";
-        public const string DevStart = "START";
-        public const string DevClose = "CLOSE";
+        public const string DevStart = "Start";
+        public const string DevClose = "Close";
         public const string DevDefault = "mana: 5\nopponent_health: 10\nseed: 1";
 
         // GNN overlay. Node and edge type names come from the server.
@@ -103,8 +103,8 @@ namespace Tcg.View
         // Mulligan and game over.
         public const string MulliganTitle = "Choose cards to put back";
         public const string MulliganText = "Tap the cards to put back (tap again to keep one). You draw a new card for each.";
-        public const string PutBack = "PUT BACK";
-        public const string Confirm = "CONFIRM";
+        public const string PutBack = "Put back";
+        public const string Confirm = "Confirm";
         public const string FinalScore = "{0} {1} · {2} {3}";
     }
 }

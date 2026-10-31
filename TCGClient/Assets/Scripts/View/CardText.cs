@@ -12,6 +12,8 @@ namespace Tcg.View
     public static class CardText
     {
         const string Granted = "#2F8A27";  // a keyword an ability gave this card: green, like a raised stat
+        // Bold on the parchment is darker as well as heavier, so it stands out from the body.
+        static readonly string Bold = "#" + UnityEngine.ColorUtility.ToHtmlStringRGB(Palette.ParchmentBold);
 
         /// <summary>Keyword names and rules from card_set, by key.</summary>
         public static IReadOnlyDictionary<string, KeywordInfo> Keywords = new Dictionary<string, KeywordInfo>();
@@ -30,13 +32,13 @@ namespace Tcg.View
                     if (value <= 0) continue;
                     bool granted = KeywordValues.Of(def.keywords, kv.Key) < value;
                     string word = $"<b>{KeywordLabel(kv.Key, value)}.</b> ";
-                    sb.Append(granted ? $"<color={Granted}>{word}</color>" : word);
+                    sb.Append($"<color={(granted ? Granted : Bold)}>{word}</color>");
                 }
             if (def.ability_text != null)
                 foreach (var line in def.ability_text)
                 {
                     if (sb.Length > 0) sb.Append('\n');
-                    sb.Append(Ability(line));
+                    sb.Append(Ability(line, Bold));
                 }
             return sb.ToString().TrimEnd();
         }
@@ -52,12 +54,16 @@ namespace Tcg.View
         public static string KeywordRule(string key, int value) =>
             Keywords.TryGetValue(key, out var info) ? info.rule.Replace("+N", $"+{value}").Replace(" N ", $" {value} ") : "";
 
-        /// <summary>One ability line, its lead-in bold and choose-one options on their own lines.</summary>
-        public static string Ability(string line)
+        /// <summary>
+        /// One ability line, its lead-in bold (in <paramref name="boldColour"/> if given) and choose-one
+        /// options on their own lines.
+        /// </summary>
+        public static string Ability(string line, string boldColour = null)
         {
             var (lead, rest) = SplitLeadIn(line);
             string body = rest.Replace(" • ", "\n• ");
-            return lead.Length > 0 ? $"<b>{lead}</b>{body}" : body;
+            if (lead.Length == 0) return body;
+            return boldColour == null ? $"<b>{lead}</b>{body}" : $"<color={boldColour}><b>{lead}</b></color>{body}";
         }
 
         /// <summary>

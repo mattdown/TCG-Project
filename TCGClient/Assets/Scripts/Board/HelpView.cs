@@ -16,10 +16,8 @@ namespace Tcg.Board
     public class HelpView : MonoBehaviour
     {
         const float CardScale = 2f;
-        static readonly Color Callout = Palette.Gold;
-        static readonly Color PanelRing = Palette.Hex("#2E4680");
-        static readonly Color BoxRing = Palette.Hex("#26386A");
-        static readonly Color CloseLip = Palette.Hex("#A8321F");
+        static readonly Color Callout = Palette.Firefly;
+        static readonly Color PanelRing = Palette.Lantern.WithAlpha(0.25f);
 
         public bool IsOpen => gameObject.activeSelf;
 
@@ -38,13 +36,12 @@ namespace Tcg.Board
             var page = Ui.Node("Page", root);
             Ui.Anchor(page, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1280, 720));
             var panel = Ui.Box("Panel", page, 24, 24, 1232, 672);
-            Ui.Rounded(panel, Palette.Outline, 22).raycastTarget = true;  // taps on the panel don't close it
-            Ui.Rounded(Ui.Stretch("Ring", panel, 3, 3, 3, 3), PanelRing, 19);
-            Ui.Rounded(Ui.Stretch("Face", panel, 5, 5, 5, 5), Palette.UiNavy, 17);
+            Ui.Panel(panel, 22, Palette.Lantern.WithAlpha(0.4f), 0.94f).raycastTarget = true;  // taps on the panel don't close it
 
             Ui.Display(Ui.Box("Title", page, 52, 46, 600, 36), UiText.HelpTitle, 30, TextAlignmentOptions.Left);
             var close = Ui.Box("Close", page, 1184, 44, 44, 44);
-            Ui.Button(close, "✕", Palette.OpponentAccent, CloseLip, 22, out _, 12).onClick.AddListener(view.Hide);
+            Ui.Button(close, "✕", Palette.OpponentAccent, 20, out var closeLabel).onClick.AddListener(view.Hide);
+            closeLabel.characterSpacing = 0f;
 
             view._cardArea = Ui.Box("CardArea", page, 52, 102, 600, 566);
             view._callouts = Ui.Box("Callouts", page, 52, 102, 600, 566);
@@ -56,7 +53,7 @@ namespace Tcg.Board
             rt.anchoredPosition = new Vector2(300, -250);  // a 300x420 card with its top-left at (150, 40)
             rt.localScale = Vector3.one * CardScale;
 
-            view._notes = Ui.Text(Ui.Box("Notes", view._cardArea, 120, 478, 360, 80), "", Ui.Theme.Nunito, 13,
+            view._notes = Ui.Text(Ui.Box("Notes", view._cardArea, 120, 478, 360, 80), "", Ui.Theme.Body, 13,
                 Palette.SubtleText, TextAlignmentOptions.Top);
             view._notes.textWrappingMode = TextWrappingModes.Normal;
             view._notes.lineSpacing = 10f;
@@ -171,8 +168,8 @@ namespace Tcg.Board
             float x = left ? 0f : 474f;
             var box = Ui.Box(title, _callouts, x, labelTop, width, 60);
             var align = left ? TextAlignmentOptions.TopRight : TextAlignmentOptions.TopLeft;
-            var t = Ui.Text(Ui.Box("Title", box, 0, 0, width, 22), title, Ui.Theme.Lilita, 17, Callout, align);
-            var b = Ui.Text(Ui.Box("Text", box, 0, 20, width, 40), text, Ui.Theme.Nunito, 13, Palette.TraitText, align);
+            var t = Ui.Text(Ui.Box("Title", box, 0, 0, width, 22), title, Ui.Theme.Display, 17, Callout, align);
+            var b = Ui.Text(Ui.Box("Text", box, 0, 20, width, 40), text, Ui.Theme.Body, 13, Palette.TraitText, align);
             b.textWrappingMode = TextWrappingModes.Normal;
             _built.Add(box.gameObject);
 
@@ -220,17 +217,15 @@ namespace Tcg.Board
         void KeywordBox(string name, string rule)
         {
             var box = Ui.Node("Keyword", _keywords);
-            Ui.Rounded(box, Palette.Outline, 12);
-            Ui.Rounded(Ui.Stretch("Ring", box, 2, 2, 2, 2), BoxRing, 10).gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            Ui.Rounded(Ui.Stretch("Face", box, 4, 4, 4, 4), Palette.CardNavy, 8).gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Ui.Panel(box, 12, Palette.Lantern.WithAlpha(0.4f));
             var layout = box.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(14, 14, 10, 11);
             layout.spacing = 3;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            Ui.Text(Ui.Node("Name", box), name, Ui.Theme.Lilita, 17, Color.white, TextAlignmentOptions.Left);
-            var text = Ui.Text(Ui.Node("Rule", box), rule, Ui.Theme.Nunito, 13, Palette.TraitText, TextAlignmentOptions.TopLeft);
+            Ui.Text(Ui.Node("Name", box), name, Ui.Theme.Display, 17, Palette.Lantern, TextAlignmentOptions.Left);
+            var text = Ui.Text(Ui.Node("Rule", box), rule, Ui.Theme.Body, 13, Palette.TraitText, TextAlignmentOptions.TopLeft);
             text.textWrappingMode = TextWrappingModes.Normal;
             _built.Add(box.gameObject);
         }
@@ -238,8 +233,7 @@ namespace Tcg.Board
         void ClassRow(string name, string feel, Color colour)
         {
             var row = Ui.Node("Class", _classes);
-            Ui.Rounded(row, Palette.Outline, 12);
-            Ui.Rounded(Ui.Stretch("Face", row, 2, 2, 2, 2), Palette.CardNavy, 10).gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Ui.Panel(row, 12);
             var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.padding = new RectOffset(9, 10, 8, 8);
             layout.spacing = 10;
@@ -251,9 +245,9 @@ namespace Tcg.Board
             var size = swatch.gameObject.AddComponent<LayoutElement>();
             size.minWidth = size.preferredWidth = 30;
             size.minHeight = size.preferredHeight = 30;
-            Ui.Rounded(swatch, Palette.Outline, 9);
-            var face = Ui.Rounded(Ui.Stretch("Colour", swatch, 2, 2, 2, 2), colour, 7);
-            Ui.Rounded(Ui.TopStrip("Shine", face.rectTransform, 3, 1, 3), Color.white.WithAlpha(0.35f), 1.5f);
+            Ui.Rounded(swatch, colour.WithAlpha(0.3f), Ui.Round);
+            Ui.Rim(Ui.Stretch("Rim", swatch, 0, 0, 0, 0), colour, Ui.Round);
+            Ui.Rounded(Ui.Stretch("Light", swatch, 9, 9, 9, 9), colour, Ui.Round);
 
             var words = Ui.Node("Words", row);
             words.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
@@ -262,8 +256,8 @@ namespace Tcg.Board
             stack.childControlWidth = stack.childControlHeight = true;
             stack.childForceExpandWidth = true;
             stack.childForceExpandHeight = false;
-            Ui.Text(Ui.Node("Name", words), name, Ui.Theme.Lilita, 16, Color.white, TextAlignmentOptions.Left);
-            var text = Ui.Text(Ui.Node("Feel", words), feel, Ui.Theme.Nunito, 12, Palette.SubtleText, TextAlignmentOptions.TopLeft);
+            Ui.Text(Ui.Node("Name", words), name, Ui.Theme.Display, 16, Palette.LanternText, TextAlignmentOptions.Left);
+            var text = Ui.Text(Ui.Node("Feel", words), feel, Ui.Theme.Body, 12, Palette.SubtleText, TextAlignmentOptions.TopLeft);
             text.textWrappingMode = TextWrappingModes.Normal;
             _built.Add(row.gameObject);
         }

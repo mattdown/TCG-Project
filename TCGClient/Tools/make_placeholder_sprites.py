@@ -295,7 +295,7 @@ def radial(w, h, c0, c1, c2):
 
 
 def field():
-    """Checkerboard tile (two 44 px squares a side) and the navy fade at the top and bottom."""
+    """Checkerboard tile (two 44 px squares a side) and the night fade at the top and bottom."""
     tile = Image.new("RGBA", (88, 88), "#5E9C57")
     d = ImageDraw.Draw(tile)
     d.rectangle([44, 0, 87, 43], fill="#5A9753")
@@ -310,15 +310,18 @@ def field():
                 a = a0 + (a1 - a0) * (t - t0) / (t1 - t0)
                 break
         for x in range(4):
-            fade.putpixel((x, y), (22, 32, 61, round(a * 255)))
+            fade.putpixel((x, y), (5, 12, 10, round(a * 255)))
     fade.save(OUT / "field_fade.png")
 
 
 def interaction():
-    """Drag feedback: zone outline, arrow dots and head, target ring, VP stripes, dashed gem."""
+    """Drag feedback: zone outlines (and the thin rim of glass panels), arrow dots and head, target ring, VP stripes, dashed gem."""
     c = Canvas(0, 0, 40, 40, SCALE)
     c.shape(rrect(1.5, 1.5, 37, 37, 14.5), stroke="white", width=3)
     c.save("ring")
+    c = Canvas(0, 0, 40, 40, SCALE)
+    c.shape(rrect(0.75, 0.75, 38.5, 38.5, 15.25), stroke="white", width=1.5)
+    c.save("ring_thin")
     c = Canvas(0, 0, 16, 16, SCALE)
     c.shape(circle(8, 8, 7.5), fill="white")
     c.save("dot")

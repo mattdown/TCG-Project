@@ -2,34 +2,34 @@ using UnityEngine;
 
 namespace Tcg.View
 {
-    /// <summary>Colour tokens from docs/client-design.md.</summary>
+    /// <summary>Colour tokens from docs/client-design.md (the Lantern look: smoked glass and spore-light).</summary>
     public static class Palette
     {
-        public static readonly Color Outline = Hex("#0E1733");
-        public static readonly Color CardNavy = Hex("#16203D");
-        public static readonly Color UiNavy = Hex("#1E2C55");
-        public static readonly Color CardShadow = Hex("#0A1022");
+        public static readonly Color Shadow = Hex("#06100D");     // text outlines, drop shadows
+        public static readonly Color Night = Hex("#0B1612");      // behind everything, full-screen panels
+        public static readonly Color Glass = Hex("#091310");      // panel fill, drawn at ~78% alpha
+        public static readonly Color GlassRim = Hex("#A0EBD7").WithAlpha(0.3f);
+        public static readonly Color Lantern = Hex("#7EF0D8");    // the glowing caps: primary buttons, glows
+        public static readonly Color LanternText = Hex("#E6FBF4");
+        public static readonly Color Firefly = Hex("#F4C76B");    // warm accent: callouts, choices, previews
+        public static readonly Color CardShadow = Hex("#050A08");
         public static readonly Color TextBox = Hex("#E9EEF8");
         public static readonly Color BodyText = Hex("#24304F");
-        public static readonly Color ParchmentText = Hex("#3A2717");  // text on the card frame's parchment
-        public static readonly Color SubtleText = Hex("#B8C6E8");
-        public static readonly Color TraitText = Hex("#D6E0F5");
+        public static readonly Color ParchmentText = Hex("#4A3726");  // text on the card frame's parchment
+        public static readonly Color ParchmentBold = Hex("#1C1209");  // bold lead-ins and keywords there
+        public static readonly Color SubtleText = Hex("#A9C9BC");
+        public static readonly Color TraitText = Hex("#D8EAE2");
         public static readonly Color Energy = Hex("#E24BD6");
-        public static readonly Color EnergySpent = Hex("#3A2558");
-        public static readonly Color Power = Hex("#F08A24");
         public static readonly Color Health = Hex("#E8364F");
-        public static readonly Color Gold = Hex("#FFC93C");
-        public static readonly Color GoldLip = Hex("#D98A10");
         public static readonly Color StatUp = Hex("#7CFF7C");
         public static readonly Color StatDown = Hex("#FF8A96");
-        public static readonly Color GlowPlayable = Hex("#81FF00");
-        public static readonly Color GlowSelected = Hex("#FFE14D");
-        public static readonly Color GlowUnusable = Hex("#FFC21A");  // affordable, but can't be played now
-        public static readonly Color GlowTarget = Hex("#FF4D5E");
-        public static readonly Color OpponentAccent = Hex("#E0503C");
-        public static readonly Color OpponentLip = Hex("#A8321F");
-        public static readonly Color HumanAccent = Hex("#2F86E8");
-        public static readonly Color HumanLip = Hex("#1A5DB0");
+        public static readonly Color GlowPlayable = Lantern;
+        public static readonly Color GlowSelected = Hex("#FFE08A");
+        public static readonly Color GlowUnusable = Hex("#F0A84A");  // affordable, but can't be played now
+        public static readonly Color GlowTarget = Hex("#FF6A5C");
+        public static readonly Color OpponentAccent = Hex("#FF8A7A");
+        public static readonly Color HumanAccent = Hex("#5FD4BE");
+        public static readonly Color Muted = Hex("#8FA79D");         // buttons with nothing to do
 
         /// <summary>Aspect colours by aspect_N (Ember, Bog, Moss, Meadow, Glow, Frost: see docs/theme.md).</summary>
         static readonly Color[] Aspects =
