@@ -174,8 +174,10 @@ Drag previews come from each legal action's server-side `preview`
     shows large in the middle while it resolves, then fades to the discard pile.
   - *Stats:* current values from the server, green above the printed value, red below.
   - *Choices:* yours only, as a banner with the source card's name and the ability text, so the
-    choice keeps its context. It docks at the bottom where the hand was (the hand slides down out
-    of the way), so both rows' stats stay readable; the unit whose ability is asking glows gold. Cards that can be chosen get a gold ring and a
+    choice keeps its context. It sits over the middle of the board, on the divider; the hand stays
+    where it is, since a choice can pick a card in it. **Hide** on its top rim collapses it to a
+    "Show choice" pill at the right end of the divider, to read the cards under it (a new choice
+    opens again). The unit whose ability is asking glows gold. Cards that can be chosen get a gold ring and a
     "Tap a highlighted card" hint; Yes / No and choose-one options are buttons, the options with
     nothing to choose greyed out. The AI's choices show nothing: the spotlight already showed its card.
   - *Inspect:* a box per keyword with the server's reminder text, the full card text, and chips

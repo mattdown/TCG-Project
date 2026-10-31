@@ -13,23 +13,27 @@ namespace Tcg.Board
     /// The prompt for an ability waiting on your choice (state.pending): the source card's name
     /// and text, so the choice keeps its context, plus a button per answer that isn't a card
     /// (Yes / No, choose-one options). Card answers (choose_target) are tapped on the board, where
-    /// they're highlighted. The AI's choices aren't shown: the spotlight already showed its card.
+    /// they're highlighted, in play or in your hand. The AI's choices aren't shown: the spotlight
+    /// already showed its card. It sits over the middle of the board, so it can be hidden to see
+    /// the cards under it, and brought back with a pill at the right end of the divider.
     /// </summary>
     public class ChoiceBanner : MonoBehaviour
     {
+        const float DividerY = 270f;
 
         public event Action<GameAction> AnswerChosen;
 
         TMP_Text _text, _hint;
         RectTransform _buttons;
+        GameObject _showButton;
+        bool _collapsed;
+        string _shown;  // which choice is up, so a new one opens again
         readonly List<GameObject> _built = new List<GameObject>();
 
         public static ChoiceBanner Create(RectTransform parent)
         {
             var root = Ui.Node("Choice", parent);
-            // Docked where the hand was (it slides away), centred in the 249 units between your row's
-            // cards and the bottom edge, so both rows stay readable.
-            Ui.Anchor(root, new Vector2(0.5f, 0), new Vector2(0.5f, 0.5f), new Vector2(0, 124), new Vector2(760, 60));
+            Ui.Anchor(root, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -DividerY), new Vector2(880, 60));
             var view = root.gameObject.AddComponent<ChoiceBanner>();
             Ui.Panel(root, 16, Palette.Firefly.WithAlpha(0.8f), 0.92f).raycastTarget = true;
             var layout = root.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -54,8 +58,32 @@ namespace Tcg.Board
             row.childControlWidth = row.childControlHeight = true;
             row.childForceExpandWidth = false;
             row.childForceExpandHeight = true;
+
+            // Hide: a small pill on the panel's top rim. Show choice: at the right end of the divider,
+            // clear of the rows.
+            var hide = Ui.Node("Hide", root);
+            hide.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+            Ui.Anchor(hide, new Vector2(1, 1), new Vector2(1, 0.5f), new Vector2(-18, 0), new Vector2(84, 28));
+            var hideButton = Ui.Button(hide, UiText.HideChoice, Palette.Firefly, 13, out var hideLabel);
+            hideLabel.characterSpacing = 2f;
+            hideButton.onClick.AddListener(() => view.SetCollapsed(true));
+            var show = Ui.Node("ShowChoice", parent);
+            Ui.Anchor(show, new Vector2(1, 1), new Vector2(1, 0.5f), new Vector2(-24, -DividerY), new Vector2(170, 40));
+            var showButton = Ui.Button(show, UiText.ShowChoice, Palette.Firefly, 16, out var showLabel, primary: true);
+            showLabel.characterSpacing = 2f;
+            showButton.onClick.AddListener(() => view.SetCollapsed(false));
+            view._showButton = show.gameObject;
+            view._showButton.SetActive(false);
             root.gameObject.SetActive(false);
             return view;
+        }
+
+        void SetCollapsed(bool collapsed)
+        {
+            _collapsed = collapsed;
+            gameObject.SetActive(!collapsed);
+            _showButton.SetActive(collapsed);
+            _showButton.transform.SetAsLastSibling();
         }
 
         /// <summary>Shows <paramref name="s"/>'s pending choice, which is yours.</summary>
@@ -64,8 +92,11 @@ namespace Tcg.Board
             var p = s.pending;
             foreach (var go in _built) Destroy(go);
             _built.Clear();
-            gameObject.SetActive(true);
+            string shown = $"{p.source}:{p.ability_text}";
+            if (shown != _shown) _collapsed = false;
+            _shown = shown;
             transform.SetAsLastSibling();
+            gameObject.SetActive(true);  // so the layout below can be rebuilt; SetCollapsed hides it again
             string source = defs.TryGetValue(p.card_id, out var def) ? def.name : p.card_id;
             _text.text = $"<b>{source}:</b> {CardText.Ability(p.ability_text).Replace("\n", "  ")}";
 
@@ -92,6 +123,7 @@ namespace Tcg.Board
             _hint.gameObject.SetActive(targets);
             _buttons.gameObject.SetActive(_built.Count > 0);
             LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)transform);
+            SetCollapsed(_collapsed);
         }
 
         /// <summary>An answer button; with no action it's greyed out and does nothing.</summary>
@@ -109,7 +141,12 @@ namespace Tcg.Board
             _built.Add(rt.gameObject);
         }
 
-        public void Hide() => gameObject.SetActive(false);
+        public void Hide()
+        {
+            gameObject.SetActive(false);
+            _showButton.SetActive(false);
+            _shown = null;
+        }
     }
 
     /// <summary>
