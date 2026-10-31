@@ -19,7 +19,7 @@ namespace Tcg.Board
     public class BoardView : MonoBehaviour
     {
         const float FieldScale = 0.96f;
-        const float RowGap = -15f;  // the frame art has ~7 px of clear margin per side, so a full row of 7 just fits, frames touching
+        const float RowGap = 6f;  // plus ~7 px of clear frame margin per side; a full row of 7 shrinks a little to fit
         const float MaxRowWidth = 920f;  // keeps a full row of 7 clear of the hero panels in the left corners
         /// <summary>The most a row of units can take up, for the drop zone around your row.</summary>
         public static Vector2 RowSize => new Vector2(MaxRowWidth, CardView.Height * FieldScale);

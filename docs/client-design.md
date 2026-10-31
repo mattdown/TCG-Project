@@ -85,7 +85,7 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 | Area | Where |
 |---|---|
 | Opponent bar | top strip: the enemy hero panel with deck and hand counts beside it (left); mana crystals and the help button, with the DEV / GNN dev buttons under it (right); painted card backs (`Art/Sprites/card_back.png`), the size of your cards, hang 62 px in at top centre in a mirror of your hand's fan |
-| Opponent units | one centred row near the top: cards at 96% of hand size, frames touching in a full row of 7 so it never shrinks |
+| Opponent units | one centred row near the top: cards at 96% of hand size with a small gap; up to 6 fit at that size, a full row of 7 shrinks a little |
 | Arena | the painted forest clearing (`Art/Sprites/game_background.jpeg`), scaled to cover the screen with its centre line on the divider between the unit rows (`View/BackgroundFit.cs`), under a dark fade at the top and bottom for the HUD |
 | Your units | one centred row below the divider, the same size; the play zone that lights up for a drag is sized to the fullest row |
 | Your hero | bottom left: your hero panel, with the deck count beside it |
