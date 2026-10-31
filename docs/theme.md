@@ -126,7 +126,9 @@ turkey tail, honey fungus, bioluminescent ghost fungus, snowcap.
 `TCGClient/Tools/card_art/card_art.py` builds each card's prompt from two parts: a scene written
 for that card (`scenes.json`: one character in one concrete moment, like the oyster fisher
 below) and the style every card shares (`art_direction.STYLE`, with the glow in the card's
-habitat colour). It writes the prompts as editable JSONL in `Tools/card_art/prompts/`,
+habitat colour). It covers the set's cards and the tokens they summon: tokens are neutral with no
+subtitle, so one image per token name (`gill-grub--neutral`) serves every version of it. It
+writes the prompts as editable JSONL in `Tools/card_art/prompts/`,
 generates the missing images with a Gemini image model from the prompt alone, and shrinks them
 for the build.
 

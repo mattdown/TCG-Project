@@ -8,7 +8,7 @@ scene and image whose card it still has; only new cards need writing. Run from T
 
     uv run --project ../PythonServer --with google-genai --with pillow python Tools/card_art/card_art.py <command>
 
-    prompts ../PythonServer/cardsets/set_200.json   → Tools/card_art/prompts/set_200.jsonl, and
+    prompts ../PythonServer/cardsets/set_200.json   → Tools/card_art/prompts/set_200.jsonl (cards and their tokens), and
                                                       set_200_briefs.json for cards with no scene yet
     models                                          → image models your key can use
     generate Tools/card_art/prompts/set_200.jsonl   → ArtSource/cards/<key>.png, skipping images that exist
@@ -32,6 +32,8 @@ CLIENT = TOOL.parents[1]
 sys.path.insert(0, str(CLIENT.parent / "PythonServer"))
 from src.cards.abilities import render  # noqa: E402
 from src.cards.art import art_key as _art_key  # noqa: E402
+from src.cards.schema import load_card_set  # noqa: E402
+from src.cards.tokens import tokens_of  # noqa: E402
 
 SCENES = TOOL / "scenes.json"  # art key → scene, kept across card sets
 RAW = CLIENT / "ArtSource" / "cards"  # outside Assets, so Unity doesn't import the full-size images
@@ -65,11 +67,18 @@ def brief_for(card: dict) -> dict:
     return brief
 
 
+def _with_tokens(path: Path) -> list[dict]:
+    """The set's cards, then the tokens they summon (the server sends both in card_set)."""
+    cards = load_card_set(path).cards
+    tokens = {t.id: t for c in cards for t in tokens_of(c)}
+    return [c.to_dict() for c in cards] + [{**t.to_dict(), "type": "token"} for t in tokens.values()]
+
+
 def cmd_prompts(args):
     card_set = json.loads(Path(args.cardset).read_text())
     scenes = json.loads(SCENES.read_text()) if SCENES.exists() else {}
     entries, briefs = {}, {}
-    for card in card_set["cards"]:
+    for card in _with_tokens(Path(args.cardset)):
         key = art_key(card)
         if key in scenes:
             entries.setdefault(key, {"key": key, "cards": [], "prompt": prompt_for(card, scenes[key])})["cards"].append(card["id"])
