@@ -16,7 +16,7 @@ Everything named here (aspects, keywords, card names) is a placeholder, like the
 >   turn. No "add as energy" drop zone, no energy-source rim on the cost gem.
 > - **No score crowns** on cards, and no score drop zone.
 > - **The Spare Spore:** a small button for the second player's one-off +1 mana.
-> - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero. A unit that has attacked is dimmed (no "Zz" since 2026-10-22); a frozen one shows ice; a
+> - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero. A unit that has attacked just loses its glow (no "Zz" since 2026-10-22, no dimming since 2026-10-31); a frozen one shows ice; a
 >   hidden (Elusive) one can't be targeted by enemies.
 > - **Subtitles** under card names.
 >
@@ -90,7 +90,7 @@ States:
 
 | State | Shown as |
 |---|---|
-| Attacked (this turn) | art dimmed; the card is **not** tilted, and the text stays readable |
+| Attacked (this turn) | no glow (units that can still attack glow); the art isn't dimmed and the card isn't tilted |
 | Damaged | health number in red |
 | Buffed / debuffed | stat number in green / red |
 | Selected | lifted 10 px, gold glow |

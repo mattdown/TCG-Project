@@ -2,7 +2,6 @@ using DG.Tweening;
 using Tcg.Protocol;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Tcg.View
@@ -29,8 +28,6 @@ namespace Tcg.View
         [Tooltip("The job tag's rim, in the aspect colour.")]
         public Image AspectTag;
         public Image Art;
-        [Tooltip("Dims the art once the unit has attacked."), FormerlySerializedAs("ExhaustedOverlay")]
-        public GameObject AttackedOverlay;
         [Tooltip("Ice over the art: frozen, so it can't attack on its next turn.")]
         public GameObject FrozenOverlay;
         [Tooltip("A veil over the art: Elusive and hasn't attacked, so enemies can't target it.")]
@@ -72,7 +69,6 @@ namespace Tcg.View
             Def = def;
             Uid = instance?.uid ?? -1;
             bool frozen = instance != null && instance.frozen;
-            AttackedOverlay.SetActive(instance != null && instance.attacked && !frozen);
             FrozenOverlay.SetActive(frozen);
             HiddenOverlay.SetActive(instance != null && instance.hidden);
 

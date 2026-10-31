@@ -244,12 +244,6 @@ public static class ClientAssetBuilder
         Anchor(artBox, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(artHeight * 1.5f, artHeight));
         cv.Art = Img(artBox, artSprites[2], Color.white);
 
-        // A unit that has attacked: the art just dims (the glow on units that can attack does the rest).
-        var attacked = Stretch("Attacked", window, 0, 0, 0, 0);
-        Img(attacked, null, Palette.Attacked);
-        cv.AttackedOverlay = attacked.gameObject;
-        attacked.gameObject.SetActive(false);
-
         // Frozen: ice over the art. Hidden (Elusive, not attacked yet): a misty veil.
         var frozen = Stretch("Frozen", window, 0, 0, 0, 0);
         Img(frozen, null, Palette.Hex("#BDEBFF").WithAlpha(0.55f));

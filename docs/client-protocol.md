@@ -31,7 +31,7 @@ Milestone 4, rules v2 (done):
   zone. There's no energy zone and no "add energy" action any more.
 - **Attacks:** drag a unit onto an enemy unit (`attack`) or the enemy hero (`attack_hero`).
   Any enemy unit can be attacked. A unit that has attacked this turn is
-  `attacked` (show it dimmed, as before); `can_attack` says whether it can still attack.
+  `attacked`; `can_attack` says whether it can still attack.
 - **The Spare Spore:** the second player's one-off +1 mana, a button while `spare_spore` is true.
 - **Card:** no score crowns and no energy-source rim. Cards have a `subtitle`: show it under
   the name in the name banner, smaller and in italics ("Porcini Baker" / "Up Before Dawn").
@@ -319,7 +319,7 @@ captured before decks became one aspect plus neutral, so a replay of seed 7 now 
 
 **Card instances** (`hand`, `play`, `discard`): `uid` identifies this physical card for the
 whole game, so use it to track a card's GameObject as it moves between zones. `card_id`
-points into the card set. `attacked` (has attacked this turn: show it dimmed),
+points into the card set. `attacked` (has attacked this turn),
 `fresh` (played this turn: can't attack unless it has Charge), `damage` (current damage;
 defeated at `damage >= health`).
 
