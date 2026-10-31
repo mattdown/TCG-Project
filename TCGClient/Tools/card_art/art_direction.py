@@ -8,7 +8,7 @@ written from, so a new species, job or aspect needs an entry here, but a new car
 STYLE = ("Highly rendered 3D animated feature-film style, like a modern Disney/Pixar movie: soft subsurface "
          "scattering on the cap, velvety gills, warm rim lighting, shallow depth of field. Centred composition, "
          "vertical 4:5 framing, background a soft radial glow in {glow} fading to dark navy at the edges. "
-         "No text, no frame.")
+         "Every character is a mushroom with a cap and a stalk body: no humans. No text, no frame.")
 
 SPECIES = {
     "Fly-agaric": "a bright red domed cap with white spots and a white stalk with a frilly ring",
