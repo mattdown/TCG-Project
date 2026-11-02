@@ -186,7 +186,7 @@ Drag previews come from each legal action's server-side `preview`
     granted keywords and VP lost float up from the card.
   - *Dev panel:* the DEV button, bottom left, starts a `scenario` from text such as
     `hand: C1-004; opponent_play: C1-018, C1-036 attacked; energy: 2; seed: 1`.
-  - *GNN overlay:* the GNN button, next to DEV, darkens the board and draws the server's `graph`
+  - *GNN overlay:* the GNN button, under DEV, darkens the board and draws the server's `graph`
     over it: card nodes on their cards with each card's ability graph unfolded below, player
     nodes on the heroes, the global node by the turn counter. Each node is a disc coloured by
     node type, with its embedding inside as a greyscale column (4 cells, light positive, dark

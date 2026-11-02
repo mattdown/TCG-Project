@@ -136,7 +136,7 @@ namespace Tcg.Board
             panel.gameObject.SetActive(false);
 
             var toggle = Ui.Node("Toggle", root);  // under the DEV button
-            Ui.Anchor(toggle, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-22, -90), new Vector2(48, 22));
+            Ui.Anchor(toggle, Vector2.zero, Vector2.zero, new Vector2(182, 48), new Vector2(48, 22));
             Ui.Pill(toggle, UiText.GraphButton, Palette.Glass, 11, display: false);
             view._toggle = toggle;
             var button = toggle.gameObject.AddComponent<Button>();
@@ -445,8 +445,8 @@ namespace Tcg.Board
             }
             if (_focusRow != null && _focus.Count > 0)
             {
-                var row = BoundsOf(_focusRow);
-                var to = new Vector2(row.xMax, row.center.y);
+                // The panel's left edge, level with the row: the lines are drawn under the panel.
+                var to = new Vector2(BoundsOf(_policy).xMin, BoundsOf(_focusRow).center.y);
                 foreach (var (node, colour) in _focus)
                     if (node < _nodes.Count)
                         _edgeBuffer.Add(new GraphEdges.Edge
