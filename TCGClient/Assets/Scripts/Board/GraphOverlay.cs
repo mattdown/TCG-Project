@@ -12,7 +12,7 @@ namespace Tcg.Board
     /// <summary>
     /// The state graph the GNN reads (the server's graph request), drawn over a darkened board.
     /// Card nodes sit on their cards with the card's ability graph unfolded below them, the player
-    /// nodes on the heroes and the global node by the turn counter. Each node is a disc coloured by
+    /// nodes on the heroes and the global node halfway between them. Each node is a disc coloured by
     /// node type, with its vector (EmbeddingGlyph, greyscale) as a column inside; edges are coloured by edge type, and the
     /// legend hides an edge type when tapped. Nodes follow the cards every frame, so the graph
     /// keeps up with the board's animations. Top right, the legal actions and the value, with the
@@ -329,9 +329,8 @@ namespace Tcg.Board
                         Place(n, BoundsOf(hero).center, 40);
                         break;
                     case "global":
-                        // By the turn counter, but clear of the policy and legend panels over it.
-                        var turn = BoundsOf(_board.TurnText.rectTransform).center + new Vector2(0, 48);
-                        Place(n, new Vector2(Mathf.Min(turn.x, area.xMax - 12f - PanelWidth - 30f), turn.y), 36);
+                        // Halfway between the two player nodes, which both connect to it.
+                        Place(n, (BoundsOf(_board.HumanHero).center + BoundsOf(_board.OpponentHero).center) / 2f, 36);
                         break;
                 }
             }

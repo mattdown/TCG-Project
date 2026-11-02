@@ -188,7 +188,7 @@ Drag previews come from each legal action's server-side `preview`
     `hand: C1-004; opponent_play: C1-018, C1-036 attacked; energy: 2; seed: 1`.
   - *GNN overlay:* the GNN button, under DEV, darkens the board and draws the server's `graph`
     over it: card nodes on their cards with each card's ability graph unfolded below, player
-    nodes on the heroes, the global node by the turn counter. Each node is a disc coloured by
+    nodes on the heroes, the global node halfway between them. Each node is a disc coloured by
     node type, with its embedding inside as a greyscale column (4 cells, light positive, dark
     negative, so the node colours stand out); edges
     are coloured by type, tapping a type in the legend hides it, and hovering a node lights its
