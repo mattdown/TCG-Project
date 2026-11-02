@@ -89,7 +89,7 @@ namespace Tcg.View
         public const string NodeLayer = "Layer {0}";
         public const string NodeLayerOps = "GATv2 · {0} heads\nΣ over edge types\nx + ReLU(Σ) → norm";  // {0}: heads
         public const string NodeFinal = "final";
-        public const string NodeMessages = "Messages in, by edge type. Bar: the message's size in that layer. Below: the attention each neighbour gets (averaged over the heads; adds up to 1 per edge type).";
+        public const string NodeMessages = "Messages in, by edge type. Number: the size (length) of the vector that edge type adds to this node in the layer, before ReLU and LayerNorm; the bar compares it with the layer's biggest. Below: the attention each neighbour gets (averaged over the heads; adds up to 1 per edge type).";
         public const string NodeReverse = "{0} (reverse of {1})";  // {0}: edge type, {1}: the forward type
         public const string NodeFootnote = "Vectors are averaged down to 16 numbers, each on its own scale: light positive, dark negative.";
 

@@ -21,7 +21,7 @@ namespace Tcg.Board
         const float BandY = 165f;           // the pipeline's centre line, from the top
         const float VectorW = 16f, VectorH = 112f;
         const float FirstX = 400f, LastX = 940f;  // the first and final embeddings' columns
-        const float TableTop = 300f, RowH = 16f, MaxTableRows = 18;
+        const float TableTop = 300f, MaxRowH = 16f, MinRowH = 13f, TypeGap = 4f;
         const float LayerBoxH = 66f;
 
         RectTransform _content;
@@ -221,15 +221,17 @@ namespace Tcg.Board
 
         void BuildTable(GraphNodeDetail node, float step)
         {
-            Text("Messages", 24, TableTop - 4f, FirstX - 40f, 44f, UiText.NodeMessages, 10, Palette.SubtleText)
+            Text("Messages", 24, TableTop - 4f, FirstX - 40f, 58f, UiText.NodeMessages, 10, Palette.SubtleText)
                 .textWrappingMode = TextWrappingModes.Normal;
             // Edge types in the first layer's order; the neighbours are the same at every layer.
             var types = node.layers[0].incoming.Select(m => m.type).ToList();
-            int perType = 3;
-            while (perType > 1 && Rows(node, types, perType) > MaxTableRows) perType--;
-
-            float y = TableTop + 46f;
-            float cellW = step - 24f;
+            if (types.Count == 0) return;
+            // Every neighbour if they fit (rows shrinking to MinRowH first), else the most per type that do.
+            float y = TableTop + 60f, room = H - 34f - y - TypeGap * types.Count;
+            int perType = types.Max(t => node.layers[0].incoming.First(m => m.type == t).neighbours.Count);
+            while (perType > 1 && room / Rows(node, types, perType) < MinRowH) perType--;
+            float rowH = Mathf.Min(MaxRowH, room / Rows(node, types, perType));
+            float cellW = step - 24f, barW = cellW - 40f;
             foreach (var type in types)
             {
                 var first = node.layers[0].incoming.First(m => m.type == type);
@@ -237,7 +239,7 @@ namespace Tcg.Board
                 Ui.Img(Ui.Box("Swatch", _content, 24, y + 6f, 16, 4), null, colour);
                 string label = first.shown_as == type ? Name(type)
                     : string.Format(UiText.NodeReverse, Name(type), Name(first.shown_as));
-                Text("Type", 46, y, FirstX - 70f, RowH, label, 11, Color.white, true);
+                Text("Type", 46, y, FirstX - 70f, rowH, label, 11, Color.white, true);
                 for (int l = 0; l < node.layers.Count; l++)
                 {
                     var incoming = node.layers[l].incoming;
@@ -245,12 +247,13 @@ namespace Tcg.Board
                     if (m == null) continue;
                     float max = Mathf.Max(1e-4f, incoming.Max(x => x.message));
                     float cx = FirstX + (l + 0.5f) * step - cellW / 2f;
-                    Ui.Rounded(Ui.Box("Bar", _content, cx, y + 3f, cellW * Mathf.Clamp01(m.message / max), RowH - 6f),
+                    // The bar is relative to the layer's biggest message; the number beside it is the size itself.
+                    Ui.Rounded(Ui.Box("Bar", _content, cx, y + 3f, barW * Mathf.Clamp01(m.message / max), rowH - 6f),
                         colour, 3);
-                    Text("Size", cx, y, cellW, RowH, m.message.ToString("0.00"), 9, Color.white, false, null,
-                        TextAlignmentOptions.Right);
+                    Text("Size", cx + barW, y, cellW - barW, rowH, m.message.ToString("0.0"), 9, Palette.SubtleText,
+                        false, null, TextAlignmentOptions.Right);
                 }
-                y += RowH;
+                y += rowH;
 
                 // The neighbours with the most attention on average over the layers.
                 var order = first.neighbours.Select(n => n.node)
@@ -258,25 +261,25 @@ namespace Tcg.Board
                 int shown = order.Count > perType ? perType : order.Count;
                 for (int k = 0; k < shown; k++)
                 {
-                    Text("Neighbour", 46, y, FirstX - 70f, RowH, "← " + _nameOf(order[k]), 10, Palette.LanternText);
+                    Text("Neighbour", 46, y, FirstX - 70f, rowH, "← " + _nameOf(order[k]), 10, Palette.LanternText);
                     for (int l = 0; l < node.layers.Count; l++)
                     {
                         float a = Attention(node.layers[l], type, order[k]);
                         float cx = FirstX + (l + 0.5f) * step - cellW / 2f;
-                        Ui.Rounded(Ui.Box("Cell", _content, cx, y + 1f, cellW, RowH - 2f),
+                        Ui.Rounded(Ui.Box("Cell", _content, cx, y + 1f, cellW, rowH - 2f),
                             Palette.Lantern.WithAlpha(0.06f + 0.6f * a), 3);
-                        Text("Attention", cx, y, cellW, RowH, a.ToString("0.00"), 9, Color.white, false, null,
+                        Text("Attention", cx, y, cellW, rowH, a.ToString("0.00"), 9, Color.white, false, null,
                             TextAlignmentOptions.Center);
                     }
-                    y += RowH;
+                    y += rowH;
                 }
                 if (shown < order.Count)
                 {
-                    Text("More", 46, y, FirstX - 70f, RowH, string.Format(UiText.NodeMore, order.Count - shown), 10,
+                    Text("More", 46, y, FirstX - 70f, rowH, string.Format(UiText.NodeMore, order.Count - shown), 10,
                         Palette.SubtleText);
-                    y += RowH;
+                    y += rowH;
                 }
-                y += 4f;
+                y += TypeGap;
             }
         }
 
