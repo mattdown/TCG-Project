@@ -94,13 +94,18 @@ namespace Tcg.View
         public const string NodeFootnote = "Vectors are averaged down to 16 numbers, each on its own scale: light positive, dark negative. Tap a layer to see its steps.";
         // Layer popup (tap a layer in the node popup).
         public const string LayerTitle = "Layer {0} of {1} · {2}";  // {0} layer, {1} layers, {2} node name
-        public const string LayerSubtitle = "GATv2 for each edge type ({0} heads of {1} numbers), then: add the messages, ReLU, add the input back, LayerNorm";  // {0} heads, {1} numbers per head
-        public static readonly string[] LayerColumns = { "neighbour  x<sub>j</sub>", "value  W<sub>l</sub>x<sub>j</sub>", "score per head", "attention per head" };
-        public const string LayerQuery = "this node's query  W<sub>r</sub>x<sub>i</sub>";
-        public const string LayerMessage = "message  (bias length {0})";  // {0}: the bias's length
+        public const string LayerSubtitle = "GATv2 for each edge type, shown one head at a time: score = a · LeakyReLU(W<sub>l</sub>x<sub>j</sub> + W<sub>r</sub>x<sub>i</sub>), attention = softmax of the scores over the neighbours. Then: add the messages, ReLU, add the input back, LayerNorm";
+        public const string LayerHead = "head";
+        public const string LayerHeads = "×{0}";  // {0}: heads
+        public static readonly string[] LayerColumns = { "W<sub>l</sub>x<sub>j</sub>", "W<sub>r</sub>x<sub>i</sub>", "score", "attention", "attention · W<sub>l</sub>x<sub>j</sub>" };
+        public const string LayerSchematic = "Head {0}: each neighbour's line is as thick as its attention";  // {0}: head number
+        public const string LayerNode = "x<sub>i</sub>";
+        public const string LayerNeighbourNode = "x<sub>j</sub>";
+        public const string LayerHeadSum = "Σ: head {0}'s part";  // {0}: head number
+        public const string LayerJoined = "{0} heads joined + bias";  // {0}: heads
         public const string LayerLength = "length {0}";  // {0}: a vector's length
         public static readonly string[] LayerSteps = { "x<sub>i</sub> going in", "Σ: the messages added", "ReLU(Σ)", "x<sub>i</sub> + ReLU(Σ)", "LayerNorm: after layer {0}" };
-        public const string LayerFormula = "score = a · LeakyReLU(W<sub>l</sub>x<sub>j</sub> + W<sub>r</sub>x<sub>i</sub>), with slope {0}, for each head of {2} numbers.  attention = softmax of the scores over the neighbours, per head.  message = Σ attention · W<sub>l</sub>x<sub>j</sub> per head, the {1} heads joined end to end, + bias.  W<sub>l</sub>, W<sub>r</sub>, a and the bias belong to the edge type and the layer.";  // {0} slope, {1} heads, {2} numbers per head
+        public const string LayerFormula = "For each head: score = a · LeakyReLU(W<sub>l</sub>x<sub>j</sub> + W<sub>r</sub>x<sub>i</sub>), slope {0}; a turns the {2} numbers into one.  attention = softmax of the scores over the neighbours.  The head's part = Σ attention · W<sub>l</sub>x<sub>j</sub>, {2} numbers.  The {1} heads' parts are joined end to end ({3} numbers), + bias: the edge type's message.  W<sub>l</sub>, W<sub>r</sub>, a and the bias belong to the head, the edge type and the layer.";  // {0} slope, {1} heads, {2} numbers per head, {3} hidden
 
         // Help screen. Keyword rules and class names come from the server's card_set.
         public const string HelpTitle = "How to read a card";

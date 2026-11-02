@@ -412,8 +412,8 @@ namespace Tcg.Protocol
     }
 
     /// <summary>
-    /// One GNN layer for one node: per edge type, GATv2's query, each neighbour's value, scores and
-    /// attention per head, and the message; then the sum, ReLU, residual and LayerNorm.
+    /// One GNN layer for one node: per edge type and head, GATv2's query, each neighbour's value,
+    /// score, attention and weighted value, and their sum; the message; then the sum, ReLU, residual and LayerNorm.
     /// </summary>
     public class GraphLayerDetail
     {
@@ -442,20 +442,22 @@ namespace Tcg.Protocol
         public string type;
         public string shown_as;
         public string source;              // the senders' node type
-        public List<float> query;          // W_r·x_i
+        public List<List<float>> query;    // per head: this head's numbers of W_r·x_i
         public List<LayerNeighbour> neighbours;  // most attention first
+        public List<List<float>> heads;    // per head: Σ attention · W_l·x_j
         public float bias;                 // the bias's length
-        public List<float> message;        // Σ attention · W_l·x_j per head, heads joined, + bias
+        public List<float> message;        // the heads joined, + bias (averaged down to 16 numbers)
         public float message_size;
     }
 
     public class LayerNeighbour
     {
         public int node;
-        public List<float> embedding;      // x_j
-        public List<float> value;          // W_l·x_j
+        public List<float> embedding;      // x_j, averaged down to 16 numbers
+        public List<List<float>> value;    // per head: this head's numbers of W_l·x_j
         public List<float> scores;         // per head: a·LeakyReLU(W_l·x_j + W_r·x_i)
         public List<float> attention;      // per head: softmax of the scores over the neighbours
+        public List<List<float>> weighted; // per head: attention · W_l·x_j
     }
 
     public class GraphEdge

@@ -195,15 +195,20 @@ def node_view(game: Game, player: int, node: int, net=None) -> dict:
 def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
     """One GNN layer (1-based) for one node, step by step.
 
-    Per edge type r into the node, GATv2 with H heads of C numbers: each neighbour j's value
-    W_l·x_j and this node's query W_r·x_i; per head a score a·LeakyReLU(W_l·x_j + W_r·x_i),
-    softmax over the neighbours to attention; the message is the attention-weighted sum of
-    the values, heads joined end to end, plus a bias. The messages of every edge type are added,
+    Per edge type r into the node, GATv2 with H heads of C numbers, each head's numbers sent in
+    full: each neighbour j's value W_l·x_j and this node's query W_r·x_i; per head a score a·LeakyReLU(W_l·x_j + W_r·x_i),
+    softmax over the neighbours to attention; each neighbour's weighted value attention·W_l·x_j and
+    their sum per head; the message is those sums, heads joined end to end, plus a bias. The messages of every edge type are added,
     then the layer's output is LayerNorm(x_i + ReLU(sum)). Recomputed here from the model's own
     weights, step by step (the tests check it matches the forward pass).
     """
     if net is None or getattr(net, "arch", None) != "gnn":
         raise ValueError("no GNN model on the server")
+
+    def per_head(t: torch.Tensor) -> list[list[float]]:
+        """A [heads, numbers] tensor in full: each head's own numbers, which the popup shows one head at a time."""
+        return [[round(float(v), 3) for v in head] for head in t]
+
     if not 1 <= layer <= len(net.convs):
         raise ValueError(f"no layer {layer}")
     e = observe(game, player).encoded
@@ -225,17 +230,20 @@ def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
             query = gat.lin_r(x_i).view(H, C)
             scores = (F.leaky_relu(values + query, gat.negative_slope) * gat.att).sum(-1)  # [k, H]
             attention = scores.softmax(0)
-            message = (attention.unsqueeze(-1) * values).sum(0).reshape(-1) + gat.bias
+            weighted = attention.unsqueeze(-1) * values  # [k, H, C]
+            heads = weighted.sum(0)
+            message = heads.reshape(-1) + gat.bias
             total += message
             neighbours = [{"node": first[src] + int(j), "embedding": squash(x[src][j].numpy(), DETAIL_DIM),
-                           "value": squash(values[k].reshape(-1).numpy(), DETAIL_DIM),
+                           "value": per_head(values[k]),
                            "scores": [round(float(v), 3) for v in scores[k]],
-                           "attention": [round(float(v), 3) for v in attention[k]]}
+                           "attention": [round(float(v), 3) for v in attention[k]],
+                           "weighted": per_head(weighted[k])}
                           for k, j in enumerate(senders.tolist())]
             neighbours.sort(key=lambda n: -sum(n["attention"]))
             edge_types.append({"type": rel, "shown_as": SHOWN_AS.get(rel, rel), "source": src,
-                               "query": squash(query.reshape(-1).numpy(), DETAIL_DIM),
-                               "neighbours": neighbours, "bias": round(float(gat.bias.norm()), 3),
+                               "query": per_head(query), "neighbours": neighbours, "heads": per_head(heads),
+                               "bias": round(float(gat.bias.norm()), 3),
                                "message": squash(message.numpy(), DETAIL_DIM),
                                "message_size": round(float(message.norm()), 3)})
         relu = F.relu(total)

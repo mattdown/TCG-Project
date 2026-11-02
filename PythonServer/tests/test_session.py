@@ -424,6 +424,13 @@ def test_graph_layer_steps_match_the_networks_forward_pass():
                     assert averaged[nb["node"]] == pytest.approx(nb["attention"], abs=2e-3)
                 for head in range(layer["heads"]):
                     assert sum(nb["attention"][head] for nb in steps["neighbours"]) == pytest.approx(1, abs=1e-2)
+                    assert len(steps["query"][head]) == layer["head_dim"]
+                    for nb in steps["neighbours"]:
+                        assert nb["weighted"][head] == pytest.approx(
+                            [nb["attention"][head] * v for v in nb["value"][head]], abs=5e-3)
+                    assert steps["heads"][head] == pytest.approx(
+                        [sum(nb["weighted"][head][c] for nb in steps["neighbours"]) for c in range(layer["head_dim"])],
+                        abs=5e-3)
     assert session.handle({"type": "graph_layer", "node": 0, "layer": 3})["status"] == "error"
 
 

@@ -10,21 +10,29 @@ namespace Tcg.Board
 {
     /// <summary>
     /// One GNN layer for one node, step by step (the server's graph_layer), over the node popup. On
-    /// the left a lane per edge type: this node's query, then a row per neighbour (its embedding, its
-    /// value, its score and attention per head) and the message they add up to. On the right the
-    /// steps after: the messages added, ReLU, the input added back, LayerNorm.
+    /// the left a lane per edge type, for one head (the chips switch head; ×4 on the lane's corner says
+    /// how many): a row per neighbour with LeakyReLU(W_l·x_j + W_r·x_i), the score a· that,
+    /// the attention and the weighted value; then the head's sum, and the heads joined into the
+    /// edge type's message. On the right the steps after: the messages added, ReLU, the input added
+    /// back, LayerNorm.
     /// </summary>
     public class GraphLayerPopup : MonoBehaviour
     {
         const float W = 1120f, H = 630f;
-        const float NameX = 24f, NameW = 214f, EmbX = 246f, ValueX = 394f, StripW = 120f;
-        const float ScoresX = 540f, AttentionX = 704f, HeadsW = 152f, PipeX = 890f, PipeW = 206f;
-        const float LanesTop = 112f, LanesBottom = H - 72f, MaxRowH = 20f, MinRowH = 14f, LaneGap = 8f;
+        // A strip's width is in proportion to its numbers: a head's 32 are a quarter of the message's 128.
+        const float MessageW = 184f, StripW = MessageW / 4f;
+        const float NameX = 24f, ValueX = 266f, QueryX = 344f, ScoreX = 450f, AttentionX = 502f, NumberW = 46f;
+        const float WeightedX = 574f, LaneRight = WeightedX + MessageW + 32f, PipeX = 890f, PipeW = 206f;
+        const float LanesTop = 112f, LanesBottom = H - 186f, MaxRowH = 20f, MinRowH = 14f, LaneGap = 8f;
+        // The schematic: x_i at the centre, its neighbours x_j on the upper half of an ellipse around it.
+        const float HubY = H - 98f, RingRX = 320f, RingRY = 62f, NeighbourSize = 22f, HubSize = 30f;
 
         RectTransform _content;
         readonly List<GraphEdges.Edge> _edges = new List<GraphEdges.Edge>();
         Func<int, string> _nameOf;
         Func<string, Color> _nodeColour, _edgeColour;
+        GraphLayerDetail _layer;
+        int _head, _perType;
 
         public static GraphLayerPopup Create(RectTransform parent, Func<int, string> nameOf,
             Func<string, Color> nodeColour, Func<string, Color> edgeColour)
@@ -50,6 +58,8 @@ namespace Tcg.Board
 
         public void Show(GraphLayerDetail layer)
         {
+            _layer = layer;
+            _head = Mathf.Clamp(_head, 0, Mathf.Max(0, layer.heads - 1));
             for (int i = _content.childCount - 1; i >= 0; i--) Destroy(_content.GetChild(i).gameObject);
             _edges.Clear();
             var lines = Ui.Stretch("Lines", _content, 0, 0, 0, 0).gameObject;
@@ -63,19 +73,37 @@ namespace Tcg.Board
                 string.Format(UiText.LayerTitle, layer.layer, layer.layers, _nameOf(layer.node)), 22,
                 TextAlignmentOptions.Left);
             title.overflowMode = TextOverflowModes.Ellipsis;
-            Text("Subtitle", 24, 46, W - 160, 18, string.Format(UiText.LayerSubtitle, layer.heads, layer.head_dim), 12,
-                Palette.SubtleText);
-            float[] columns = { EmbX, ValueX, ScoresX, AttentionX };
+            Text("Subtitle", 24, 46, PipeX - 40f, 34, UiText.LayerSubtitle, 12, Palette.SubtleText)
+                .textWrappingMode = TextWrappingModes.Normal;
+            HeadChips(layer);
+
+            float[] columns = { ValueX, QueryX, ScoreX, AttentionX, WeightedX };
             for (int c = 0; c < columns.Length; c++)
-                Text("Column", columns[c], 84, c < 2 ? StripW : HeadsW, 16, UiText.LayerColumns[c], 11, Color.white, true);
+                Text("Column", columns[c], 90, c == columns.Length - 1 ? MessageW : QueryX - ValueX, 16,
+                    UiText.LayerColumns[c], 11, Color.white, true);
 
             BuildLanes(layer);
+            BuildSchematic(layer);
             BuildSteps(layer);
             var formula = Text("Formula", NameX, H - 62, PipeX - NameX - 24, 50,
-                string.Format(UiText.LayerFormula, layer.negative_slope, layer.heads, layer.head_dim), 10,
+                string.Format(UiText.LayerFormula, layer.negative_slope, layer.heads, layer.head_dim, layer.hidden), 10,
                 Palette.SubtleText);
             formula.textWrappingMode = TextWrappingModes.Normal;
             graphic.Set(_edges);
+        }
+
+        /// <summary>A chip per head: tapping one redraws the lanes for it.</summary>
+        void HeadChips(GraphLayerDetail layer)
+        {
+            // Below the close button, which covers this corner.
+            Text("Head", PipeX, 66, 40f, 22, UiText.LayerHead, 11, Palette.SubtleText);
+            for (int h = 0; h < layer.heads; h++)
+            {
+                int head = h;
+                var chip = Ui.Box("Chip", _content, PipeX + 40f + h * 34f, 66f, 30f, 22f);
+                Ui.Button(chip, (h + 1).ToString(), h == _head ? Palette.Lantern : Palette.Muted, 12, out _, h == _head, 6)
+                    .onClick.AddListener(() => { _head = head; Show(_layer); });
+            }
         }
 
         // --- a lane per edge type
@@ -87,70 +115,148 @@ namespace Tcg.Board
             // Every neighbour if they fit (rows shrinking to MinRowH first), else the most per type that do.
             int perType = types.Count > 0 ? types.Max(t => t.neighbours.Count) : 0;
             while (perType > 1 && room / Rows(types, perType) < MinRowH) perType--;
+            _perType = perType;
             float rowH = types.Count > 0 ? Mathf.Min(MaxRowH, room / Rows(types, perType)) : MaxRowH;
-            float headW = HeadsW / Mathf.Max(1, layer.heads);
+            int h = _head;
 
             float y = LanesTop;
             foreach (var t in types)
             {
                 var colour = _edgeColour(t.shown_as);
-                Ui.Rounded(Ui.Box("Lane", _content, NameX - 8f, y - 2f, AttentionX + HeadsW - NameX + 16f,
-                    rowH * (2 + Mathf.Min(perType, t.neighbours.Count) + (t.neighbours.Count > perType ? 1 : 0)) + 4f),
+                int shown = Mathf.Min(perType, t.neighbours.Count);
+                int rows = 3 + shown + (t.neighbours.Count > shown ? 1 : 0);
+                const float right = LaneRight;
+                Ui.Rounded(Ui.Box("Lane", _content, NameX - 8f, y - 2f, right - NameX + 8f, rowH * rows + 4f),
                     Color.white.WithAlpha(0.03f), 6);
+                // One head is shown; this says how many there are.
+                Text("Heads", right - 44f, y, 38f, rowH, string.Format(UiText.LayerHeads, layer.heads), 11, Color.white,
+                    true, TextAlignmentOptions.Right);
                 Ui.Img(Ui.Box("Swatch", _content, NameX, y + rowH / 2f - 2f, 16, 4), null, colour);
                 string label = t.shown_as == t.type ? Name(t.type)
                     : string.Format(UiText.NodeReverse, Name(t.type), Name(t.shown_as));
-                Text("Type", NameX + 22f, y, NameW - 22f, rowH, label, 11, Color.white, true);
-                Text("Query", EmbX, y, StripW + 20f, rowH, UiText.LayerQuery, 10, Palette.SubtleText, false,
-                    TextAlignmentOptions.Right);
-                Strip(t.query, ValueX, y, rowH, _nodeColour(layer.type));
+                Text("Type", NameX + 22f, y, WeightedX - NameX - 22f, rowH, label, 11, Color.white, true);
                 y += rowH;
 
-                int shown = Mathf.Min(perType, t.neighbours.Count);
+                // One scale per column, so the rows compare: a weighted value is its value shrunk by the attention.
+                // A head's numbers averaged into cells like the message's, a quarter as many for a quarter the numbers.
+                int cells = Mathf.Max(1, t.message.Count * layer.head_dim / layer.hidden);
+                List<float> Cells(List<float> v) => Average(v, cells);
+                float valueScale = Scale(t.neighbours.Take(shown).Select(n => Cells(n.value[h])));
+                float queryScale = Scale(new[] { Cells(t.query[h]) });
                 for (int k = 0; k < shown; k++)
                 {
                     var n = t.neighbours[k];
-                    Text("Neighbour", NameX + 10f, y, NameW - 10f, rowH, "← " + _nameOf(n.node), 10, Palette.LanternText);
-                    Strip(n.embedding, EmbX, y, rowH, _nodeColour(t.source));
-                    Arrow(EmbX + StripW + 3f, ValueX - 3f, y + rowH / 2f);
-                    Strip(n.value, ValueX, y, rowH, colour);
-                    for (int h = 0; h < n.scores.Count; h++)
-                        Text("Score", ScoresX + h * headW, y, headW - 4f, rowH, n.scores[h].ToString("0.0"), 10,
-                            Palette.LanternText, false, TextAlignmentOptions.Right);
-                    for (int h = 0; h < n.attention.Count; h++)
-                    {
-                        float a = n.attention[h];
-                        Ui.Rounded(Ui.Box("Attention", _content, AttentionX + h * headW, y + 1f, headW - 3f, rowH - 2f),
-                            Palette.Lantern.WithAlpha(0.06f + 0.6f * a), 3);
-                        Text("Value", AttentionX + h * headW, y, headW - 3f, rowH, a.ToString("0.00"), 9, Color.white,
-                            false, TextAlignmentOptions.Center);
-                    }
+                    float mid = y + rowH / 2f;
+                    Text("Neighbour", NameX + 10f, y, ValueX - NameX - 24f, rowH, "← " + _nameOf(n.node), 10,
+                        Palette.LanternText);
+                    Strip(Cells(n.value[h]), ValueX, y, rowH, colour, StripW, valueScale, layer.head_dim);
+                    Strip(Cells(t.query[h]), QueryX, y, rowH, _nodeColour(layer.type), StripW, queryScale, layer.head_dim);
+                    Arrow(QueryX + StripW + 16f, ScoreX - 3f, mid);
+                    Text("Score", ScoreX, y, NumberW - 6f, rowH, n.scores[h].ToString("0.0"), 10, Palette.LanternText,
+                        false, TextAlignmentOptions.Right);
+                    float a = n.attention[h];
+                    Ui.Rounded(Ui.Box("Attention", _content, AttentionX, y + 1f, NumberW, rowH - 2f),
+                        Palette.Lantern.WithAlpha(0.06f + 0.6f * a), 3);
+                    Text("Value", AttentionX, y, NumberW, rowH, a.ToString("0.00"), 9, Color.white, false,
+                        TextAlignmentOptions.Center);
+                    Arrow(AttentionX + NumberW + 2f, WeightedX - 3f, mid);
+                    Strip(Cells(n.weighted[h]), WeightedX, y, rowH, colour, StripW, valueScale, layer.head_dim);
                     y += rowH;
                 }
                 if (shown < t.neighbours.Count)
                 {
-                    Text("More", NameX + 10f, y, NameW - 10f, rowH,
+                    Text("More", NameX + 10f, y, ValueX - NameX - 24f, rowH,
                         string.Format(UiText.NodeMore, t.neighbours.Count - shown), 10, Palette.SubtleText);
                     y += rowH;
                 }
 
-                Text("Message", NameX + 10f, y, NameW - 10f, rowH, string.Format(UiText.LayerMessage, t.bias.ToString("0.00")),
-                    10, Color.white, true);
-                Strip(t.message, ValueX, y, rowH, colour);
-                Text("Length", ScoresX, y, HeadsW, rowH, string.Format(UiText.LayerLength, t.message_size.ToString("0.0")),
-                    10, Palette.SubtleText);
+                Text("HeadSum", NameX + 10f, y, ValueX - NameX - 24f, rowH, string.Format(UiText.LayerHeadSum, h + 1), 10,
+                    Color.white, true);
+                Text("Sigma", WeightedX - 16f, y, 14f, rowH, "Σ", 11, Color.white, true, TextAlignmentOptions.Center);
+                Strip(Cells(t.heads[h]), WeightedX, y, rowH, colour, StripW, valueScale, layer.head_dim);
+                y += rowH;
+
+                Text("Message", NameX + 10f, y, ScoreX - NameX - 10f, rowH,
+                    string.Format(UiText.LayerJoined, layer.heads), 10, Color.white, true);
+                Text("Length", ScoreX, y, WeightedX - ScoreX - 20f, rowH,
+                    string.Format(UiText.LayerLength, t.message_size.ToString("0.0")), 10, Palette.SubtleText, false,
+                    TextAlignmentOptions.Right);
+                Strip(t.message, WeightedX, y, rowH, colour, MessageW, 0f, layer.hidden);
                 // Every edge type's message goes into the sum on the right.
                 _edges.Add(new GraphEdges.Edge
                 {
-                    From = P(AttentionX + HeadsW + 10f, y + rowH / 2f), To = P(PipeX - 4f, StepY(1) + 29f),
+                    From = P(right + 2f, y + rowH / 2f), To = P(PipeX - 4f, StepY(1) + 29f),
                     Colour = colour.WithAlpha(0.7f), Width = 1.5f, Bend = -0.08f, Arrow = true,
                 });
                 y += rowH + LaneGap;
             }
         }
 
+        /// <summary>v averaged down to n numbers, in runs of equal length (as the server averages the message).</summary>
+        static List<float> Average(List<float> v, int n)
+        {
+            int run = Mathf.Max(1, v.Count / n);
+            return Enumerable.Range(0, Mathf.Min(n, v.Count)).Select(i => v.Skip(i * run).Take(run).Average()).ToList();
+        }
+
+        static float Scale(IEnumerable<List<float>> vectors) =>
+            vectors.SelectMany(v => v).Select(Mathf.Abs).DefaultIfEmpty(1f).Max();
+
+        // --- the schematic: which nodes x_j send to x_i
+
+        /// <summary>
+        /// x_i in its node type's colour with its neighbours x_j around it, drawn like the overlay's
+        /// nodes; each line in its edge type's colour, as thick as the attention in the head shown.
+        /// </summary>
+        void BuildSchematic(GraphLayerDetail layer)
+        {
+            var senders = (layer.edge_types ?? new List<LayerEdgeType>())
+                .SelectMany(t => t.neighbours.Take(_perType).Select(n => (type: t, node: n))).ToList();
+            var hub = new Vector2((NameX + LaneRight) / 2f, HubY);
+            Text("SchematicNote", NameX, LanesBottom + 4f, 220f, 30f, string.Format(UiText.LayerSchematic, _head + 1), 10,
+                Palette.SubtleText).textWrappingMode = TextWrappingModes.Normal;
+            for (int k = 0; k < senders.Count; k++)
+            {
+                var (t, n) = senders[k];
+                float angle = Mathf.PI * (1f - (k + 0.5f) / senders.Count);  // left to right, in lane order
+                var at = hub + new Vector2(RingRX * Mathf.Cos(angle), -RingRY * Mathf.Sin(angle));
+                float a = n.attention[_head];
+                var towards = (hub - at).normalized;
+                _edges.Add(new GraphEdges.Edge
+                {
+                    From = P(at.x, at.y) + new Vector2(towards.x, -towards.y) * (NeighbourSize / 2f),
+                    To = P(hub.x, hub.y) - new Vector2(towards.x, -towards.y) * (HubSize / 2f + 2f),
+                    Colour = _edgeColour(t.shown_as).WithAlpha(0.35f + 0.65f * a), Width = 1f + 3f * a, Arrow = true,
+                });
+                Disc(at, NeighbourSize, _nodeColour(t.source), n.embedding);
+                Text("Xj", at.x - 20f, at.y - NeighbourSize / 2f - 14f, 40f, 13f, UiText.LayerNeighbourNode, 10,
+                    Color.white, false, TextAlignmentOptions.Center);
+            }
+            Disc(hub, HubSize, _nodeColour(layer.type), layer.input.vector);
+            // Under the node: every line comes in from above.
+            Text("Xi", hub.x - 20f, hub.y + HubSize / 2f + 1f, 40f, 16f, UiText.LayerNode, 12, Color.white, true,
+                TextAlignmentOptions.Center);
+        }
+
+        /// <summary>A node as the overlay draws one: a disc in its type's colour, a dark ring inside, its vector as a column.</summary>
+        void Disc(Vector2 centre, float size, Color colour, List<float> vector)
+        {
+            var rt = Ui.Box("Node", _content, centre.x - size / 2f, centre.y - size / 2f, size, size);
+            Ui.Rounded(rt, colour, size / 2f);
+            float ring = Mathf.Max(2f, size * 0.16f);
+            Ui.Rounded(Ui.Stretch("Back", rt, ring, ring, ring, ring), Palette.Shadow, size / 2f - ring);
+            if (vector == null || vector.Count == 0) return;
+            var column = Ui.Node("Vector", rt);
+            Ui.Anchor(column, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(Mathf.Max(2f, size * 0.3f), size * 0.56f));
+            column.gameObject.AddComponent<CanvasRenderer>();
+            var glyph = column.gameObject.AddComponent<EmbeddingGlyph>();
+            glyph.raycastTarget = false;
+            glyph.Set(vector, vector.Max(v => Mathf.Abs(v)));
+        }
+
         static float Rows(List<LayerEdgeType> types, int perType) =>
-            types.Sum(t => 2 + Mathf.Min(t.neighbours.Count, perType) + (t.neighbours.Count > perType ? 1 : 0));
+            types.Sum(t => 3 + Mathf.Min(t.neighbours.Count, perType) + (t.neighbours.Count > perType ? 1 : 0));
 
         // --- the steps after the messages
 
@@ -186,10 +292,15 @@ namespace Tcg.Board
 
         // --- drawing helpers
 
-        /// <summary>A vector as a row of cells in a frame of <paramref name="colour"/>, at (x, y) in a row of height h.</summary>
-        void Strip(List<float> values, float x, float y, float h, Color colour, float w = StripW)
+        /// <summary>A vector as a row of cells in a frame of <paramref name="colour"/>, at (x, y) in a row of height h;
+        /// shaded against <paramref name="scale"/>, or the vector's own biggest number; <paramref name="size"/>, its
+        /// count of numbers, goes in small on the top-right corner.</summary>
+        void Strip(List<float> values, float x, float y, float h, Color colour, float w = StripW, float scale = 0f,
+            int size = 0)
         {
             var frame = Ui.Box("Strip", _content, x, y + 2f, w, Mathf.Max(6f, h - 4f));
+            if (size > 0)
+                Text("Size", x + w + 1f, y - 1f, 22f, 10f, size.ToString(), 7, Palette.SubtleText);
             Ui.Rounded(frame, colour, 3);
             Ui.Rounded(Ui.Stretch("Back", frame, 1.5f, 1.5f, 1.5f, 1.5f), Palette.Shadow, 2);
             if (values == null || values.Count == 0) return;
@@ -198,7 +309,7 @@ namespace Tcg.Board
             var glyph = cells.AddComponent<EmbeddingGlyph>();
             glyph.raycastTarget = false;
             glyph.Horizontal = true;
-            glyph.Set(values, values.Max(v => Mathf.Abs(v)));
+            glyph.Set(values, scale > 0f ? scale : values.Max(v => Mathf.Abs(v)));
         }
 
         void Arrow(float x0, float x1, float y) =>

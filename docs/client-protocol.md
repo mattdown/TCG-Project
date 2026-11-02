@@ -291,27 +291,33 @@ slots that read the final embedding. Without a GNN model, `embedding` is `"featu
 For the node popup's layer popup. `node` is an id from `graph`, `layer` counts from 1. Needs a
 GNN model (an error otherwise). The layer is recomputed from the model's own weights, one step
 at a time, so every intermediate vector is available (the tests check the result matches the
-forward pass). `input` is the node's embedding going in (x_i). Each of `edge_types` is one
-GATv2 sub-layer: `query` is this node's W_r·x_i; for each neighbour, its `embedding` (x_j), its
-`value` (W_l·x_j), and per head (`heads` of `head_dim` numbers) the `scores`
-a·LeakyReLU(W_l·x_j + W_r·x_i) and the `attention` (softmax of the scores over the
-neighbours). `message` is the attention-weighted sum of the values per head, heads joined end to
-end, plus the bias (`bias` is its length); `message_size` is its length, the same number as
-`message` in `graph_node`. Then `sum` adds the messages of every edge type, `relu` is ReLU of
-that, `residual` is `input` + `relu`, and `output` is LayerNorm of the residual: the node's
-embedding after the layer. Each step has its `vector` (averaged down to 16 numbers) and `size`
-(its length). Neighbours come with the most attention first.
+forward pass). `input` is the node's embedding going in (x_i). Each of `edge_types` is one GATv2
+sub-layer, with each head's numbers sent in full (`heads` heads of `head_dim` numbers, so the
+popup can show one head at a time): `query[h]` is head h's part of this node's W_r·x_i; for each
+neighbour, its `embedding` (x_j, averaged down to 16 numbers), `value[h]` is head h's part of
+W_l·x_j, `scores[h]` is a·LeakyReLU(W_l·x_j + W_r·x_i), `attention[h]` is the softmax of the
+scores over the neighbours, and `weighted[h]` is attention · W_l·x_j. The edge type's `heads[h]`
+is the sum of the weighted values: head h's part of the message. `message` is those parts, heads
+joined end to end, plus the bias (`bias` is its length); `message_size` is its length, the same
+number as `message` in `graph_node`. Then `sum` adds the messages of every edge type, `relu` is
+ReLU of that, `residual` is `input` + `relu`, and `output` is LayerNorm of the residual: the
+node's embedding after the layer. Each step has its `vector` (averaged down to 16 numbers) and
+`size` (its length). Neighbours come with the most attention first.
 
 ```json
 → {"type": "graph_layer", "node": 6, "layer": 2}
 ← {"status": "ok", "layer": {"node": 6, "type": "global", "layer": 2, "layers": 4, "hidden": 128, "heads": 4,
      "head_dim": 32, "negative_slope": 0.2,
      "input": {"vector": [0.185, 0.313, 0.147, …], "size": 10.777},
-     "edge_types": [{"type": "in", "shown_as": "in", "source": "player", "query": [1.504, 0.257, -1.217, …],
-       "neighbours": [{"node": 5, "embedding": [0.438, -0.096, -0.064, …], "value": [0.116, 0.592, 0.289, …],
-                       "scores": [-1.076, 1.968, -9.145, 1.415], "attention": [0.813, 0.95, 0.447, 0.979]},
-                      {"node": 4, "embedding": [-0.122, 0.483, -0.051, …], "value": [0.531, 0.095, -0.639, …],
-                       "scores": [-2.544, -0.983, -8.931, -2.444], "attention": [0.187, 0.05, 0.553, 0.021]}],
+     "edge_types": [{"type": "in", "shown_as": "in", "source": "player",
+       "query": [[1.504, 0.257, -1.217, …32 numbers], …4 heads],
+       "neighbours": [{"node": 5, "embedding": [0.438, -0.096, -0.064, …], "value": [[0.116, 0.592, 0.289, …], …],
+                       "scores": [-1.076, 1.968, -9.145, 1.415], "attention": [0.813, 0.95, 0.447, 0.979],
+                       "weighted": [[0.094, 0.481, 0.235, …], …]},
+                      {"node": 4, "embedding": [-0.122, 0.483, -0.051, …], "value": [[0.531, 0.095, -0.639, …], …],
+                       "scores": [-2.544, -0.983, -8.931, -2.444], "attention": [0.187, 0.05, 0.553, 0.021],
+                       "weighted": [[0.099, 0.018, -0.119, …], …]}],
+       "heads": [[0.193, 0.499, 0.116, …32 numbers], …4 heads],
        "bias": 0.361, "message": [0.212, 0.517, 0.105, …], "message_size": 17.312}],
      "sum": {"vector": [0.212, 0.517, 0.105, …], "size": 17.312},
      "relu": {"vector": [0.697, 0.657, 0.433, …], "size": 13.614},
