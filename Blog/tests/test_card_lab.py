@@ -1,4 +1,6 @@
 """The card lab's data: what its pages and the card generation visualiser are built from."""
+from pathlib import Path
+
 from card_lab import one, run
 from src.cards.abilities import render
 
@@ -25,8 +27,12 @@ def test_explorer_data():
     assert all(a["stopped_at"] and "trace" in a for a in data["others"])
 
 
-def test_visualiser_pool_starts_on_the_chosen_card():
-    from card_generation_visualiser import pool_data
-    cards = pool_data(112, 3)["cards"]
-    assert [c["seed"] for c in cards][0] == 112 and len({c["seed"] for c in cards}) == 4
-    assert all("trace" in c["kept"] and "others" not in c for c in cards)
+def test_visualiser_shows_the_set_with_art():
+    """The visualiser's cards are the saved set's, so each one has the art painted for it."""
+    from card_generation_visualiser import ART, SET_SIZE, pool_data
+    from src.cards.schema import load_card_set
+    saved = load_card_set(Path(__file__).parents[2] / "PythonServer" / "cardsets" / f"set_{SET_SIZE}.json").cards
+    cards = pool_data(5)["cards"]
+    assert [c["number"] for c in cards] == [1, 2, 3, 4, 5]
+    assert [c["kept"]["card"]["name"] for c in cards] == [c.name for c in saved[:5]]
+    assert all("trace" in c["kept"] and (ART / "cards" / f"{c['art']}.webp").exists() for c in cards)

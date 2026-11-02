@@ -95,13 +95,19 @@ def _trace_json(root: dict) -> dict:
             "ability_decisions": decisions(ability), "decisions": decisions(root)}
 
 
+def make_generator(seed: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
+                   variety: int) -> tuple[tuple[str, ...], CardGenerator]:
+    """Set up exactly as generate_card_set does, so the same seed gives the same cards as a saved set."""
+    rng = random.Random(seed)
+    job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
+    return job_list, CardGenerator(rng, job_list, action_share=action_share, variety=variety,
+                                   vanilla_share=vanilla_share, keyword_share=keyword_share)
+
+
 def one(seed: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
         variety: int) -> dict:
     """One kept card with its derivation, plus every draw made on the way to it."""
-    rng = random.Random(seed)
-    job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
-    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety,
-                              vanilla_share=vanilla_share, keyword_share=keyword_share)
+    job_list, generator = make_generator(seed, jobs, action_share, vanilla_share, keyword_share, variety)
     kept = generator.card()
     return {"seed": seed, "job_list": list(job_list), "max_complexity": MAX_COMPLEXITY,
             "params": {"jobs": jobs, "action_share": action_share, "vanilla_share": vanilla_share,
@@ -112,10 +118,7 @@ def one(seed: int, jobs: int, action_share: float, vanilla_share: float, keyword
 
 def run(seed: int, count: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
         variety: int) -> dict:
-    rng = random.Random(seed)
-    job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
-    generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety,
-                              vanilla_share=vanilla_share, keyword_share=keyword_share)
+    job_list, generator = make_generator(seed, jobs, action_share, vanilla_share, keyword_share, variety)
     kept = [generator.card().index for _ in range(count)]
     return {"params": {"seed": seed, "count": count, "jobs": jobs, "action_share": action_share,
                        "vanilla_share": vanilla_share, "keyword_share": keyword_share, "variety": variety},

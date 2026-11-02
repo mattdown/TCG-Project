@@ -87,7 +87,7 @@ Blog tools, from the repository root:
 
 ```
 uv run --project PythonServer python Blog/card_lab.py     # card lab web page, /explorer for one card's path (--text, --export)
-uv run --project PythonServer python Blog/card_generation_visualiser.py   # --seed N (first card), --pool N, --render for an MP4
+uv run --project PythonServer python Blog/card_generation_visualiser.py   # --card N (first card of set_200), --count N, --render for an MP4, --refresh-art (with pillow)
 uv run --project PythonServer pytest Blog/tests
 ```
 

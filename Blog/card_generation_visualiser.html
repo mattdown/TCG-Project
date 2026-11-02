@@ -3,73 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ability Tree</title>
+<title>Card Generation Visualiser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:ital,wght@0,600;0,700;0,800;0,900;1,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
 <style>
+/* The Lantern look (docs/client-design.md): night glass over the forest, Firefly for the path taken. */
 :root {
-  --outline: #0E1733; --panel: #16203D; --bg: #1E2C55; --bg-deep: #0A1029; --light: #E9EEF8;
-  --energy: #E24BD6; --gold: #FFC93C; --muted: #9AA8CF; --text: #F4F6FC;
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209;
 }
-html, body { margin: 0; height: 100%; background: #05081A; overflow: hidden; }
+html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
-  background: radial-gradient(ellipse at 40% 45%, #1B2856 0%, #0E1636 62%, #0A1029 100%); font-family: Nunito, system-ui, sans-serif; }
+  background: var(--night); font-family: Outfit, system-ui, sans-serif; }
+#bg { position: absolute; inset: -30px; background: center / cover no-repeat; filter: blur(7px) brightness(.32) saturate(.85); }
+#bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 38% 48%, rgba(11, 22, 18, .1) 0%, rgba(5, 12, 10, .75) 100%); }
 #world { position: absolute; inset: 0; width: 1920px; height: 1080px; }
-.dlabel { font: 400 24px "Lilita One", system-ui; fill: var(--text); paint-order: stroke; stroke: #0E1636; stroke-width: 6px; }
-.opt { font-family: Nunito, system-ui; font-weight: 700; fill: #C7D2F0; paint-order: stroke; stroke: #0E1636; stroke-width: 5px; }
-.opt.chosen { fill: #fff; font-weight: 900; }
+.dlabel { font: 400 25px "Marcellus SC", serif; fill: var(--text); paint-order: stroke; stroke: var(--shadow); stroke-width: 6px; }
+.opt { font-family: Outfit, system-ui; font-weight: 500; fill: #BFD8CE; paint-order: stroke; stroke: var(--shadow); stroke-width: 5px; }
+.opt.chosen { fill: #fff; font-weight: 800; }
 .opt .p { fill: var(--gold); }
 .shade { position: absolute; left: 0; right: 0; pointer-events: none; }
-.shade.top { top: 0; height: 230px; background: linear-gradient(#0D1535 30%, rgba(13, 21, 53, 0)); }
-.shade.bottom { bottom: 0; height: 300px; background: linear-gradient(rgba(10, 16, 41, 0), #0A1029 65%); }
-.title { position: absolute; left: 64px; top: 50px; font: 400 52px/1 "Lilita One", system-ui; color: var(--text); text-shadow: 0 4px 0 var(--outline); }
-.title small { display: block; margin-top: 12px; font: 700 24px/1.3 Nunito; color: var(--muted); text-shadow: none; }
+.shade.top { top: 0; height: 230px; background: linear-gradient(rgba(6, 14, 11, .95) 30%, rgba(6, 14, 11, 0)); }
+.shade.bottom { bottom: 0; height: 300px; background: linear-gradient(rgba(5, 12, 10, 0), rgba(5, 12, 10, .97) 65%); }
+.title { position: absolute; left: 64px; top: 50px; font: 400 54px/1 "Marcellus SC", serif; color: var(--text); text-shadow: 0 3px 10px var(--shadow); }
+.title small { display: block; margin-top: 14px; font: 500 24px/1.3 Outfit; color: var(--muted); text-shadow: none; }
 .caption { position: absolute; left: 64px; bottom: 56px; max-width: 1150px; }
-.crumbs { font: 800 19px Nunito; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
-.what { font: 400 48px/1.15 "Lilita One", system-ui; color: #fff; margin: 4px 0 6px; text-shadow: 0 3px 0 var(--outline); }
+.crumbs { font: 700 18px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.what { font: 400 50px/1.15 "Marcellus SC", serif; color: var(--text); margin: 6px 0 8px; text-shadow: 0 3px 10px var(--shadow); }
 .what .arrow { color: var(--gold); }
-.how { font: 700 24px Nunito; color: #C7D2F0; }
+.how { font: 500 24px Outfit; color: var(--muted); }
 .odds { position: absolute; right: 64px; bottom: 56px; text-align: right; }
-.odds .n { font: 400 48px/1.1 "Lilita One", system-ui; color: var(--gold); text-shadow: 0 3px 0 var(--outline); }
-.odds .l { font: 700 21px Nunito; color: var(--muted); }
-#cardbox { position: absolute; left: 1330px; top: 150px; width: 420px; }
-/* The card as the Unity client draws it: everything placed on the painted frame (Art/Sprites/card_frame*.png,
-   1342x2000) at the same frame pixels as ClientAssetBuilder, as percentages; type sizes in card units (--u). */
-.pcard { --w: 420px; --u: calc(var(--w) / 151.2); position: relative; width: var(--w); aspect-ratio: 1342 / 2000; }
-.pcard > * { position: absolute; }
-.pcard .art { left: 19.67%; top: 10.9%; width: 63.79%; height: 43.1%; overflow: hidden; background: #0A1022; }
-.pcard .art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
+.odds .n { font: 800 46px/1.1 Outfit; color: var(--gold); text-shadow: 0 2px 8px var(--shadow); }
+.odds .l { font: 500 21px Outfit; color: var(--muted); }
+#cardbox { position: absolute; left: 1332px; top: 150px; width: 420px; }
+/* The card as the Unity client draws it (ClientAssetBuilder.BuildCardPrefab): a 150x210 card in card units (--u),
+   the plain painted frame (Art/Sprites/card_frame_action.png) spilling past it, the card's art behind the frame's
+   window, and the sword, shield and job banner parts at the prefab's positions. Type sizes are TMP's, in card units. */
+.pcard { --w: 420px; --u: calc(var(--w) / 151.24); position: relative; width: calc(var(--u) * 150); height: calc(var(--u) * 210); }
+.pcard > * { position: absolute; margin: 0; }
+.pcard .art { left: calc(var(--u) * 29.15); top: calc(var(--u) * 13.67); width: calc(var(--u) * 96.47); height: calc(var(--u) * 97.15);
+  overflow: hidden; background: #0B1612; }
+.pcard .art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }  /* CardView.ArtRaise */
 .pcard.no-art .art img { visibility: hidden; }
-.pcard .frame { inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 calc(var(--u) * 4) 0 rgba(10, 16, 34, .5)); }
-.pcard .num, .pcard .name { display: grid; place-items: center; font-family: "Lilita One", system-ui; color: #fff; white-space: nowrap;
-  -webkit-text-stroke: .16em #0E1733; paint-order: stroke fill; text-shadow: 0 .07em 0 #0E1733; }
-.pcard .cost { left: 9.31%; top: 8%; width: 14.9%; height: 10%; font-size: calc(var(--u) * 20); }
-.pcard .power { left: 9.31%; top: 86%; width: 13.41%; height: 9%; font-size: calc(var(--u) * 18); }
-.pcard .health { left: 80.85%; top: 85.6%; width: 13.04%; height: 8.75%; font-size: calc(var(--u) * 18); padding-bottom: 1.5%; box-sizing: border-box; }
-.pcard .name { left: 16.02%; top: 54.6%; width: 70.04%; height: 7.5%; font-size: calc(var(--u) * 13); overflow: hidden; }
-.pcard .sub { left: 32.79%; top: 63.4%; width: 36.14%; height: 4.5%; display: grid; place-items: center; white-space: nowrap; overflow: hidden;
-  font: italic 700 calc(var(--u) * 8.5) Nunito; color: #3A2717; }
-.pcard .text { left: 18.63%; top: 69.25%; width: 64.83%; height: 19%; display: flex; flex-direction: column; justify-content: safe center;
-  overflow: hidden; text-align: center; font: 700 calc(var(--u) * 10)/1.15 Nunito; color: #3A2717; }
-.pcard .text b { font-weight: 900; }
-.pcard .tag { left: 50%; top: 98%; transform: translate(-50%, -50%); padding: 0 .9em; line-height: 1.33; border-radius: .6em;
-  background: #16203D; border: calc(var(--u) * 1.5) solid var(--aspect); font: 900 calc(var(--u) * 9) Nunito; letter-spacing: .04em; color: #D6E0F5; }
-.pcard .tag:empty { display: none; }
-.shade.right { left: auto; top: 0; bottom: 0; width: 780px; background: linear-gradient(90deg, rgba(13, 21, 53, 0), rgba(13, 21, 53, .92) 40%); }
+.pcard .frame { left: calc(var(--u) * -0.6); top: calc(var(--u) * -10.9); width: calc(var(--u) * 151.24); height: calc(var(--u) * 225.4);
+  filter: drop-shadow(0 calc(var(--u) * 4) 0 rgba(5, 10, 8, .5)); }
+.pcard .part { height: auto; }
+.pcard .num { display: grid; place-items: center; font: 800 1em/1 Outfit; color: #fff; white-space: nowrap;
+  -webkit-text-stroke: .16em var(--shadow); paint-order: stroke fill; text-shadow: 0 .06em .04em rgba(6, 16, 13, .8); }
+.pcard .cost { left: calc(var(--u) * 13.49); top: calc(var(--u) * 10.43); width: calc(var(--u) * 22.54); height: calc(var(--u) * 21.54); font-size: calc(var(--u) * 20); }
+.pcard .sword { left: calc(var(--u) * -7.4); top: calc(var(--u) * 178.85); width: calc(var(--u) * 39.43); }
+.pcard .power { left: calc(var(--u) * 4.02); top: calc(var(--u) * 190.38); width: calc(var(--u) * 22); height: calc(var(--u) * 22); font-size: calc(var(--u) * 18); }
+.pcard .shield { left: calc(var(--u) * 122.94); top: calc(var(--u) * 185.1); width: calc(var(--u) * 30.07); }
+.pcard .health { left: calc(var(--u) * 126.98); top: calc(var(--u) * 191); width: calc(var(--u) * 22); height: calc(var(--u) * 22); font-size: calc(var(--u) * 18); }
+.pcard .banner { left: calc(var(--u) * 33.12); top: calc(var(--u) * 188.57); width: calc(var(--u) * 88); }
+.pcard .job { left: calc(var(--u) * 41.12); top: calc(var(--u) * 196.87); width: calc(var(--u) * 70.5); height: calc(var(--u) * 11.4);
+  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: 700 calc(var(--u) * 9) Outfit; letter-spacing: .04em; color: var(--ink); }
+.pcard .name { left: calc(var(--u) * 23.63); top: calc(var(--u) * 112.17); width: calc(var(--u) * 105.94); height: calc(var(--u) * 16.9);
+  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: 400 calc(var(--u) * 14.5) "Marcellus SC", serif;
+  letter-spacing: -.03em; color: var(--ink); -webkit-text-stroke: .025em var(--ink); text-shadow: 0 .07em 0 rgba(255, 242, 204, .35); }
+.pcard .sub { left: calc(var(--u) * 48.99); top: calc(var(--u) * 132); width: calc(var(--u) * 54.66); height: calc(var(--u) * 10.14);
+  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: italic 500 calc(var(--u) * 8.5) Outfit; color: var(--parchment); }
+.pcard .text { left: calc(var(--u) * 27.41); top: calc(var(--u) * 144.59); width: calc(var(--u) * 98.22); height: calc(var(--u) * 43.98);
+  display: flex; flex-direction: column; justify-content: safe center; overflow: hidden; text-align: center;
+  font: 500 calc(var(--u) * 10)/1.12 Outfit; color: var(--parchment); }
+.pcard .text b { font-weight: 800; color: var(--ink); }
+.pcard.action .unit-only { display: none; }
+.shade.right { left: auto; top: 0; bottom: 0; width: 780px; background: linear-gradient(90deg, rgba(6, 14, 11, 0), rgba(6, 14, 11, .9) 40%); }
 .final { position: absolute; left: 1200px; width: 680px; top: 800px; text-align: center; }
-.final .n { font: 400 64px/1.1 "Lilita One", system-ui; color: var(--gold); text-shadow: 0 4px 0 var(--outline); }
-.final .l { font: 700 22px Nunito; color: var(--muted); }
-#controls { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; background: #060A1C; display: flex; align-items: center;
-  gap: 14px; padding: 0 16px; color: #C7D2F0; font: 700 14px Nunito, system-ui; }
-#controls button { font: 800 14px Nunito; background: var(--gold); color: var(--outline); border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; }
-#controls input { flex: 1; accent-color: var(--gold); }
+.final .n { font: 800 62px/1.1 Outfit; color: var(--gold); text-shadow: 0 2px 10px var(--shadow); }
+.final .l { font: 500 22px Outfit; color: var(--muted); }
+#controls { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; background: var(--glass); border-top: 1.5px solid rgba(160, 235, 215, .3);
+  display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--muted); font: 500 14px Outfit, system-ui; }
+#controls button { font: 400 15px "Marcellus SC", serif; background: var(--glass); color: var(--lantern); border: 1.5px solid var(--lantern);
+  border-radius: 999px; padding: 5px 16px; cursor: pointer; }
+#controls button:active { background: rgba(126, 240, 216, .18); transform: scale(.95); }
+#controls input { flex: 1; accent-color: var(--lantern); }
 #controls .time { width: 90px; font-variant-numeric: tabular-nums; }
-#controls .seed { width: 84px; color: var(--muted); }
+#controls .seed { width: 150px; color: var(--muted); }
 body.render #controls { display: none; }
 </style>
 </head>
 <body>
 <div id="stage">
+  <div id="bg"></div>
   <svg id="world" xmlns="http://www.w3.org/2000/svg"><g id="cam"></g></svg>
   <div class="shade right"></div><div class="shade top"></div><div class="shade bottom" id="shade-bottom"></div>
   <div class="title">One card, drawn from the grammar<small id="subtitle"></small></div>
@@ -93,8 +109,8 @@ body.render #controls { display: none; }
 <script>
 // The timeline: the card's derivation (src/cards/trace.py) laid out as a tree, one beat per decision.
 // Everything on screen is a function of the time t, so the page and the rendered video match frame for frame.
-const CARDS = window.LAB_DATA.cards;  // the first card, then the pool "New card" picks from
-let A, STAGES;  // the card on show: its attempt (with trace) and its text stages
+const CARDS = window.LAB_DATA.cards;  // the set's first N cards, in order: "New card" picks from them
+let CARD, A, STAGES;  // the card on show: its entry, its attempt (with trace) and its text stages
 const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
 const INTRO = 0.6, OUTRO = 3.6;
 const STEP = 2.0;  // seconds per decision, the ability's and the card's alike
@@ -126,11 +142,11 @@ const clamp = (x) => Math.max(0, Math.min(1, x));
 const ease = (x) => x * x * (3 - 2 * x);
 const lerp = (a, b, x) => a + (b - a) * x;
 const mix = (a, b, x) => "rgb(" + [0, 1, 2].map((i) => Math.round(lerp(a[i], b[i], x))).join(",") + ")";
-const MUTED = [127, 141, 186], UNWALKED = [178, 192, 232], GOLD = [255, 201, 60];
+const MUTED = [118, 150, 138], UNWALKED = [176, 214, 200], GOLD = [244, 199, 107];
 
 const measure = document.createElement("canvas").getContext("2d");
-function textWidth(text, px, weight = 700) {
-  measure.font = `${weight} ${px}px Nunito`;
+function textWidth(text, px, weight = 500) {
+  measure.font = `${weight} ${px}px Outfit`;
   return measure.measureText(text).width;
 }
 
@@ -177,7 +193,7 @@ function place(d, pt, crumbs, inAbility) {
   if (more) b.moreAt = row(rows - 1);
   b.chosenEnd = b.ends[options.indexOf(chosen)];
   const labelW = Math.max(...options.map((o) => textWidth(pretty(o.name), size)));
-  const chosenW = textWidth(pretty(d.chosen) + "  " + pct(chosen.p), size, 900);
+  const chosenW = textWidth(pretty(d.chosen) + "  " + pct(chosen.p), size, 800);
   b.span = (rows - 1) * gap;
   grow(pt.x - 60, pt.y - titleRise(b.span) - 30); grow(pt.x + FAN + labelW + 90, pt.y + b.span / 2 + 20);
   for (const from of pending) links.push({ from, to: b });
@@ -243,7 +259,7 @@ function build() {
   for (const l of links) {
     const { from, to } = l;
     const x0 = from.chosenEnd.x + 4, y0 = from.chosenEnd.y;
-    l.path = svg("path", { d: curve(x0, y0, to.x - 12, to.y), fill: "none", stroke: "rgb(255,201,60)",
+    l.path = svg("path", { d: curve(x0, y0, to.x - 12, to.y), fill: "none", stroke: "rgb(244,199,107)",
       "stroke-linecap": "round", pathLength: 1, "stroke-dasharray": 1 }, linkLayer);
   }
   for (const b of beats) {
@@ -272,7 +288,7 @@ function build() {
       label.textContent = `+${b.more} more`;
       b.opts.push({ line, label, chip: null, chosen: false, closed: true, width: 2 });
     }
-    b.node = svg("circle", { cx: b.x, cy: b.y, fill: "#FFC93C", stroke: "#0E1733" }, nodes);
+    b.node = svg("circle", { cx: b.x, cy: b.y, fill: "#F4C76B", stroke: "#06100D" }, nodes);
     b.title = svg("text", { class: "dlabel", x: b.x, y: b.y - titleRise(b.span), "text-anchor": "middle" }, nodes);
     b.title.textContent = b.d.decision;
   }
@@ -431,33 +447,35 @@ function cardAt(t) {
     const s = { type: "unit", name: "", subtitle: "", cost: "", power: "", health: "", aspect: null, keywords: [],
       traits: [""], text: "", art: false };
     for (const e of done) e.f(s);
-    $("cardbox").innerHTML = paintedCard(s, A.kind);
+    $("cardbox").innerHTML = paintedCard(s, A.kind, CARD.art);
     fitPainted($("cardbox"));
   }
   // A gold glow when something on the card has just been decided.
   const since = done.length ? t - done[done.length - 1].t : Infinity, glow = since < 0.7 ? 1 - since / 0.7 : 0;
-  $("cardbox").style.filter = glow ? `drop-shadow(0 0 ${32 * glow}px rgba(255, 201, 60, ${0.9 * glow}))` : "none";
+  $("cardbox").style.filter = glow ? `drop-shadow(0 0 ${32 * glow}px rgba(244, 199, 107, ${0.9 * glow}))` : "none";
 }
 
-function paintedCard(c, kind) {
-  // The card on its painted frame, like the client's CardView; the aspect shows as the job tag's rim.
-  const unit = c.type === "unit", art = window.CARD_ART;
+function paintedCard(c, kind, art) {
+  // The card like the client's CardView: units and actions share the frame; units add the sword and shield.
+  const unit = c.type === "unit", parts = window.CARD_ART, image = window.CARD_IMAGES[art];
   const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
-  return `<div class="pcard ${unit ? "" : "action"} ${c.art ? "" : "no-art"}" style="--aspect:${ASPECT_COLOURS[c.aspect] || NEUTRAL_COLOUR}">
-    <div class="art"><img src="${art.card_art}" alt=""></div>
-    <img class="frame" src="${unit ? art.card_frame : art.card_frame_action}" alt="">
+  const job = unit ? c.traits.filter(Boolean).join(" · ") : "Action";
+  return `<div class="pcard ${unit ? "" : "action"} ${c.art && image ? "" : "no-art"}">
+    <div class="art">${image ? `<img src="${image}" alt="">` : ""}</div>
+    <img class="frame" src="${parts.card_frame}" alt="">
     <div class="num cost">${c.cost}</div>
     <div class="name">${esc(c.name)}</div>
     <div class="sub">${esc(c.subtitle)}</div>
     <div class="text"><div>${kw ? kw + "<br>" : ""}${abilityHtml({ kind, text: c.text })}</div></div>
-    <div class="tag">${esc(unit ? c.traits[0] : "Action")}</div>
-    ${unit ? `<div class="num power">${c.power}</div><div class="num health">${c.health}</div>` : ""}
+    <img class="part banner" src="${parts.card_job_banner}" alt=""><div class="job">${esc(job)}</div>
+    <img class="part sword unit-only" src="${parts.card_attack}" alt=""><div class="num power unit-only">${c.power}</div>
+    <img class="part shield unit-only" src="${parts.card_defence}" alt=""><div class="num health unit-only">${c.health}</div>
   </div>`;
 }
 
 function fitPainted(root) {
-  // Shrink to fit between the client's auto-size bounds (name 13 → 8, subtitle 8.5 → 5, text 10 → 5 card units).
-  const unit = parseFloat(getComputedStyle(root.querySelector(".pcard")).getPropertyValue("--w")) / 151.2;
+  // Shrink to fit between the client's auto-size bounds (name 14.5 → 7, subtitle 8.5 → 5, text 10 → 5, job 9 → 4 card units).
+  const unit = parseFloat(getComputedStyle(root.querySelector(".pcard")).getPropertyValue("--w")) / 151.24;
   const fit = (selector, max, min, fits) => {
     const el = root.querySelector(selector);
     for (let size = max; size >= min; size -= 0.25) {
@@ -466,9 +484,10 @@ function fitPainted(root) {
     }
   };
   const wide = (el) => el.scrollWidth <= el.clientWidth + 1;
-  fit(".name", 13, 8, wide);
+  fit(".name", 14.5, 7, wide);
   fit(".sub", 8.5, 5, wide);
   fit(".text", 10, 5, (el) => el.scrollHeight <= el.clientHeight + 1);
+  fit(".job", 9, 4, wide);
 }
 
 // ------------------------------------------------------------------ setup and playback
@@ -508,7 +527,7 @@ function toggle() {
 
 function load(data) {
   // Lay out one card's tree and timeline from scratch, replacing whatever was on show.
-  A = data.kept; STAGES = data.text_stages || [];
+  CARD = data; A = data.kept; STAGES = data.text_stages || [];
   beats = []; links = []; pending = []; sectionEnd = {}; bounds = { x0: 0, x1: 0, y0: 0, y1: 0 };
   cam.replaceChildren();
   captionKey = ""; cardShown = -1;
@@ -517,7 +536,7 @@ function load(data) {
   build();
   cardTimeline();
   $("final-n").textContent = oneIn(beats.filter((b) => !b.named).reduce((p, b) => p * b.p, 1));
-  $("seed").textContent = "seed " + data.seed;
+  $("seed").textContent = `S1-${String(data.number).padStart(3, "0")} · ${data.number} of ${CARDS.length}`;
   $("scrub").max = DURATION;
   seek(0);
 }
@@ -527,7 +546,7 @@ let order = [], shownCard = 0;
 function newCard() {
   if (!order.length) order = CARDS.map((_, i) => i).filter((i) => i !== shownCard).sort(() => Math.random() - 0.5);
   shownCard = order.pop();
-  history.replaceState(null, "", "?seed=" + CARDS[shownCard].seed);
+  history.replaceState(null, "", "?card=" + CARDS[shownCard].number);
   load(CARDS[shownCard]);
   if (!playing) toggle();
 }
@@ -537,8 +556,10 @@ async function init() {
   if (query.has("render")) document.body.classList.add("render");
   await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);
   $("subtitle").textContent = "Every random choice the generator made, and the card they add up to";
-  if (!SHOW_ODDS) $("cardbox").style.top = (H - 420 * 2000 / 1342) / 2 + "px";  // nothing under it: centre it
-  shownCard = Math.max(0, CARDS.findIndex((c) => String(c.seed) === query.get("seed")));  // a shared link's card
+  if (!SHOW_ODDS) $("cardbox").style.top = (H - 420 * 210 / 151.24) / 2 + "px";  // nothing under it: centre it
+  const first = query.get("card") || window.LAB_DATA.first;  // a shared link's card, or --card
+  shownCard = Math.max(0, CARDS.findIndex((c) => String(c.number) === String(first)));
+  $("bg").style.backgroundImage = `url(${window.CARD_ART.background})`;
   load(CARDS[shownCard]);
   $("new").addEventListener("click", newCard);
   $("scrub").addEventListener("input", (e) => { playing = false; $("play").textContent = "Play"; seek(+e.target.value); });
