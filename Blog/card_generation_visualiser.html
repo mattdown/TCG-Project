@@ -76,10 +76,10 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
   display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--muted); font: 500 14px Outfit, system-ui; }
 #controls button { font: 400 15px "Marcellus SC", serif; background: var(--glass); color: var(--lantern); border: 1.5px solid var(--lantern);
   border-radius: 999px; padding: 5px 16px; cursor: pointer; }
+#controls #new { min-width: 112px; }  /* the same width as "Skip" and "New card" */
 #controls button:active { background: rgba(126, 240, 216, .18); transform: scale(.95); }
 #controls input { flex: 1; accent-color: var(--lantern); }
-#controls .time { width: 90px; font-variant-numeric: tabular-nums; }
-#controls .seed { width: 150px; color: var(--muted); }
+#controls .seed { width: 64px; color: var(--muted); }
 body.render #controls { display: none; }
 </style>
 </head>
@@ -99,8 +99,6 @@ body.render #controls { display: none; }
   <button id="new">New card</button>
   <span class="seed" id="seed"></span>
   <input id="scrub" type="range" min="0" step="0.001" value="0">
-  <span class="time" id="time"></span>
-  <span>Space: play / pause · ← →: one frame</span>
 </div>
 
 <!--CARD_KIT-->
@@ -504,7 +502,12 @@ function seek(t) {
   now = Math.max(0, Math.min(DURATION, t));
   draw(now);
   $("scrub").value = now;
-  $("time").textContent = `${now.toFixed(2)} / ${DURATION.toFixed(1)} s`;
+  labels();
+}
+function labels() {
+  // While the card plays, "New card" skips to its end, so the cards can be flicked through quickly.
+  $("play").textContent = playing ? "Pause" : "Play";
+  $("new").textContent = playing && now < DURATION ? "Skip" : "New card";
 }
 window.seek = seek;
 
@@ -512,12 +515,12 @@ function tick(ms) {
   if (!playing) return;
   seek(now + (ms - last) / 1000);
   last = ms;
-  if (now >= DURATION) { playing = false; $("play").textContent = "Play"; return; }
+  if (now >= DURATION) { playing = false; labels(); return; }
   requestAnimationFrame(tick);
 }
 function toggle() {
   playing = !playing;
-  $("play").textContent = playing ? "Pause" : "Play";
+  labels();
   if (playing) {
     if (now >= DURATION) seek(0);
     last = performance.now();
@@ -536,9 +539,13 @@ function load(data) {
   build();
   cardTimeline();
   $("final-n").textContent = oneIn(beats.filter((b) => !b.named).reduce((p, b) => p * b.p, 1));
-  $("seed").textContent = `S1-${String(data.number).padStart(3, "0")} · ${data.number} of ${CARDS.length}`;
+  $("seed").textContent = `S1-${String(data.number).padStart(3, "0")}`;
   $("scrub").max = DURATION;
   seek(0);
+}
+
+function skipOrNew() {
+  if (playing && now < DURATION) { playing = false; seek(DURATION); } else newCard();
 }
 
 // "New card" works through the pool in a shuffled order, so cards don't repeat until it runs out.
@@ -561,8 +568,8 @@ async function init() {
   shownCard = Math.max(0, CARDS.findIndex((c) => String(c.number) === String(first)));
   $("bg").style.backgroundImage = `url(${window.CARD_ART.background})`;
   load(CARDS[shownCard]);
-  $("new").addEventListener("click", newCard);
-  $("scrub").addEventListener("input", (e) => { playing = false; $("play").textContent = "Play"; seek(+e.target.value); });
+  $("new").addEventListener("click", skipOrNew);
+  $("scrub").addEventListener("input", (e) => { playing = false; seek(+e.target.value); });
   $("play").addEventListener("click", toggle);
   addEventListener("keydown", (e) => {
     if (e.code === "Space") { e.preventDefault(); toggle(); }
