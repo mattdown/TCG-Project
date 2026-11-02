@@ -321,7 +321,7 @@ public static class ClientAssetBuilder
         cv.BodyText.fontSizeMax = 10;
 
         // The job on the wooden banner across the bottom edge.
-        var banner = PartBox("Job", visual, "card_job_banner.png", 88, new Vector2(75, 203), BannerParchment);
+        var banner = PartBox("Job", visual, "card_job_banner.png", 88, new Vector2(77.12f, 202.57f), BannerParchment);
         cv.TraitText = Text(Box("Text", banner, 8, 8.3f, 70.5f, 11.4f), "Unit", f.BodyBold, 9, Palette.ParchmentBold,
             TextAlignmentOptions.Center);
         cv.TraitText.characterSpacing = 4f;
@@ -337,10 +337,11 @@ public static class ClientAssetBuilder
         cv.CostText = Number(Stretch("Value", cost, 0, 3.3f, 0, -2.3f), f, 20);
         cv.CostGem = cost;
 
-        var power = PartBox("Power", visual, "card_attack.png", 50, new Vector2(8, 164), AttackDisc);
-        cv.PowerText = Number(CentredBox("Value", power, AttackDisc, 22), f, 18);
-        var health = PartBox("Health", visual, "card_defence.png", 28, new Vector2(142, 164), DefenceFace);
-        cv.HealthText = Number(CentredBox("Value", health, DefenceFace, 22), f, 18);
+        // Placed by hand in the prefab: the numbers sit a little off the art's centres.
+        var power = PartBox("Power", visual, "card_attack.png", 39.43f, new Vector2(12.71f, 203.91f), AttackDisc);
+        cv.PowerText = Number(Box("Value", power, 11.42f, 11.53f, 22, 22), f, 18);
+        var health = PartBox("Health", visual, "card_defence.png", 30.07f, new Vector2(137.97f, 202.19f), DefenceFace);
+        cv.HealthText = Number(Box("Value", health, 4.04f, 5.9f, 22, 22), f, 18);
         cv.PowerIcon = power;
         cv.HealthIcon = health;
         cv.UnitOnly = new[] { power.gameObject, health.gameObject };
@@ -371,13 +372,6 @@ public static class ClientAssetBuilder
         var rt = Box(name, card, at.x - focus.x * width, at.y - focus.y * height, width, height);
         Img(rt, sprite, Color.white);
         return rt;
-    }
-
-    /// <summary>A square box centred on <paramref name="focus"/> (fractions, y down) of its parent.</summary>
-    static RectTransform CentredBox(string name, RectTransform parent, Vector2 focus, float size)
-    {
-        var p = parent.sizeDelta;
-        return Box(name, parent, focus.x * p.x - size / 2, focus.y * p.y - size / 2, size, size);
     }
 
     /// <summary>A box placed in frame-art pixels (y down from the art's top-left).</summary>

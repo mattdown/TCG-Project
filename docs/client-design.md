@@ -111,9 +111,9 @@ inspected. Every card on the field shows its full text.
 - **Text box:** the parchment, in dark brown, kept clear of the stat badges. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
 - **Job:** on the wooden banner across the bottom edge, inked on its parchment. It auto-sizes (9 down
   to 4 pt) so long jobs and two jobs fit. Action cards show "Action" there.
-- **Power:** on the gold disc of the sword badge, which overlaps the left edge of the lower card,
-  above the strip the hand hides.
-- **Health:** on the red shield, overlapping the right edge at the same height, showing health
+- **Power:** on the gold disc of the sword badge, in the bottom-left corner beside the job banner,
+  overlapping the card's edge.
+- **Health:** on the red shield in the bottom-right corner at the same height, showing health
   *left* (damage lowers the number).
 - The badges poke out past the card's sides, so units on the field sit 14 px apart.
 
