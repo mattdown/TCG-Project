@@ -25,8 +25,6 @@ namespace Tcg.View
         public Image GlowHalo;
         [Tooltip("The painted frame over the art, and its shadow.")]
         public Image Frame, FrameShadow;
-        [Tooltip("The job tag's rim, in the aspect colour.")]
-        public Image AspectTag;
         public Image Art;
         [Tooltip("Ice over the art: frozen, so it can't attack on its next turn.")]
         public GameObject FrozenOverlay;
@@ -37,7 +35,7 @@ namespace Tcg.View
         [Tooltip("The card's parts, for the help screen's callouts.")]
         public RectTransform CostGem, PowerIcon, HealthIcon, TraitTag;
         public CanvasGroup Group;
-        [Tooltip("Power and health: hidden on action cards, which have no stats.")]
+        [Tooltip("The power and health badges: hidden on action cards, which have no stats.")]
         public GameObject[] UnitOnly;
 
         [Header("Art")]
@@ -48,8 +46,6 @@ namespace Tcg.View
         const float ArtRaise = 0.1f;  // art taller than the window loses 40% of the overflow at the top, 60% at the bottom
         static readonly System.Collections.Generic.Dictionary<string, Sprite> LoadedArt = new();
         Vector2? _placeholderSize;
-        [Tooltip("Units have the power orb and health shield painted on; action cards don't.")]
-        public Sprite UnitFrame, ActionFrame;
 
         public int Uid { get; private set; } = -1;
         public CardDef Def { get; private set; }
@@ -93,9 +89,7 @@ namespace Tcg.View
         void BindDefinition(CardDef def)
         {
             int aspect = Palette.AspectNumber(def.aspects != null && def.aspects.Count > 0 ? def.aspects[0] : null);
-            AspectTag.color = Palette.Aspect(aspect);
             ShowArt(def, aspect);
-            Frame.sprite = FrameShadow.sprite = def.IsAction ? ActionFrame : UnitFrame;
 
             // The name on the banner; the subtitle (the character's version) on the tab under it.
             NameText.text = def.name;

@@ -81,8 +81,6 @@ namespace Tcg.Board
             {
                 _card.Bind(sample, null);
                 _card.SetMark(CardMark.None);
-                Canvas.ForceUpdateCanvases();  // the job tag sizes itself: lay it out before aiming at it
-                LayoutRebuilder.ForceRebuildLayoutImmediate(_card.TraitTag);
                 Callouts();
             }
             _notes.text = Notes();
@@ -144,22 +142,20 @@ namespace Tcg.Board
             }
 
             var cost = At(_card.CostGem, 0.75f, 0.5f);
-            var colour = At(_card.AspectTag.rectTransform, 0.04f, 0.5f);
             var name = At(_card.NameText.rectTransform, 0.08f, 0.5f);
-            var rules = At(_card.BodyText.rectTransform, 0.88f, 0.5f);
-            var sword = At(_card.PowerIcon, 0.3f, 0.5f);
-            var heart = At(_card.HealthIcon, 0.5f, 0.5f);
-            var job = At(_card.TraitTag, 0.92f, 0.5f);
+            var rules = At(_card.BodyText.rectTransform, 0.94f, 0.1f);  // its top corner, clear of the shield
+            var disc = At(_card.PowerIcon, 0.36f, 0.63f);    // the gold disc, not the sword
+            var shield = At(_card.HealthIcon, 0.66f, 0.47f);
+            var job = At(_card.TraitTag, 0.86f, 0.54f);      // the parchment
 
-            // Each label sits on the side of the part it describes: cost, name, attack and the class
-            // colour down the left; the rules text, health and job down the right, stacked so none overlap.
+            // Each label sits on the side of the part it describes: cost, name and attack down the
+            // left; the rules text, health and job down the right, stacked so none overlap.
             Label(UiText.HelpCost, UiText.HelpCostText, cost, left: true, labelTop: cost.y - 22);
             Label(UiText.HelpName, UiText.HelpNameText, name, left: true, labelTop: name.y - 10);
-            Label(UiText.HelpAttack, UiText.HelpAttackText, sword, left: true, labelTop: sword.y - 60);
-            Label(UiText.HelpColour, UiText.HelpColourText, colour, left: true, labelTop: colour.y - 16);
-            Label(UiText.HelpRules, UiText.HelpRulesText, rules, left: false, labelTop: rules.y - 44);
-            Label(UiText.HelpHealth, UiText.HelpHealthText, heart, left: false, labelTop: heart.y - 26);
-            Label(UiText.HelpJob, UiText.HelpJobText, job, left: false, labelTop: heart.y + 38);
+            Label(UiText.HelpAttack, UiText.HelpAttackText, disc, left: true, labelTop: disc.y - 18);
+            Label(UiText.HelpRules, UiText.HelpRulesText, rules, left: false, labelTop: rules.y - 50);
+            Label(UiText.HelpHealth, UiText.HelpHealthText, shield, left: false, labelTop: shield.y - 12);
+            Label(UiText.HelpJob, UiText.HelpJobText, job, left: false, labelTop: job.y - 6);
         }
 
         void Label(string title, string text, Vector2 target, bool left, float labelTop)

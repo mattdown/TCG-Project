@@ -113,8 +113,6 @@ namespace Tcg.View
         public const string HelpClasses = "Classes";
         public const string HelpCost = "Cost";
         public const string HelpCostText = "Mana to play it";
-        public const string HelpColour = "Class colour";
-        public const string HelpColourText = "The job tag's rim shows its habitat";
         public const string HelpName = "Name";
         public const string HelpNameText = "and its subtitle";
         public const string HelpRules = "Rules text";

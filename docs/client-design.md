@@ -97,15 +97,25 @@ Landscape only, designed at 1280×720 (16:9). Wider phones get extra space at th
 One card design is used everywhere: 150×210 at 100% in hand, 86% on the field, about 2× when
 inspected. Every card on the field shows its full text.
 
-- **Frame:** painted art (`Art/Sprites/card_frame.png`; action cards use `card_frame_action.png`,
-  which has no power orb or health shield). The card art shows through the oval window. The
-  builder places every part in the frame art's own pixels (`ClientAssetBuilder.FrameBox`).
+- **Frame:** painted art (`Art/Sprites/card_frame_action.png`, the frame with no stat badges
+  painted on) for units and actions alike, not tinted by aspect. The card art shows through the
+  oval window. The builder places every part in the frame art's own pixels
+  (`ClientAssetBuilder.FrameBox`).
+- **Card parts:** the attack badge, the defence shield and the job banner are cut from the
+  green-screen sheet `ArtSource/ui/card_parts_sheet.jpg` by `Tools/cut_card_parts.py` into
+  `Art/Sprites/card_attack.png`, `card_defence.png` and `card_job_banner.png`. The builder places
+  each by its focus point (the disc, the shield's face, the banner's parchment) with
+  `ClientAssetBuilder.PartBox`.
 - **Cost:** on the frame's pink gem, top left.
 - **Name:** inked in Marcellus SC on the banner under the art, thickened (face dilate 0.4, max 14.5 pt) with a faint parchment highlight below, since its hairlines vanish at card size; the subtitle goes on the small tab below it.
-- **Text box:** the parchment, in dark brown. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
-- **Traits:** a small dark glass tag on the bottom edge, its rim in the aspect colour.
-- **Power:** on the gold orb, bottom left.
-- **Health:** on the red shield, bottom right, showing health *left* (damage lowers the number).
+- **Text box:** the parchment, in dark brown, kept clear of the stat badges. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
+- **Job:** on the wooden banner across the bottom edge, inked on its parchment. It auto-sizes (9 down
+  to 4 pt) so long jobs and two jobs fit. Action cards show "Action" there.
+- **Power:** on the gold disc of the sword badge, which overlaps the left edge of the lower card,
+  above the strip the hand hides.
+- **Health:** on the red shield, overlapping the right edge at the same height, showing health
+  *left* (damage lowers the number).
+- The badges poke out past the card's sides, so units on the field sit 14 px apart.
 
 States:
 
@@ -215,10 +225,11 @@ or a tap outside closes it. Built in `Board/HelpView.cs`; the button in `ClientA
 
 - **How to read a card:** the real card prefab at 2×, showing a unit from the loaded set (one with
   a keyword, ability text and a subtitle if there is one). Gold callouts with leader lines: Cost,
-  Class colour, Name, Rules text on the left; Attack, Health, Job on the right. Their targets are
-  worked out from the card's own parts (`CardView.CostGem`, `FrameEdge`, `NameText`, `BodyText`,
-  `PowerIcon`, `HealthIcon`, `TraitTag`), so they follow layout changes. Attack's label sits above
-  the heart with its line running down to the sword's blade, so it isn't read as the health.
+  Name, Attack on the left; Rules text, Health, Job on the right. Their targets are worked out
+  from the card's own parts (`CardView.CostGem`, `NameText`, `BodyText`, `PowerIcon`, `HealthIcon`,
+  `TraitTag`), so they follow layout changes: Attack ends on the gold disc, Health on the shield's
+  face, Job on the banner's parchment. The card doesn't show its class, so there's no class
+  callout; the Classes column lists them.
   Three notes under the card: green / red numbers, no attacking on the turn a unit is played
   (unless Charge), Frozen units skip their next attack.
 - **Keywords:** a box per keyword from `card_set`'s `keywords` (numbered ones as "Duelist +N").

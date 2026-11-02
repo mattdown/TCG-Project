@@ -80,16 +80,19 @@ public static class ClientAssetBuilder
         }
         _glow = Sprite("glow");
 
-        // Painted art (card frames, the arena): large and shown much smaller, so mipmapped.
+        // Painted art (card frames, the arena): large and shown much smaller, so mipmapped. The card
+        // parts' soft cut-out edges stay uncompressed, so they don't band or fringe.
         foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { PaintedDir }))
         {
-            var ti = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid));
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            var ti = (TextureImporter)AssetImporter.GetAtPath(path);
+            bool part = System.Array.IndexOf(CardParts, System.IO.Path.GetFileName(path)) >= 0;
             ti.textureType = TextureImporterType.Sprite;
             ti.spriteImportMode = SpriteImportMode.Single;
             ti.mipmapEnabled = true;
             ti.alphaIsTransparency = true;
             ti.maxTextureSize = 4096;
-            ti.textureCompression = TextureImporterCompression.CompressedHQ;
+            ti.textureCompression = part ? TextureImporterCompression.Uncompressed : TextureImporterCompression.CompressedHQ;
             ti.filterMode = FilterMode.Trilinear;
             ti.wrapMode = TextureWrapMode.Clamp;
             var settings = new TextureImporterSettings();
@@ -99,6 +102,8 @@ public static class ClientAssetBuilder
             ti.SaveAndReimport();
         }
     }
+
+    static readonly string[] CardParts = { "card_attack.png", "card_defence.png", "card_job_banner.png" };
 
     static Sprite ArtSprite(string file) => AssetDatabase.LoadAssetAtPath<Sprite>($"{PaintedDir}/{file}");
 
@@ -257,12 +262,12 @@ public static class ClientAssetBuilder
         cv.TargetOutline.gameObject.SetActive(false);
         Img(Stretch("Body", visual, 0, 0, 0, 0), null, Color.clear).raycastTarget = true;  // taps and drags
 
-        // The frame art's own outline as the drop shadow.
-        cv.UnitFrame = ArtSprite("card_frame.png");
-        cv.ActionFrame = ArtSprite("card_frame_action.png");
+        // The frame art's own outline as the drop shadow. Units and actions share the plain frame;
+        // units add their stat badges on top.
+        var frame = ArtSprite("card_frame_action.png");
         var shadow = FrameBox("Shadow", visual, 0, 0, FramePx.x, FramePx.y);
         shadow.anchoredPosition += new Vector2(0, -4);
-        cv.FrameShadow = Img(shadow, cv.UnitFrame, Palette.CardShadow.WithAlpha(0.5f));
+        cv.FrameShadow = Img(shadow, frame, Palette.CardShadow.WithAlpha(0.5f));
 
         // The art sits behind the frame, clipped to the oval window's bounds (the frame hides the corners).
         // A stencil Mask, not RectMask2D: that clips to a screen-aligned rect, so it breaks on the tilted hand.
@@ -290,7 +295,7 @@ public static class ClientAssetBuilder
         cv.HiddenOverlay = hidden.gameObject;
         hidden.gameObject.SetActive(false);
 
-        cv.Frame = Img(FrameBox("Frame", visual, 0, 0, FramePx.x, FramePx.y), cv.UnitFrame, Color.white);
+        cv.Frame = Img(FrameBox("Frame", visual, 0, 0, FramePx.x, FramePx.y), frame, Color.white);
 
         // The name inked on the parchment banner; the subtitle on the tab under it.
         cv.NameText = Text(FrameBox("Name", visual, 215, 1092, 940, 150), "Card name", f.Display, 14.5f, Palette.ParchmentBold,
@@ -306,8 +311,8 @@ public static class ClientAssetBuilder
         cv.SubtitleText.fontSizeMin = 5f;
         cv.SubtitleText.fontSizeMax = 8.5f;
 
-        // The parchment, kept clear of the power orb and the shield in its bottom corners.
-        cv.BodyText = Text(FrameBox("Text", visual, 250, 1385, 870, 380), "", f.Body, 10, Palette.ParchmentText,
+        // The parchment, kept clear of the badges on the side edges.
+        cv.BodyText = Text(FrameBox("Text", visual, 300, 1385, 780, 380), "", f.Body, 10, Palette.ParchmentText,
             TextAlignmentOptions.Center);
         cv.BodyText.textWrappingMode = TextWrappingModes.Normal;
         cv.BodyText.lineSpacing = -12f;
@@ -315,32 +320,27 @@ public static class ClientAssetBuilder
         cv.BodyText.fontSizeMin = 5;
         cv.BodyText.fontSizeMax = 10;
 
-        // The job tag on the bottom edge, its rim in the aspect colour.
-        var tag = Node("Traits", visual);
-        Anchor(tag, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 0), new Vector2(0, 12));
-        cv.AspectTag = Rounded(tag, Palette.Aspect(1), 6);
-        var tagFill = Rounded(Stretch("Fill", tag, 1.5f, 1.5f, 1.5f, 1.5f), Palette.Glass, 5);
-        tagFill.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-        var tagLayout = tag.gameObject.AddComponent<HorizontalLayoutGroup>();
-        tagLayout.padding = new RectOffset(8, 8, 0, 0);
-        tagLayout.childControlWidth = tagLayout.childControlHeight = true;
-        tagLayout.childForceExpandWidth = false;
-        tagLayout.childForceExpandHeight = true;
-        tag.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        cv.TraitText = Text(Node("Text", tag), "Unit", f.BodyBold, 9, Palette.TraitText, TextAlignmentOptions.Center);
-        cv.TraitText.margin = new Vector4(0, 0, 0, 1);
-        cv.TraitText.characterSpacing = 6f;
-        cv.TraitTag = tag;
+        // The job on the wooden banner across the bottom edge.
+        var banner = PartBox("Job", visual, "card_job_banner.png", 88, new Vector2(75, 203), BannerParchment);
+        cv.TraitText = Text(Box("Text", banner, 8, 8.3f, 70.5f, 11.4f), "Unit", f.BodyBold, 9, Palette.ParchmentBold,
+            TextAlignmentOptions.Center);
+        cv.TraitText.characterSpacing = 4f;
+        cv.TraitText.textWrappingMode = TextWrappingModes.NoWrap;
+        cv.TraitText.enableAutoSizing = true;
+        cv.TraitText.fontSizeMin = 4;
+        cv.TraitText.fontSizeMax = 9;
+        cv.TraitTag = banner;
 
-        // The numbers sit on the frame's own gem (cost), orb (power) and shield (health).
+        // The cost on the frame's gem; power on the gold disc and health on the shield, both
+        // overlapping the side edges and above the part of the card the hand hides.
         var cost = FrameBox("Cost", visual, 125, 160, 200, 200);
         cv.CostText = Number(Stretch("Value", cost, 0, 3.3f, 0, -2.3f), f, 20);
         cv.CostGem = cost;
 
-        var power = FrameBox("Power", visual, 125, 1720, 180, 180);
-        cv.PowerText = Number(Stretch("Value", power, 0, 0.5f, 0, 0.5f), f, 18);
-        var health = FrameBox("Health", visual, 1085, 1712, 175, 175);
-        cv.HealthText = Number(Stretch("Value", health, 0, 4.34f, 0, -1.34f), f, 18);
+        var power = PartBox("Power", visual, "card_attack.png", 50, new Vector2(8, 164), AttackDisc);
+        cv.PowerText = Number(CentredBox("Value", power, AttackDisc, 22), f, 18);
+        var health = PartBox("Health", visual, "card_defence.png", 28, new Vector2(142, 164), DefenceFace);
+        cv.HealthText = Number(CentredBox("Value", health, DefenceFace, 22), f, 18);
         cv.PowerIcon = power;
         cv.HealthIcon = health;
         cv.UnitOnly = new[] { power.gameObject, health.gameObject };
@@ -356,6 +356,29 @@ public static class ClientAssetBuilder
     static readonly Vector2 FramePx = new(1342, 2000);
     const float FrameScale = 0.1127f;
     static readonly Vector2 FrameOrigin = new(-0.6f, -10.9f);
+
+    // Where the card parts (Tools/cut_card_parts.py) hold their numbers and text, as fractions of
+    // each sprite, y down: the sword's gold disc, the shield's face, the banner's parchment.
+    static readonly Vector2 AttackDisc = new(0.510f, 0.632f);
+    static readonly Vector2 DefenceFace = new(0.5f, 0.47f);
+    static readonly Vector2 BannerParchment = new(0.5f, 0.54f);
+
+    /// <summary>A card part <paramref name="width"/> wide with its <paramref name="focus"/> at <paramref name="at"/> (card units).</summary>
+    static RectTransform PartBox(string name, Transform card, string file, float width, Vector2 at, Vector2 focus)
+    {
+        var sprite = ArtSprite(file);
+        float height = width * sprite.rect.height / sprite.rect.width;
+        var rt = Box(name, card, at.x - focus.x * width, at.y - focus.y * height, width, height);
+        Img(rt, sprite, Color.white);
+        return rt;
+    }
+
+    /// <summary>A square box centred on <paramref name="focus"/> (fractions, y down) of its parent.</summary>
+    static RectTransform CentredBox(string name, RectTransform parent, Vector2 focus, float size)
+    {
+        var p = parent.sizeDelta;
+        return Box(name, parent, focus.x * p.x - size / 2, focus.y * p.y - size / 2, size, size);
+    }
 
     /// <summary>A box placed in frame-art pixels (y down from the art's top-left).</summary>
     static RectTransform FrameBox(string name, Transform card, float x, float y, float w, float h) =>
