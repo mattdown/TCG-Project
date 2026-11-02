@@ -36,42 +36,19 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 .odds .n { font: 800 46px/1.1 Outfit; color: var(--gold); text-shadow: 0 2px 8px var(--shadow); }
 .odds .l { font: 500 21px Outfit; color: var(--muted); }
 #cardbox { position: absolute; left: 1332px; top: 150px; width: 420px; }
-/* The card as the Unity client draws it (ClientAssetBuilder.BuildCardPrefab): a 150x210 card in card units (--u),
-   the plain painted frame (Art/Sprites/card_frame_action.png) spilling past it, the card's art behind the frame's
-   window, and the sword, shield and job banner parts at the prefab's positions. Type sizes are TMP's, in card units. */
-.pcard { --w: 420px; --u: calc(var(--w) / 151.24); position: relative; width: calc(var(--u) * 150); height: calc(var(--u) * 210); }
-.pcard > * { position: absolute; margin: 0; }
-.pcard .art { left: calc(var(--u) * 29.15); top: calc(var(--u) * 13.67); width: calc(var(--u) * 96.47); height: calc(var(--u) * 97.15);
-  overflow: hidden; background: #0B1612; }
-.pcard .art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }  /* CardView.ArtRaise */
-.pcard.no-art .art img { visibility: hidden; }
-.pcard .frame { left: calc(var(--u) * -0.6); top: calc(var(--u) * -10.9); width: calc(var(--u) * 151.24); height: calc(var(--u) * 225.4);
-  filter: drop-shadow(0 calc(var(--u) * 4) 0 rgba(5, 10, 8, .5)); }
-.pcard .part { height: auto; }
-.pcard .num { display: grid; place-items: center; font: 800 1em/1 Outfit; color: #fff; white-space: nowrap;
-  -webkit-text-stroke: .16em var(--shadow); paint-order: stroke fill; text-shadow: 0 .06em .04em rgba(6, 16, 13, .8); }
-.pcard .cost { left: calc(var(--u) * 13.49); top: calc(var(--u) * 10.43); width: calc(var(--u) * 22.54); height: calc(var(--u) * 21.54); font-size: calc(var(--u) * 20); }
-.pcard .sword { left: calc(var(--u) * -7.4); top: calc(var(--u) * 178.85); width: calc(var(--u) * 39.43); }
-.pcard .power { left: calc(var(--u) * 4.02); top: calc(var(--u) * 190.38); width: calc(var(--u) * 22); height: calc(var(--u) * 22); font-size: calc(var(--u) * 18); }
-.pcard .shield { left: calc(var(--u) * 122.94); top: calc(var(--u) * 185.1); width: calc(var(--u) * 30.07); }
-.pcard .health { left: calc(var(--u) * 126.98); top: calc(var(--u) * 191); width: calc(var(--u) * 22); height: calc(var(--u) * 22); font-size: calc(var(--u) * 18); }
-.pcard .banner { left: calc(var(--u) * 33.12); top: calc(var(--u) * 188.57); width: calc(var(--u) * 88); }
-.pcard .job { left: calc(var(--u) * 41.12); top: calc(var(--u) * 196.87); width: calc(var(--u) * 70.5); height: calc(var(--u) * 11.4);
-  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: 700 calc(var(--u) * 9) Outfit; letter-spacing: .04em; color: var(--ink); }
-.pcard .name { left: calc(var(--u) * 23.63); top: calc(var(--u) * 112.17); width: calc(var(--u) * 105.94); height: calc(var(--u) * 16.9);
-  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: 400 calc(var(--u) * 14.5) "Marcellus SC", serif;
-  letter-spacing: -.03em; color: var(--ink); -webkit-text-stroke: .025em var(--ink); text-shadow: 0 .07em 0 rgba(255, 242, 204, .35); }
-.pcard .sub { left: calc(var(--u) * 48.99); top: calc(var(--u) * 132); width: calc(var(--u) * 54.66); height: calc(var(--u) * 10.14);
-  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: italic 500 calc(var(--u) * 8.5) Outfit; color: var(--parchment); }
-.pcard .text { left: calc(var(--u) * 27.41); top: calc(var(--u) * 144.59); width: calc(var(--u) * 98.22); height: calc(var(--u) * 43.98);
-  display: flex; flex-direction: column; justify-content: safe center; overflow: hidden; text-align: center;
-  font: 500 calc(var(--u) * 10)/1.12 Outfit; color: var(--parchment); }
-.pcard .text b { font-weight: 800; color: var(--ink); }
-.pcard.action .unit-only { display: none; }
 .shade.right { left: auto; top: 0; bottom: 0; width: 780px; background: linear-gradient(90deg, rgba(6, 14, 11, 0), rgba(6, 14, 11, .9) 40%); }
 .final { position: absolute; left: 1200px; width: 680px; top: 800px; text-align: center; }
 .final .n { font: 800 62px/1.1 Outfit; color: var(--gold); text-shadow: 0 2px 10px var(--shadow); }
 .final .l { font: 500 22px Outfit; color: var(--muted); }
+/* The tests the card passed (card_lab._checks), where the caption was, once the path is done. */
+.checks { position: absolute; left: 64px; bottom: 56px; max-width: 1100px; }
+.checks .crumbs { margin-bottom: 12px; }
+.checks ul { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.checks li { padding: 6px 16px 6px 12px; border-radius: 999px; background: rgba(9, 19, 16, .8); border: 1.5px solid rgba(126, 240, 216, .45);
+  font: 500 20px Outfit; color: var(--text); white-space: nowrap; }
+.checks li::before { content: "✓"; margin-right: 8px; font-weight: 800; color: var(--lantern); }
+.checks li.failed { border-color: rgba(255, 106, 92, .6); }
+.checks li.failed::before { content: "✗"; color: #FF6A5C; }
 #controls { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; background: var(--glass); border-top: 1.5px solid rgba(160, 235, 215, .3);
   display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--muted); font: 500 14px Outfit, system-ui; }
 #controls button { font: 400 15px "Marcellus SC", serif; background: var(--glass); color: var(--lantern); border: 1.5px solid var(--lantern);
@@ -93,6 +70,7 @@ body.render #controls { display: none; }
   <div class="odds" id="odds"><div class="n" id="odds-n"></div><div class="l">chance of this card so far</div></div>
   <div id="cardbox"></div>
   <div class="final" id="final"><div class="n" id="final-n"></div><div class="l">chance of generating this exact card (excluding name)</div></div>
+  <div class="checks" id="checks"><div class="crumbs">Tests the card passed</div><ul id="check-list"></ul></div>
 </div>
 <div id="controls">
   <button id="play">Play</button>
@@ -102,6 +80,7 @@ body.render #controls { display: none; }
 </div>
 
 <!--CARD_KIT-->
+<!--PAINTED_CARD-->
 <!--CARD_ART-->
 <!--LAB_DATA-->
 <script>
@@ -298,7 +277,7 @@ function focusOf(b) { return { x: b.x + FAN * 0.7, y: b.y, z: zoomFor(b), sx: 66
 function fitAll() {
   const bw = bounds.x1 - bounds.x0, bh = bounds.y1 - bounds.y0;
   return { x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2,
-    z: Math.min(1120 / bw, 760 / bh), sx: 660, sy: 560 };
+    z: Math.min(1120 / bw, 680 / bh), sx: 660, sy: 520 };  // above the checklist
 }
 function blend(a, b, x) {
   return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x), z: Math.exp(lerp(Math.log(a.z), Math.log(b.z), x)),
@@ -406,6 +385,7 @@ function odds(t, outro) {
 
 function finale(t) {
   $("final").style.opacity = SHOW_ODDS ? ease(clamp((t - PATH_END - 1.9) / 0.5)) : 0;
+  $("checks").style.opacity = ease(clamp((t - PATH_END - 2.3) / 0.5));
 }
 
 // ------------------------------------------------------------------ the card, filled in as the tree unfolds
@@ -451,41 +431,6 @@ function cardAt(t) {
   // A gold glow when something on the card has just been decided.
   const since = done.length ? t - done[done.length - 1].t : Infinity, glow = since < 0.7 ? 1 - since / 0.7 : 0;
   $("cardbox").style.filter = glow ? `drop-shadow(0 0 ${32 * glow}px rgba(244, 199, 107, ${0.9 * glow}))` : "none";
-}
-
-function paintedCard(c, kind, art) {
-  // The card like the client's CardView: units and actions share the frame; units add the sword and shield.
-  const unit = c.type === "unit", parts = window.CARD_ART, image = window.CARD_IMAGES[art];
-  const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
-  const job = unit ? c.traits.filter(Boolean).join(" · ") : "Action";
-  return `<div class="pcard ${unit ? "" : "action"} ${c.art && image ? "" : "no-art"}">
-    <div class="art">${image ? `<img src="${image}" alt="">` : ""}</div>
-    <img class="frame" src="${parts.card_frame}" alt="">
-    <div class="num cost">${c.cost}</div>
-    <div class="name">${esc(c.name)}</div>
-    <div class="sub">${esc(c.subtitle)}</div>
-    <div class="text"><div>${kw ? kw + "<br>" : ""}${abilityHtml({ kind, text: c.text })}</div></div>
-    <img class="part banner" src="${parts.card_job_banner}" alt=""><div class="job">${esc(job)}</div>
-    <img class="part sword unit-only" src="${parts.card_attack}" alt=""><div class="num power unit-only">${c.power}</div>
-    <img class="part shield unit-only" src="${parts.card_defence}" alt=""><div class="num health unit-only">${c.health}</div>
-  </div>`;
-}
-
-function fitPainted(root) {
-  // Shrink to fit between the client's auto-size bounds (name 14.5 → 7, subtitle 8.5 → 5, text 10 → 5, job 9 → 4 card units).
-  const unit = parseFloat(getComputedStyle(root.querySelector(".pcard")).getPropertyValue("--w")) / 151.24;
-  const fit = (selector, max, min, fits) => {
-    const el = root.querySelector(selector);
-    for (let size = max; size >= min; size -= 0.25) {
-      el.style.fontSize = size * unit + "px";
-      if (fits(el)) break;
-    }
-  };
-  const wide = (el) => el.scrollWidth <= el.clientWidth + 1;
-  fit(".name", 14.5, 7, wide);
-  fit(".sub", 8.5, 5, wide);
-  fit(".text", 10, 5, (el) => el.scrollHeight <= el.clientHeight + 1);
-  fit(".job", 9, 4, wide);
 }
 
 // ------------------------------------------------------------------ setup and playback
@@ -538,6 +483,7 @@ function load(data) {
   time();
   build();
   cardTimeline();
+  $("check-list").innerHTML = A.checks.map((c) => `<li class="${c.problems.length ? "failed" : ""}">${esc(c.name)}</li>`).join("");
   $("final-n").textContent = oneIn(beats.filter((b) => !b.named).reduce((p, b) => p * b.p, 1));
   $("seed").textContent = `S1-${String(data.number).padStart(3, "0")}`;
   $("scrub").max = DURATION;

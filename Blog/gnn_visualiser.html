@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GNN Visualiser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
+<style>
+/* The Lantern look (docs/client-design.md), as in the card generation visualiser. */
+:root {
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209;
+}
+html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+  background: var(--night); font-family: Outfit, system-ui, sans-serif; }
+#world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+#arena { position: absolute; left: -400px; top: -300px; width: 2720px; height: 1680px; background: center / cover no-repeat;
+  filter: brightness(.55) saturate(.9); }
+#dim { position: absolute; left: -400px; top: -300px; width: 2720px; height: 1680px; background: #050C0A; pointer-events: none; }
+.slot { position: absolute; }
+.hero { position: absolute; width: 237px; height: 278px; }
+.hero img { width: 100%; height: 100%; }
+.hero .hname { position: absolute; left: 58px; top: 180px; width: 132px; height: 20px; display: grid; place-items: center;
+  font: 400 19px "Marcellus SC", serif; color: var(--text); text-shadow: 0 1px 4px var(--shadow); white-space: nowrap; }
+.hero .bar { position: absolute; left: 37px; top: 217px; height: 22px; border-radius: 4px; background: #E8364F;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, .3); }
+.hero .hp { position: absolute; left: 176px; top: 211px; width: 36px; height: 29px; display: grid; place-items: center;
+  font: 800 23px/1 Outfit; color: #fff; -webkit-text-stroke: .16em var(--shadow); paint-order: stroke fill; }
+#graph { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.nlabel { font: 700 15px Outfit; fill: var(--text); paint-order: stroke; stroke: var(--shadow); stroke-width: 5px; }
+.nlabel .count { fill: var(--muted); font-weight: 500; }
+.shade { position: absolute; left: 0; right: 0; pointer-events: none; }
+.shade.top { top: 0; height: 220px; background: linear-gradient(rgba(6, 14, 11, .9) 25%, rgba(6, 14, 11, 0)); }
+.shade.bottom { bottom: 0; height: 280px; background: linear-gradient(rgba(5, 12, 10, 0), rgba(5, 12, 10, .95) 65%); }
+.title { position: absolute; left: 64px; top: 50px; font: 400 54px/1 "Marcellus SC", serif; color: var(--text); text-shadow: 0 3px 10px var(--shadow); }
+.title small { display: block; margin-top: 14px; font: 500 24px/1.3 Outfit; color: var(--muted); text-shadow: none; }
+.caption { position: absolute; left: 64px; bottom: 56px; max-width: 900px; }
+.crumbs { font: 700 18px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.what { font: 400 46px/1.15 "Marcellus SC", serif; color: var(--text); margin: 6px 0 8px; text-shadow: 0 3px 10px var(--shadow); }
+.how { font: 500 23px/1.35 Outfit; color: var(--muted); }
+
+/* The feature table: one row per input feature, in the encoder's order. */
+#table { position: absolute; left: 1010px; top: 128px; width: 820px; }
+.group { height: 38px; display: flex; align-items: end; padding-bottom: 6px; box-sizing: border-box;
+  font: 700 16px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; }
+.row { position: relative; height: 28px; font: 500 20px/28px Outfit; color: var(--text); white-space: nowrap; }
+.row > * { position: absolute; top: 0; }
+.row .label { left: 0; width: 230px; }
+.row .raw { left: 230px; width: 90px; text-align: right; font-weight: 800; }
+.row .rule { left: 350px; width: 150px; color: var(--muted); }
+.row .rule b { color: var(--gold); font-weight: 800; }
+.row .val { left: 510px; width: 80px; text-align: right; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+#links, #column { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+
+/* The edge types lit so far, bottom right. */
+#legend { position: absolute; right: 64px; bottom: 56px; width: 330px; }
+#legend .item { display: flex; align-items: center; gap: 14px; height: 34px; font: 500 20px Outfit; color: var(--text); }
+#legend .swatch { width: 34px; height: 4px; border-radius: 2px; }
+
+.pcard[data-hl] { transition: none; }
+.pcard[data-hl="card"] .frame { filter: drop-shadow(0 0 12px rgba(244, 199, 107, .95)); }
+.pcard[data-hl="cost"] .cost, .pcard[data-hl="power"] .power, .pcard[data-hl="health"] .health {
+  color: var(--gold); transform: scale(1.25); }
+.pcard[data-hl="text"] .text, .pcard[data-hl="art"] .art { outline: calc(var(--u) * 1.4) solid rgba(244, 199, 107, .9);
+  outline-offset: calc(var(--u) * 1); border-radius: calc(var(--u) * 3); }
+
+#controls { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; background: var(--glass); border-top: 1.5px solid rgba(160, 235, 215, .3);
+  display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--muted); font: 500 14px Outfit, system-ui; }
+#controls button { font: 400 15px "Marcellus SC", serif; background: var(--glass); color: var(--lantern); border: 1.5px solid var(--lantern);
+  border-radius: 999px; padding: 5px 16px; cursor: pointer; min-width: 84px; }
+#controls button:active { background: rgba(126, 240, 216, .18); transform: scale(.95); }
+#controls input { flex: 1; accent-color: var(--lantern); }
+body.render #controls { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="world">
+    <div id="arena"></div>
+    <div id="board"></div>
+    <div id="dim"></div>
+    <div id="lift"></div>
+    <svg id="graph" xmlns="http://www.w3.org/2000/svg"><g id="edges"></g><g id="nodes"></g></svg>
+  </div>
+  <div class="shade top"></div><div class="shade bottom" id="shade-bottom"></div>
+  <div class="title">How the network sees the board<small>The state graph the GNN reads, one node at a time</small></div>
+  <svg id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="table"></div>
+  <svg id="column" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="caption" id="caption"><div class="crumbs" id="crumbs"></div><div class="what" id="what"></div><div class="how" id="how"></div></div>
+  <div id="legend"></div>
+</div>
+<div id="controls">
+  <button id="play">Play</button>
+  <input id="scrub" type="range" min="0" step="0.001" value="0">
+</div>
+
+<!--CARD_KIT-->
+<!--PAINTED_CARD-->
+<!--CARD_ART-->
+<!--LAB_DATA-->
+<script>
+// Everything on screen is a function of the time t, so the page can be scrubbed and the video rendered frame by frame.
+const D = window.LAB_DATA, NODES = D.nodes, EDGES = D.edges, FOCUS = D.focus, FEATURES = D.features;
+const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => x * x * (3 - 2 * x);
+const lerp = (a, b, x) => a + (b - a) * x;
+const span = (t, a, b) => ease(clamp((t - a) / (b - a)));  // 0 before a, 1 after b
+
+// The client's GNN overlay: node colours by type, edge styles by type (GraphOverlay.cs).
+const NODE_COLOURS = { card: "#3D7CF0", ability: "#B675FF", player: "#FFC93C", global: "#E9EEF8" };
+const EDGE_STYLES = {
+  next: ["#5BEA5B", 0.95, 2, 0], uses: ["#22BCC9", 0.95, 1.5, 0.45], part_of: ["#B675FF", 0.4, 1, 0],
+  matches: ["#FF6FD8", 0.75, 1.5, 0.18], bound_to: ["#FFE14D", 0.95, 2.5, 0.25], belongs_to: ["#8FB3FF", 0.5, 1.5, 0],
+  faces: ["#FF4D5E", 0.5, 1.5, 0.12], opposes: ["#FF8A3C", 0.9, 2.5, 0.2], in: ["#E9EEF8", 0.7, 2, 0],
+};
+// EmbeddingGlyph: mid grey at zero, light for positive values, dark for negative.
+const ZERO = [0x6E, 0x74, 0x7D], POSITIVE = [0xF4, 0xF5, 0xF7], NEGATIVE = [0x15, 0x18, 0x1D];
+function glyphColour(v, scale = 1) {
+  const to = v >= 0 ? POSITIVE : NEGATIVE, x = clamp(Math.abs(v) / scale);
+  return "rgb(" + ZERO.map((z, i) => Math.round(lerp(z, to[i], x))).join(",") + ")";
+}
+
+// ------------------------------------------------------------------ the timeline (seconds)
+const T = {
+  graph: 1.8, graphEnd: 4.0,           // the graph appears over the board
+  zoom: 4.6, zoomEnd: 6.6,             // into the chosen card
+  read: 7.0, readStep: 0.15,           // step 1: each feature read off the card
+  scale: 11.4, scaleStep: 0.09,        // step 2: each scaled to a number
+  collapse: 14.4, collapseEnd: 15.6,   // the numbers become a column
+  dock: 15.8, dockEnd: 17.2,           // ... which goes into the node
+  pull: 17.6, pullEnd: 19.4,           // out to the neighbourhood
+  edges: 19.8, edgeStep: 2.6,          // one edge type at a time
+};
+const EDGE_ORDER = ["belongs_to", "faces", "part_of", "matches"];
+T.edgesEnd = T.edges + EDGE_ORDER.length * T.edgeStep;
+const DURATION = window.DURATION = T.edgesEnd + 3.2;
+
+// ------------------------------------------------------------------ layout, in world pixels
+const CARD_W = 200, CARD_U = CARD_W / 151.24, CARD_H = 210 * CARD_U;
+const SLOT_X = [1010, 1270], ROW_Y = { 0: 724, 1: 344 };  // you below, the opponent above
+const HERO = { 0: { x: 520, y: 600 }, 1: { x: 520, y: 150 } };
+const SIZE = { card: 46, player: 54, global: 46, ability: 20 };
+const pos = {};
+
+function layout() {
+  for (const n of NODES) {
+    if (n.type === "card") pos[n.id] = { x: SLOT_X[n.slot], y: ROW_Y[n.owner] };
+    else if (n.type === "player") pos[n.id] = { x: HERO[n.owner].x + 118, y: HERO[n.owner].y + 106 };
+    else if (n.type === "global") pos[n.id] = { x: HERO[0].x + 118, y: (HERO[0].y + HERO[1].y + 278) / 2 };
+  }
+  // Each card's ability graph as a chain by its card, depth along the next edges: above the opponent's cards,
+  // and for yours in the gap between the rows, clear of the caption.
+  const next = EDGES.filter((e) => e.type === "next");
+  for (const card of NODES.filter((n) => n.type === "card")) {
+    const parts = NODES.filter((n) => n.type === "ability" && n.card === card.id), ids = new Set(parts.map((n) => n.id));
+    const depth = Object.fromEntries(parts.map((n) => [n.id, 0]));
+    for (let pass = 0; pass < parts.length; pass++)
+      for (const e of next) if (ids.has(e.src) && ids.has(e.dst)) depth[e.dst] = Math.max(depth[e.dst], depth[e.src] + 1);
+    const deepest = Math.max(0, ...Object.values(depth)), c = pos[card.id];
+    const y = card.owner === 0 ? c.y - CARD_H / 2 - 28 : c.y - CARD_H / 2 - 32;
+    const byDepth = {};
+    for (const n of parts) (byDepth[depth[n.id]] ||= []).push(n);
+    for (const [d, group] of Object.entries(byDepth))
+      group.forEach((n, k) => { pos[n.id] = { x: c.x + (d - deepest / 2) * 34, y: y + (k - (group.length - 1) / 2) * 24 }; });
+  }
+}
+
+// The focus card's neighbours, edge type by edge type (graph_view sends each edge once, in one direction).
+const focusEdges = EDGES.filter((e) => e.src === FOCUS || e.dst === FOCUS);
+const neighbourOf = (e) => (e.src === FOCUS ? e.dst : e.src);
+const firstLit = {};  // node id → when it's lit as a neighbour
+EDGE_ORDER.forEach((type, k) => focusEdges.filter((e) => e.type === type).forEach((e) => {
+  firstLit[neighbourOf(e)] ??= T.edges + k * T.edgeStep;
+}));
+
+// ------------------------------------------------------------------ the board
+function buildBoard() {
+  const board = $("board");
+  for (const h of D.heroes) {
+    const el = document.createElement("div");
+    el.className = "hero";
+    el.style.left = HERO[h.owner].x + "px"; el.style.top = HERO[h.owner].y + "px";
+    el.innerHTML = `<img src="${CARD_ART[h.owner === 0 ? "hero_you" : "hero_opponent"]}" alt="">
+      <div class="bar" style="width:${132 * h.health / 30}px"></div><div class="hname">${esc(h.name)}</div><div class="hp">${h.health}</div>`;
+    board.appendChild(el);
+  }
+  for (const n of NODES.filter((n) => n.type === "card")) {
+    const el = document.createElement("div");
+    el.className = "slot";
+    el.style.left = pos[n.id].x - 75 * CARD_U + "px"; el.style.top = pos[n.id].y - CARD_H / 2 + "px";
+    el.innerHTML = paintedCard(n.card, n.card.kind, n.card.art_key);
+    el.firstElementChild.style.setProperty("--w", CARD_W + "px");
+    (n.id === FOCUS ? $("lift") : board).appendChild(el);  // the focus card sits above the dimming
+    n.el = el;
+    fitPainted(el);
+  }
+}
+
+// ------------------------------------------------------------------ the graph
+function svg(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  parent.appendChild(e);
+  return e;
+}
+
+function glyph(parent, values, x, y, w, h) {
+  // A vector as a column of cells, like the client's EmbeddingGlyph.
+  const g = svg("g", {}, parent), cell = h / values.length, gap = cell > 4 ? 1 : 0;
+  values.forEach((v, i) => svg("rect", { x, y: y + i * cell, width: w, height: cell - gap + (gap ? 0 : 0.35), fill: glyphColour(v) }, g));
+  return g;
+}
+
+function edgePath(a, b, bend) {
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, dx = b.x - a.x, dy = b.y - a.y;
+  return `M${a.x} ${a.y} Q${mx - dy * bend} ${my + dx * bend} ${b.x} ${b.y}`;
+}
+
+function buildGraph() {
+  for (const e of EDGES) {
+    const [colour, alpha, width, bend] = EDGE_STYLES[e.type];
+    e.alpha = alpha; e.width = width;
+    e.el = svg("path", { d: edgePath(pos[e.src], pos[e.dst], bend), fill: "none", stroke: colour, "stroke-linecap": "round",
+      pathLength: 1, "stroke-dasharray": 1 }, $("edges"));
+    e.focus = e.src === FOCUS || e.dst === FOCUS;
+  }
+  for (const n of NODES) {
+    const p = pos[n.id], s = SIZE[n.type], ring = Math.max(2, s * 0.16);
+    n.g = svg("g", {}, $("nodes"));
+    n.inner = svg("g", {}, n.g);  // scaled about the node's centre
+    svg("circle", { cx: 0, cy: 0, r: s / 2, fill: NODE_COLOURS[n.type], stroke: "#06100D", "stroke-width": 1.5 }, n.inner);
+    svg("circle", { cx: 0, cy: 0, r: s / 2 - ring, fill: "#0B1612" }, n.inner);
+    n.cw = Math.max(2, s * 0.3); n.ch = s * 0.56;
+    n.glyph = glyph(n.inner, n.vector, -n.cw / 2, -n.ch / 2, n.cw, n.ch);
+    if (n.id !== FOCUS && firstLit[n.id] !== undefined) {
+      // Players' labels above them; an ability node's on the side away from its card's centre; others to the right.
+      const above = n.type === "player", left = n.type === "ability" && p.x < pos[n.card].x - 1;
+      n.tag = svg("text", { class: "nlabel", x: above ? 0 : left ? -s / 2 - 8 : s / 2 + 8, y: above ? -s / 2 - 10 : 5,
+        "text-anchor": above ? "middle" : left ? "end" : "start" }, n.g);
+      const own = n.type === "ability" && n.card === FOCUS;
+      const text = n.type === "ability" && !own ? `${NODES[n.card].label}: ${n.label}` : n.label;  // say whose ability
+      n.tag.innerHTML = `${esc(text)} <tspan class="count">· ${n.vector.length}</tspan>`;
+    }
+    n.g.setAttribute("transform", `translate(${p.x} ${p.y})`);
+  }
+}
+
+// ------------------------------------------------------------------ the feature table and its column
+const rows = [];
+function buildTable() {
+  const table = $("table");
+  let group = null;
+  FEATURES.forEach((f, k) => {
+    if (f.group !== group) {
+      group = f.group;
+      const n = FEATURES.filter((x) => x.group === group).length;
+      const h = document.createElement("div");
+      h.className = "group";
+      h.textContent = group === "card" ? `What the card is · ${n}` : `Its state now · ${n}`;
+      table.appendChild(h);
+      h.dataset.from = k;
+      rows.push({ header: h, k });
+    }
+    const r = document.createElement("div");
+    r.className = "row";
+    const rule = f.rule.startsWith("÷") ? `→ <b>${esc(f.rule)}</b> →` : `→ <b>${esc(f.rule)}</b>`;
+    r.innerHTML = `<span class="label">${esc(f.label)}</span><span class="raw">${esc(f.raw)}</span>
+      <span class="rule">${rule}</span><span class="val">${f.value.toFixed(f.value % 1 ? 1 : 0)}</span>`;
+    table.appendChild(r);
+    rows.push({ el: r, f, k });
+  });
+}
+const featureRows = () => rows.filter((r) => r.el);
+
+// The column: one cell per feature at the end of its row, then pushed together, then into the node.
+const CELL_X = 1010 + 620, CELL_W = 40;
+let cells = [];
+function buildColumn() {
+  cells = FEATURES.map((f) => svg("rect", { width: CELL_W, height: 24, rx: 3, fill: glyphColour(0), stroke: "rgba(160,235,215,.35)",
+    "stroke-width": 1.5 }, $("column")));
+}
+
+// ------------------------------------------------------------------ the camera
+const card = () => NODES[FOCUS];
+function overview() { return { x: 960, y: 540, z: 1, sx: 960, sy: 540 }; }
+function onCard() { return { x: pos[FOCUS].x, y: pos[FOCUS].y, z: 2.0, sx: 540, sy: 510 }; }
+function neighbourhood() {
+  const ids = [FOCUS, ...Object.keys(firstLit).map(Number)];
+  const xs = ids.map((i) => pos[i].x), ys = ids.map((i) => pos[i].y);
+  // The nodes, their labels and the whole focus card, between the title and the caption.
+  const x0 = Math.min(...xs) - 120, x1 = Math.max(...xs) + 220;
+  const y0 = Math.min(...ys) - 20, y1 = Math.max(...ys, pos[FOCUS].y + CARD_H / 2) + 4;
+  const z = Math.min(1, 1300 / (x1 - x0), 690 / (y1 - y0));
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z, sx: 960, sy: 505 };
+}
+function blend(a, b, x) {
+  return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x), z: Math.exp(lerp(Math.log(a.z), Math.log(b.z), x)),
+    sx: lerp(a.sx, b.sx, x), sy: lerp(a.sy, b.sy, x) };
+}
+function camera(t) {
+  let c = overview();
+  if (t >= T.zoom) c = blend(c, onCard(), span(t, T.zoom, T.zoomEnd));
+  if (t >= T.pull) c = blend(onCard(), neighbourhood(), span(t, T.pull, T.pullEnd));
+  $("world").style.transform = `translate(${c.sx - c.x * c.z}px, ${c.sy - c.y * c.z}px) scale(${c.z})`;
+  return c;
+}
+const toScreen = (c, p) => ({ x: c.sx + (p.x - c.x) * c.z, y: c.sy + (p.y - c.y) * c.z });
+
+// ------------------------------------------------------------------ one frame
+function draw(t) {
+  const c = camera(t);
+  const graphIn = span(t, T.graph, T.graphEnd), focusIn = span(t, T.zoom, T.zoomEnd) * (1 - span(t, T.pull, T.pullEnd));
+  const lit = (id) => firstLit[id] !== undefined ? span(t, firstLit[id], firstLit[id] + 0.8) : 0;
+  const neighbours = span(t, T.pull, T.pullEnd);
+
+  // The board darkens under the graph, more while one card is in focus; the focus card stays lit.
+  $("dim").style.opacity = 0.5 * graphIn + 0.2 * Math.max(focusIn, neighbours);
+  for (const n of NODES.filter((n) => n.type === "card")) {
+    const isFocus = n.id === FOCUS;
+    if (isFocus) n.el.style.filter = `brightness(${1 - 0.5 * graphIn * (1 - Math.max(focusIn, neighbours))})`;
+    else n.el.style.opacity = 1 - 0.55 * focusIn - 0.25 * neighbours * (1 - lit(n.id));
+  }
+
+  // Nodes pop in by type, then the edges draw; then all but the focus fade while it's read; then its neighbours light.
+  const order = ["card", "player", "global", "ability"];
+  for (const n of NODES) {
+    const k = order.indexOf(n.type), appear = span(t, T.graph + k * 0.3, T.graph + k * 0.3 + 0.6);
+    let opacity = appear, scale = lerp(0.4, 1, appear);
+    if (n.id === FOCUS) {
+      // It gives way to the card while the card is read, and forms again round its column.
+      const away = span(t, T.zoom, T.zoom + 0.6), back = span(t, T.dockEnd - 0.5, T.dockEnd + 0.3);
+      opacity = appear * (1 - away + back);
+      scale *= lerp(1, 1.35, back) * (1 + 0.15 * Math.sin(Math.PI * clamp((t - T.dockEnd) / 0.5)));
+    } else {
+      opacity *= 1 - 0.85 * focusIn - 0.85 * neighbours * (1 - lit(n.id));
+      scale *= 1 + 0.35 * lit(n.id);
+    }
+    n.g.style.opacity = opacity;
+    n.inner.setAttribute("transform", `scale(${scale})`);
+    if (n.tag) n.tag.style.opacity = lit(n.id);
+  }
+  for (const e of EDGES) {
+    const draw = span(t, T.graph + 1.2, T.graphEnd + 0.4);
+    e.el.style.strokeDashoffset = 1 - draw;
+    let opacity = e.alpha * (draw > 0 ? 1 : 0), width = e.width;
+    if (e.focus) {
+      const on = span(t, T.edges + EDGE_ORDER.indexOf(e.type) * T.edgeStep, T.edges + EDGE_ORDER.indexOf(e.type) * T.edgeStep + 0.8);
+      opacity *= 1 - focusIn - neighbours + neighbours * on * (1 / e.alpha);
+      width = lerp(e.width, 4, on);
+      if (neighbours > 0) e.el.style.strokeDashoffset = 1 - on;
+    } else {
+      opacity *= 1 - 0.9 * focusIn - 0.88 * neighbours;
+    }
+    e.el.style.opacity = Math.max(0, opacity);
+    e.el.style.strokeWidth = width;
+  }
+
+  table(t, c);
+  column(t, c);
+  legend(t);
+  caption(t);
+  $("shade-bottom").style.opacity = 1;
+}
+
+function table(t, c) {
+  // Step 1: rows come in one by one, the part of the card they come from lit. Step 2: each is scaled.
+  const gone = span(t, T.collapse, T.collapse + 0.6);
+  $("table").style.opacity = 1 - gone;
+  let current = null;
+  const links = $("links");
+  links.replaceChildren();
+  for (const r of rows) {
+    const at = T.read + r.k * T.readStep;
+    if (r.header) { r.header.style.opacity = span(t, at - 0.2, at + 0.1); continue; }
+    const inn = span(t, at, at + 0.3);
+    r.el.style.opacity = inn;
+    r.el.style.transform = `translateX(${lerp(-40, 0, inn)}px)`;
+    const s = span(t, T.scale + r.k * T.scaleStep, T.scale + r.k * T.scaleStep + 0.35);
+    r.el.querySelector(".rule").style.opacity = s;
+    r.el.querySelector(".val").style.opacity = s;
+    r.el.querySelector(".raw").style.opacity = lerp(1, 0.55, s);
+    if (t >= at && t < at + T.readStep * 1.5 && t < T.scale) current = r;
+  }
+  const pc = card().el.querySelector(".pcard");
+  if (current) {
+    pc.dataset.hl = current.f.part;
+    // A thread from the lit part of the card to the row it becomes.
+    const from = partCentre(pc, current.f.part), to = rowLeft(current.el);
+    const fade = 1 - clamp((t - (T.read + current.k * T.readStep)) / (T.readStep * 1.5));
+    svg("path", { d: `M${from.x} ${from.y} C${from.x + 160} ${from.y} ${to.x - 160} ${to.y} ${to.x - 12} ${to.y}`,
+      fill: "none", stroke: "rgba(244,199,107,.8)", "stroke-width": 2.5, opacity: 0.25 + 0.75 * fade }, links);
+  } else delete pc.dataset.hl;
+}
+
+function stageScale() { return $("stage").getBoundingClientRect().width / W; }
+function centreOf(el) {
+  const r = el.getBoundingClientRect(), s = $("stage").getBoundingClientRect(), k = stageScale();
+  return { x: (r.left + r.width / 2 - s.left) / k, y: (r.top + r.height / 2 - s.top) / k, r, s, k };
+}
+function partCentre(pc, part) {
+  const el = part === "card" ? pc.querySelector(".frame") : pc.querySelector("." + part);
+  const c = centreOf(el);
+  return part === "card" ? { x: (c.r.right - c.s.left) / c.k, y: c.y } : { x: c.x, y: c.y };
+}
+function rowLeft(el) {
+  const r = el.getBoundingClientRect(), s = $("stage").getBoundingClientRect(), k = stageScale();
+  return { x: (r.left - s.left) / k, y: (r.top + r.height / 2 - s.top) / k };
+}
+
+function column(t, c) {
+  // The cells: at the end of each row once scaled, then pushed into one column, then into the node.
+  const n = cells.length, rowsEl = featureRows();
+  const collapse = span(t, T.collapse, T.collapseEnd), dock = span(t, T.dock, T.dockEnd);
+  const node = card(), p = toScreen(c, pos[FOCUS]);
+  const tight = { h: 18 * n, w: 30 }, top = 540 - tight.h / 2;  // the column, centred on the right
+  const dest = { x: p.x - node.cw * c.z * 1.35 / 2, y: p.y - node.ch * c.z * 1.35 / 2, w: node.cw * c.z * 1.35, h: node.ch * c.z * 1.35 };
+  const after = t >= T.dockEnd;
+  $("column").style.opacity = after ? 0 : 1;
+  cells.forEach((cell, i) => {
+    const f = FEATURES[i], s = span(t, T.scale + i * T.scaleStep, T.scale + i * T.scaleStep + 0.35);
+    const ry = rowY(rowsEl[i].el);
+    const inRow = { x: CELL_X, y: ry - 12, w: CELL_W, h: 24 };
+    const packed = { x: 1500 - tight.w / 2, y: top + i * 18, w: tight.w, h: 18 };
+    const docked = { x: dest.x, y: dest.y + i * dest.h / n, w: dest.w, h: dest.h / n };
+    let b = blendRect(inRow, packed, collapse);
+    b = blendRect(b, docked, dock);
+    cell.setAttribute("x", b.x); cell.setAttribute("y", b.y);
+    cell.setAttribute("width", b.w); cell.setAttribute("height", Math.max(0.5, b.h - lerp(2, 0, collapse)));
+    cell.setAttribute("rx", lerp(3, 0, collapse));
+    cell.setAttribute("fill", s > 0 ? glyphColour(f.value * s) : "rgba(0,0,0,0)");
+    cell.setAttribute("stroke-opacity", 1 - collapse);
+    cell.style.opacity = span(t, T.read + i * T.readStep, T.read + i * T.readStep + 0.3);
+  });
+}
+function rowY(el) {
+  // The row's centre in stage pixels, from its place in the table (independent of the table's fade).
+  return 128 + el.offsetTop + el.offsetHeight / 2;
+}
+function blendRect(a, b, x) { return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x), w: lerp(a.w, b.w, x), h: lerp(a.h, b.h, x) }; }
+
+const EDGE_TEXT = {
+  belongs_to: ["Belongs to", "Each card is joined to its owner's player node."],
+  faces: ["Faces", "Every unit is joined to every enemy unit in play: who could fight whom."],
+  part_of: ["Part of", "The card's ability is a small graph of its own, joined to the card."],
+  matches: ["Matches", "Ability nodes that could pick this card: Honey Chef's “your other Lamplighters”, and each enemy Baker's “chosen enemy unit”."],
+};
+function legend(t) {
+  const el = $("legend");
+  if (!el.children.length) {
+    for (const type of EDGE_ORDER) {
+      const n = focusEdges.filter((e) => e.type === type).length;
+      el.insertAdjacentHTML("beforeend", `<div class="item" data-type="${type}"><span class="swatch" style="background:${EDGE_STYLES[type][0]}"></span>
+        ${EDGE_TEXT[type][0]} <span style="color:var(--muted)">· ${n}</span></div>`);
+    }
+  }
+  EDGE_ORDER.forEach((type, k) => {
+    el.children[k].style.opacity = span(t, T.edges + k * T.edgeStep, T.edges + k * T.edgeStep + 0.5);
+  });
+}
+
+// ------------------------------------------------------------------ captions
+const name = () => card().label;
+function beats() {
+  const n = Object.keys(firstLit).length, types = new Set(focusEdges.map((e) => e.type)).size;
+  const b = [
+    [0, "The board", "A game in progress", "Two units a side. The cards in hand are left out to keep it simple."],
+    [T.graph, "The state graph", "The network sees it as a graph", "A node for each card, each player and the game itself, and a little graph for each card's ability."],
+    [T.zoom, "One node", `Take one card: ${name()}`, "Before the network does anything, a node is just a list of numbers."],
+    [T.read, "Step 1 · Read it", "What the card is, and where it is now", `${FEATURES.filter((f) => f.group === "card").length} numbers for the card itself and ${FEATURES.filter((f) => f.group === "state").length} for its state, in the same order for every card. No name, no card ID.`],
+    [T.scale, "Step 2 · Scale it", "Each one becomes a number from 0 to 1", "Costs and stats are divided by 10, numbered keywords by their largest value; yes or no is 1 or 0."],
+    [T.collapse, "The feature vector", `${FEATURES.length} numbers: the card's input`, "Drawn as a column, as in the in-game GNN overlay: light is 1, grey is 0."],
+    [T.pull, "Its neighbours", "Who this node is joined to", `${n} neighbours, joined by ${types} kinds of edge. Each has its own input vector; the number is its length.`],
+  ];
+  EDGE_ORDER.forEach((type, k) => b.push([T.edges + k * T.edgeStep, "Its neighbours · " + EDGE_TEXT[type][0], EDGE_TEXT[type][0], EDGE_TEXT[type][1]]));
+  b.push([T.edgesEnd, "Next", "Every node starts like this", "Then the GNN's layers pass messages along these edges, so each node learns about its neighbours."]);
+  return b;
+}
+let BEATS = [], shownBeat = -1;
+function caption(t) {
+  const k = BEATS.findLastIndex((b) => t >= b[0]);
+  const into = t - BEATS[k][0], out = (BEATS[k + 1]?.[0] ?? Infinity) - t;
+  $("caption").style.opacity = Math.min(clamp(into / 0.35), clamp(out / 0.25), k === 0 ? clamp(t / 0.5) : 1);
+  if (k === shownBeat) return;
+  shownBeat = k;
+  const [, crumbs, what, how] = BEATS[k];
+  $("crumbs").textContent = crumbs; $("what").textContent = what; $("how").textContent = how;
+}
+
+// ------------------------------------------------------------------ setup and playback
+function fitStage() {
+  const render = document.body.classList.contains("render");
+  const room = { w: innerWidth, h: innerHeight - (render ? 0 : 52) };
+  const s = render ? 1 : Math.min(room.w / W, room.h / H);
+  $("stage").style.transform = `translate(${(room.w - W * s) / 2}px, ${(room.h - H * s) / 2}px) scale(${s})`;
+}
+
+let now = 0, playing = false, last = 0;
+function seek(t) {
+  now = Math.max(0, Math.min(DURATION, t));
+  draw(now);
+  $("scrub").value = now;
+  $("play").textContent = playing ? "Pause" : "Play";
+}
+window.seek = seek;
+function tick(ms) {
+  if (!playing) return;
+  seek(now + (ms - last) / 1000);
+  last = ms;
+  if (now >= DURATION) { playing = false; seek(now); return; }
+  requestAnimationFrame(tick);
+}
+function toggle() {
+  playing = !playing;
+  if (playing) {
+    if (now >= DURATION) now = 0;
+    last = performance.now();
+    requestAnimationFrame(tick);
+  }
+  seek(now);
+}
+
+async function init() {
+  if (new URLSearchParams(location.search).has("render")) document.body.classList.add("render");
+  await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);
+  $("arena").style.backgroundImage = `url(${CARD_ART.background})`;
+  layout();
+  buildBoard();
+  buildGraph();
+  buildTable();
+  buildColumn();
+  BEATS = beats();
+  $("scrub").max = DURATION;
+  $("play").addEventListener("click", toggle);
+  $("scrub").addEventListener("input", (e) => { playing = false; seek(+e.target.value); });
+  addEventListener("keydown", (e) => {
+    if (e.code === "Space") { e.preventDefault(); toggle(); }
+    if (e.code === "ArrowRight") seek(now + 1 / 60);
+    if (e.code === "ArrowLeft") seek(now - 1 / 60);
+  });
+  addEventListener("resize", fitStage);
+  fitStage();
+  seek(0);
+  window.ready = true;
+}
+init();
+</script>
+</body>
+</html>

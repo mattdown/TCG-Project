@@ -34,6 +34,7 @@ from src.cards.art import art_key  # noqa: E402
 from src.cards.generate import Attempt  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("card_generation_visualiser.html")
+PAINTED_CARD = Path(__file__).with_name("painted_card.html")  # the client's card, shared with gnn_visualiser
 OUT = Path(__file__).parent / "build"
 ART = Path(__file__).with_name("art")  # the frame, its parts and the background; cards/ has each card's art
 CLIENT = Path(__file__).parents[1] / "TCGClient"
@@ -45,7 +46,9 @@ PARTS = {"card_frame": ("Assets/Art/Sprites/card_frame_action.png", 840),
          "card_attack": ("Assets/Art/Sprites/card_attack.png", 240),
          "card_defence": ("Assets/Art/Sprites/card_defence.png", 180),
          "card_job_banner": ("Assets/Art/Sprites/card_job_banner.png", 540),
-         "background": ("Assets/Art/Sprites/game_background.jpeg", 1920)}
+         "background": ("Assets/Art/Sprites/game_background.jpeg", 1920),
+         "hero_you": ("Assets/Art/Sprites/hero_you.png", 460),
+         "hero_opponent": ("Assets/Art/Sprites/hero_opponent.png", 460)}
 CARD_ART_SIZE = (320, 400)  # the client's CardArt is 640x800; the art window is about 270 px wide on the page
 
 
@@ -126,6 +129,12 @@ def card_art(keys: set[str]) -> str:
     return f"<script>window.CARD_ART = {json.dumps(parts)};\nwindow.CARD_IMAGES = {json.dumps(cards)};</script>"
 
 
+def bake(template: Path, data: dict, keys: set[str]) -> str:
+    """A page as one file: the card kit, the painted card, the images for these art keys and the data."""
+    html = page(data, template).replace("<!--PAINTED_CARD-->", PAINTED_CARD.read_text())
+    return html.replace("<!--CARD_ART-->", card_art(keys))
+
+
 def render(html: Path, video: Path, fps: int):
     """Steps the page's timeline with window.seek(t) and pipes a screenshot of each frame to ffmpeg."""
     from playwright.sync_api import sync_playwright  # only needed for --render
@@ -170,7 +179,7 @@ def main():
     if args.refresh_art:
         refresh_art(keys)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(page(data, TEMPLATE).replace("<!--CARD_ART-->", card_art(keys)))
+    args.out.write_text(bake(TEMPLATE, data, keys))
     print(f"Wrote {args.out} ({args.out.stat().st_size / 1e6:.1f} MB, {len(data['cards'])} cards)")
     if args.render:
         render(args.out, args.out.with_suffix(".mp4"), args.fps)

@@ -1,0 +1,169 @@
+"""GNN visualiser: how the network reads the board, animated for the blog (part 1: one node's inputs).
+
+    uv run --project PythonServer python Blog/gnn_visualiser.py                 # Blog/build/gnn_visualiser.html, opened
+    uv run --project PythonServer --with playwright python Blog/gnn_visualiser.py --render   # also the .mp4
+
+Run from the repository root; it uses PythonServer's environment. The art comes from Blog/art
+(card_generation_visualiser.py --refresh-art makes it).
+
+A small position from set_200 (two units a side, hands left out) is turned into the state graph
+the GNN reads (src/graph/encode.py, the edges as src/server/graph_view.py sends them to the client's
+overlay). The page shows the board, lays the graph over it, zooms into one card's node, turns the
+card into its 24 input features in two steps (read them off the card, then scale them) as a
+greyscale column like the client's EmbeddingGlyph, and then brings in the node's neighbours, edge
+type by edge type. Everything is a function of the time t, so it can be scrubbed and rendered
+frame by frame like the card generation visualiser.
+"""
+import argparse
+import webbrowser
+from pathlib import Path
+
+import numpy as np
+
+from card_generation_visualiser import SET_SIZE, bake, render  # next to this file; it puts PythonServer on the path
+from src.cards.abilities import render as card_text  # noqa: E402
+from src.cards.art import art_key  # noqa: E402
+from src.cards.schema import load_card_set  # noqa: E402
+from src.game.actions import Action, ActionType  # noqa: E402
+from src.game.engine import Game  # noqa: E402
+from src.game.state import CardInstance, Zone  # noqa: E402
+from src.game.terms import ASPECT_NAMES, KEYWORD_NAMES, KEYWORDS, keyword_text  # noqa: E402
+from src.graph.encode import (CARD_DYNAMIC_FEATURES, CARD_STATIC_FEATURES, KEYWORD_SCALE,  # noqa: E402
+                              observe)
+from src.server.graph_view import ability_label, graph_view  # noqa: E402
+
+TEMPLATE = Path(__file__).with_name("gnn_visualiser.html")
+OUT = Path(__file__).parent / "build"
+CARD_SET = Path(__file__).parents[1] / "PythonServer" / "cardsets" / f"set_{SET_SIZE}.json"
+
+# The position, by card number in set_200: the first of yours is the card the camera follows.
+YOURS, THEIRS = (132, 24), (2, 12)  # Fly-agaric Lamplighter and Honey Chef; Porcini Baker and Lion's-mane Baker
+DAMAGE = {132: 2}  # so its state features aren't all zero
+HEALTH, CRYSTALS, TURN = (22, 17), 5, 9
+
+# How each input feature is read off the card (src/graph/encode.py), in the encoder's order.
+STATE_NAMES = {"in_hand": "In hand", "in_play": "In play", "mine": "Yours", "attacked": "Has attacked",
+               "fresh": "Played this turn", "damage": "Damage", "health_left": "Health left",
+               "mulligan_marked": "Marked to swap", "hidden": "Hidden", "frozen": "Frozen"}
+CARD_PART = {"cost": "cost", "power": "power", "health": "health", "damage": "health", "health_left": "health",
+             **{k: "text" for k in KEYWORD_SCALE}, **{a: "art" for a in ASPECT_NAMES}}
+
+
+def position() -> tuple[Game, dict[int, int]]:
+    """The game, and card number → uid for the cards in play."""
+    cards = load_card_set(CARD_SET).cards
+    game = Game(cards[:30], cards[30:60], seed=0, first_player=0)
+    game.step(Action(ActionType.KEEP_HAND))
+    game.step(Action(ActionType.KEEP_HAND))
+    s = game.state
+    s.turn = TURN
+    for p, health in zip(s.players, HEALTH):
+        p.deck.extend(p.hand)  # no hands: the animation is about the board
+        for uid in p.hand:
+            s.cards[uid].zone = Zone.DECK
+        p.hand.clear()
+        p.health, p.crystals, p.mana = health, CRYSTALS, CRYSTALS
+    uids = {}
+    for player, numbers in ((0, YOURS), (1, THEIRS)):
+        for n in numbers:
+            uid = len(s.cards)
+            s.cards.append(CardInstance(uid, cards[n - 1], player, Zone.PLAY, damage=DAMAGE.get(n, 0)))
+            s.players[player].play.append(uid)
+            uids[n] = uid
+    return game, uids
+
+
+def card_view(game: Game, uid: int) -> dict:
+    """What painted_card.html needs to draw a card in play."""
+    c = game.card(uid)
+    card = c.card
+    ability = card.abilities[0] if card.abilities else None
+    return {"name": card.name, "subtitle": card.subtitle, "type": card.type, "cost": card.cost, "power": card.power,
+            "health": card.health - c.damage, "damaged": c.damage > 0, "traits": list(card.traits),
+            "keywords": [keyword_text(k, v) for k, v in card.keywords], "art": True,
+            "text": card_text(ability, card.type) if ability else "", "kind": ability["kind"] if ability else "",
+            "art_key": art_key(card.name, card.subtitle, card.aspects)}
+
+
+def features(game: Game, uid: int, values: np.ndarray) -> list[dict]:
+    """The card node's 24 inputs: each feature's name, what it is on the card, the rule that scales it and the
+    number the network gets (from observe, so it is exactly what the network reads)."""
+    c = game.card(uid)
+    card = c.card
+    raw = {"cost": card.cost, "power": card.power, "health": card.health, "damage": c.damage,
+           "health_left": card.health - c.damage}
+    rows = []
+    for name, value in zip((*CARD_STATIC_FEATURES, *CARD_DYNAMIC_FEATURES), values):
+        group = "card" if name in CARD_STATIC_FEATURES else "state"
+        if name in raw:
+            label = name.replace("_", " ").capitalize() if name != "health_left" else "Health left"
+            shown, rule = str(raw[name]), "÷ 10"
+        elif name in KEYWORD_SCALE:
+            label, n = KEYWORD_NAMES[name], card.keyword(name)
+            if KEYWORDS[name]:  # numbered keywords
+                shown, rule = f"+{n}" if n else "none", f"÷ {KEYWORD_SCALE[name]}"
+            else:
+                shown, rule = "yes" if n else "no", "1 if yes"
+        elif name in ASPECT_NAMES:
+            label, shown, rule = ASPECT_NAMES[name], "yes" if name in card.aspects else "no", "1 if yes"
+        else:
+            label, shown, rule = STATE_NAMES[name], "yes" if value else "no", "1 if yes"
+        rows.append({"name": name, "label": label, "group": group, "raw": shown, "rule": rule,
+                     "value": round(float(value), 3), "part": CARD_PART.get(name, "card")})
+    return rows
+
+
+def graph_data() -> dict:
+    game, uids = position()
+    obs = observe(game, 0)
+    e = obs.encoded
+    view = graph_view(game, 0)
+    inputs = {"card": np.concatenate([e.card_static, e.card_dynamic], axis=1), "player": e.player,
+              "global": e.global_[None], "ability": e.node_features}
+    first = {"card": 0, "player": e.num_cards, "global": e.num_cards + 2, "ability": e.num_cards + 3}
+
+    nodes = []
+    for n in view["nodes"]:
+        t = n["type"]
+        vector = inputs[t][n["id"] - first[t]]
+        node = {"id": n["id"], "type": t, "vector": [round(float(v), 3) for v in vector]}
+        if t == "card":
+            node |= {"owner": n["owner"], "slot": game.state.players[n["owner"]].play.index(n["uid"]),
+                     "card": card_view(game, n["uid"])}
+            node["label"] = node["card"]["name"]
+        elif t == "player":
+            node |= {"owner": n["owner"], "label": "You" if n["owner"] == 0 else "Opponent"}
+        elif t == "global":
+            node["label"] = "The game"
+        else:
+            kind, label = ability_label(vector)
+            node |= {"card": n["card"], "kind": kind, "label": label.replace("_", " ")}
+        nodes.append(node)
+
+    focus = obs.card_uids.index(uids[YOURS[0]])
+    return {"nodes": nodes, "edges": view["edges"], "focus": focus,
+            "features": features(game, uids[YOURS[0]], inputs["card"][focus]),
+            "heroes": [{"owner": p, "name": "You" if p == 0 else "Opponent", "health": HEALTH[p]} for p in (0, 1)]}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--out", type=Path, default=OUT / "gnn_visualiser.html")
+    parser.add_argument("--render", action="store_true", help="also render the video next to the page (needs playwright)")
+    parser.add_argument("--fps", type=int, default=60)
+    parser.add_argument("--no-browser", action="store_true")
+    args = parser.parse_args()
+
+    data = graph_data()
+    keys = {n["card"]["art_key"] for n in data["nodes"] if n["type"] == "card"}
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(bake(TEMPLATE, data, keys))
+    print(f"Wrote {args.out} ({args.out.stat().st_size / 1e6:.1f} MB)")
+    if args.render:
+        render(args.out, args.out.with_suffix(".mp4"), args.fps)
+    elif not args.no_browser:
+        webbrowser.open(args.out.resolve().as_uri())
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,75 @@
+<!-- The card as the Unity client draws it, shared by the Blog's animations. Needs the Lantern colour tokens
+     (--shadow, --parchment, --ink), card_kit.html's esc and abilityHtml, and window.CARD_ART / CARD_IMAGES
+     (card_generation_visualiser.card_art). The pages include it where they say PAINTED_CARD. -->
+<style>
+/* The card as the Unity client draws it (ClientAssetBuilder.BuildCardPrefab): a 150x210 card in card units (--u),
+   the plain painted frame (Art/Sprites/card_frame_action.png) spilling past it, the card's art behind the frame's
+   window, and the sword, shield and job banner parts at the prefab's positions. Type sizes are TMP's, in card units. */
+.pcard { --w: 420px; --u: calc(var(--w) / 151.24); position: relative; width: calc(var(--u) * 150); height: calc(var(--u) * 210); }
+.pcard > * { position: absolute; margin: 0; }
+.pcard .art { left: calc(var(--u) * 29.15); top: calc(var(--u) * 13.67); width: calc(var(--u) * 96.47); height: calc(var(--u) * 97.15);
+  overflow: hidden; background: #0B1612; }
+.pcard .art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }  /* CardView.ArtRaise */
+.pcard.no-art .art img { visibility: hidden; }
+.pcard .frame { left: calc(var(--u) * -0.6); top: calc(var(--u) * -10.9); width: calc(var(--u) * 151.24); height: calc(var(--u) * 225.4);
+  filter: drop-shadow(0 calc(var(--u) * 4) 0 rgba(5, 10, 8, .5)); }
+.pcard .part { height: auto; }
+.pcard .num { display: grid; place-items: center; font: 800 1em/1 Outfit; color: #fff; white-space: nowrap;
+  -webkit-text-stroke: .16em var(--shadow); paint-order: stroke fill; text-shadow: 0 .06em .04em rgba(6, 16, 13, .8); }
+.pcard .cost { left: calc(var(--u) * 13.49); top: calc(var(--u) * 10.43); width: calc(var(--u) * 22.54); height: calc(var(--u) * 21.54); font-size: calc(var(--u) * 20); }
+.pcard .sword { left: calc(var(--u) * -7.4); top: calc(var(--u) * 178.85); width: calc(var(--u) * 39.43); }
+.pcard .power { left: calc(var(--u) * 4.02); top: calc(var(--u) * 190.38); width: calc(var(--u) * 22); height: calc(var(--u) * 22); font-size: calc(var(--u) * 18); }
+.pcard .shield { left: calc(var(--u) * 122.94); top: calc(var(--u) * 185.1); width: calc(var(--u) * 30.07); }
+.pcard .health { left: calc(var(--u) * 126.98); top: calc(var(--u) * 191); width: calc(var(--u) * 22); height: calc(var(--u) * 22); font-size: calc(var(--u) * 18); }
+.pcard .banner { left: calc(var(--u) * 33.12); top: calc(var(--u) * 188.57); width: calc(var(--u) * 88); }
+.pcard .job { left: calc(var(--u) * 41.12); top: calc(var(--u) * 196.87); width: calc(var(--u) * 70.5); height: calc(var(--u) * 11.4);
+  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: 700 calc(var(--u) * 9) Outfit; letter-spacing: .04em; color: var(--ink); }
+.pcard .name { left: calc(var(--u) * 23.63); top: calc(var(--u) * 112.17); width: calc(var(--u) * 105.94); height: calc(var(--u) * 16.9);
+  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: 400 calc(var(--u) * 14.5) "Marcellus SC", serif;
+  letter-spacing: -.03em; color: var(--ink); -webkit-text-stroke: .025em var(--ink); text-shadow: 0 .07em 0 rgba(255, 242, 204, .35); }
+.pcard .sub { left: calc(var(--u) * 48.99); top: calc(var(--u) * 132); width: calc(var(--u) * 54.66); height: calc(var(--u) * 10.14);
+  display: grid; place-items: center; white-space: nowrap; overflow: hidden; font: italic 500 calc(var(--u) * 8.5) Outfit; color: var(--parchment); }
+.pcard .text { left: calc(var(--u) * 27.41); top: calc(var(--u) * 144.59); width: calc(var(--u) * 98.22); height: calc(var(--u) * 43.98);
+  display: flex; flex-direction: column; justify-content: safe center; overflow: hidden; text-align: center;
+  font: 500 calc(var(--u) * 10)/1.12 Outfit; color: var(--parchment); }
+.pcard .text b { font-weight: 800; color: var(--ink); }
+.pcard.action .unit-only { display: none; }
+.pcard .num.down { color: #FF8A96; }  /* Palette.StatDown: health below the printed value */
+</style>
+<script>
+function paintedCard(c, kind, art) {
+  // The card like the client's CardView: units and actions share the frame; units add the sword and shield.
+  // c.art shows the art (the visualiser hides it until the card is named); c.damaged colours the health.
+  const unit = c.type === "unit", parts = window.CARD_ART, image = window.CARD_IMAGES[art];
+  const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
+  const job = unit ? c.traits.filter(Boolean).join(" · ") : "Action";
+  return `<div class="pcard ${unit ? "" : "action"} ${c.art && image ? "" : "no-art"}">
+    <div class="art">${image ? `<img src="${image}" alt="">` : ""}</div>
+    <img class="frame" src="${parts.card_frame}" alt="">
+    <div class="num cost">${c.cost}</div>
+    <div class="name">${esc(c.name)}</div>
+    <div class="sub">${esc(c.subtitle)}</div>
+    <div class="text"><div>${kw ? kw + "<br>" : ""}${abilityHtml({ kind, text: c.text })}</div></div>
+    <img class="part banner" src="${parts.card_job_banner}" alt=""><div class="job">${esc(job)}</div>
+    <img class="part sword unit-only" src="${parts.card_attack}" alt=""><div class="num power unit-only">${c.power}</div>
+    <img class="part shield unit-only" src="${parts.card_defence}" alt=""><div class="num health unit-only${c.damaged ? " down" : ""}">${c.health}</div>
+  </div>`;
+}
+
+function fitPainted(root) {
+  // Shrink to fit between the client's auto-size bounds (name 14.5 → 7, subtitle 8.5 → 5, text 10 → 5, job 9 → 4 card units).
+  const unit = parseFloat(getComputedStyle(root.querySelector(".pcard")).getPropertyValue("--w")) / 151.24;
+  const fit = (selector, max, min, fits) => {
+    const el = root.querySelector(selector);
+    for (let size = max; size >= min; size -= 0.25) {
+      el.style.fontSize = size * unit + "px";
+      if (fits(el)) break;
+    }
+  };
+  const wide = (el) => el.scrollWidth <= el.clientWidth + 1;
+  fit(".name", 14.5, 7, wide);
+  fit(".sub", 8.5, 5, wide);
+  fit(".text", 10, 5, (el) => el.scrollHeight <= el.clientHeight + 1);
+  fit(".job", 9, 4, wide);
+}
+</script>

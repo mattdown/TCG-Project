@@ -1,7 +1,7 @@
 """The card lab's data: what its pages and the card generation visualiser are built from."""
 from pathlib import Path
 
-from card_lab import one, run
+from card_lab import run
 from src.cards.abilities import render
 
 
@@ -19,14 +19,6 @@ def test_card_lab_data():
     assert render(ability["tree"], ability["card_type"])
 
 
-def test_explorer_data():
-    data = one(seed=12, jobs=6, action_share=0.25, vanilla_share=0.0, keyword_share=0.0, variety=1)
-    kept = data["kept"]
-    assert kept["stopped_at"] is None and kept["card"] is not None
-    assert 0 < kept["ability_p"] <= 1 and kept["ability_decisions"] >= 1
-    assert all(a["stopped_at"] and "trace" in a for a in data["others"])
-
-
 def test_visualiser_shows_the_set_with_art():
     """The visualiser's cards are the saved set's, so each one has the art painted for it."""
     from card_generation_visualiser import ART, SET_SIZE, pool_data
@@ -36,3 +28,14 @@ def test_visualiser_shows_the_set_with_art():
     assert [c["number"] for c in cards] == [1, 2, 3, 4, 5]
     assert [c["kept"]["card"]["name"] for c in cards] == [c.name for c in saved[:5]]
     assert all("trace" in c["kept"] and (ART / "cards" / f"{c['art']}.webp").exists() for c in cards)
+
+
+def test_gnn_visualiser_reads_the_encoder():
+    """The focus card's features are the encoder's own numbers, and it has neighbours of each edge type shown."""
+    from gnn_visualiser import graph_data
+    data = graph_data()
+    focus = data["nodes"][data["focus"]]
+    assert focus["type"] == "card" and [f["value"] for f in data["features"]] == focus["vector"]
+    assert all(r["value"] in (0.0, 1.0) for r in data["features"] if r["rule"] == "1 if yes")
+    types = {e["type"] for e in data["edges"] if data["focus"] in (e["src"], e["dst"])}
+    assert types == {"belongs_to", "faces", "part_of", "matches"}

@@ -6,9 +6,7 @@
 
 Run from the repository root: the cards come from the generator in PythonServer, so this uses its environment.
 
-The explorer (http://localhost:8765/explorer) generates one card at a time and shows the path
-the sampler took through the grammar: every random decision, the options it had and why some
-were closed. `--export-explorer explorer.html --count 100` bakes that many cards into a page.
+One card's path through the grammar, animated, is card_generation_visualiser.py.
 
 The pipeline is described in docs/ability-generation.md.
 """
@@ -31,11 +29,9 @@ from src.cards.trace import decisions, path_probability  # noqa: E402
 from src.game.terms import ASPECT_NAMES, keyword_text  # noqa: E402
 
 PAGE = Path(__file__).with_name("card_lab.html")
-EXPLORER_PAGE = Path(__file__).with_name("card_explorer.html")
-CARD_KIT = Path(__file__).with_name("card_kit.html")  # the card's markup and style, shared by both pages
+CARD_KIT = Path(__file__).with_name("card_kit.html")  # the card's markup and style
 DEFAULTS = {"seed": 1, "count": 60, "jobs": 6, "action_share": 0.25, "vanilla_share": 0.04, "keyword_share": 0.25,
             "variety": 4}
-SHARES = ("action_share", "vanilla_share", "keyword_share")
 
 
 def _checks(a: Attempt) -> list[dict]:
@@ -104,18 +100,6 @@ def make_generator(seed: int, jobs: int, action_share: float, vanilla_share: flo
                                    vanilla_share=vanilla_share, keyword_share=keyword_share)
 
 
-def one(seed: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
-        variety: int) -> dict:
-    """One kept card with its derivation, plus every draw made on the way to it."""
-    job_list, generator = make_generator(seed, jobs, action_share, vanilla_share, keyword_share, variety)
-    kept = generator.card()
-    return {"seed": seed, "job_list": list(job_list), "max_complexity": MAX_COMPLEXITY,
-            "params": {"jobs": jobs, "action_share": action_share, "vanilla_share": vanilla_share,
-                       "keyword_share": keyword_share, "variety": variety},
-            "kept": _attempt_json(kept, trace=True),
-            "others": [_attempt_json(a, trace=True) for a in generator.attempts if a is not kept]}
-
-
 def run(seed: int, count: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
         variety: int) -> dict:
     job_list, generator = make_generator(seed, jobs, action_share, vanilla_share, keyword_share, variety)
@@ -156,16 +140,6 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         if url.path == "/":
             self._send(200, "text/html; charset=utf-8", page(None))
-        elif url.path == "/explorer":
-            self._send(200, "text/html; charset=utf-8", page(None, EXPLORER_PAGE))
-        elif url.path == "/api/one":
-            query = {k: v[0] for k, v in parse_qs(url.query).items()}
-            try:
-                params = {k: type(d)(query.get(k, d)) for k, d in DEFAULTS.items() if k != "count"}
-                params["variety"] = max(1, min(params["variety"], 16))
-                self._send(200, "application/json", json.dumps(one(**params)))
-            except ValueError as e:
-                self._send(400, "application/json", json.dumps({"error": str(e)}))
         elif url.path == "/api/generate":
             query = {k: v[0] for k, v in parse_qs(url.query).items()}
             try:
@@ -197,7 +171,6 @@ def main():
     parser.add_argument("--text", action="store_true", help="print to the terminal instead of serving the page")
     parser.add_argument("--rejected", action="store_true", help="with --text, also list the draws that were stopped")
     parser.add_argument("--export", type=Path, help="write a self-contained page with this batch baked in")
-    parser.add_argument("--export-explorer", type=Path, help="write a self-contained explorer page with --count cards")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
@@ -208,11 +181,6 @@ def main():
     elif args.export:
         args.export.write_text(page(run(**params)))
         print(f"Wrote {args.export}")
-    elif args.export_explorer:
-        shares = {k: getattr(args, k) for k in SHARES}
-        cards = [one(args.seed * 100_000 + i, args.jobs, variety=args.variety, **shares) for i in range(args.count)]
-        args.export_explorer.write_text(page({"cards": cards}, EXPLORER_PAGE))
-        print(f"Wrote {args.export_explorer}")
     else:
         url = f"http://localhost:{args.port}/"
         server = ThreadingHTTPServer(("localhost", args.port), Handler)
