@@ -365,6 +365,45 @@ def test_graph_returns_every_gnn_layer():
     assert -1 <= graph["value"]["estimate"] <= 1
 
 
+def test_graph_node_names_the_input_features_without_a_model():
+    session = GameSession(fixture_set())
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1, "scenario": {"mana": 3}})
+    graph = session.handle({"type": "graph"})["graph"]
+    for n in graph["nodes"]:
+        node = session.handle({"type": "graph_node", "node": n["id"]})["node"]
+        assert node["id"] == n["id"] and node["type"] == n["type"] and node["embedding"] == "features"
+        assert node["input"] and node["stages"] == [] and node["layers"] == [] and node["read_by"]
+        assert all(f["value"] != 0 and isinstance(f["name"], str) for group in node["input"] for f in group["features"])
+    card = next(n for n in graph["nodes"] if n["type"] == "card")
+    node = session.handle({"type": "graph_node", "node": card["id"]})["node"]
+    assert [g["name"] for g in node["input"]] == ["static", "dynamic"]
+    assert {"name": "in_hand", "value": 1.0} in node["input"][1]["features"]
+    assert session.handle({"type": "graph_node", "node": len(graph["nodes"])})["status"] == "error"
+
+
+def test_graph_node_has_each_layers_messages_and_attention():
+    session = GameSession(fixture_set())
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1, "scenario": {"mana": 3}})
+    session._net = create_model("gnn", hidden=32, num_layers=2)
+    graph = session.handle({"type": "graph"})["graph"]
+    linked = {(e["src"], e["dst"]) for e in graph["edges"]} | {(e["dst"], e["src"]) for e in graph["edges"]}
+    forward = {e["type"] for e in graph["edges"]} | {"belongs_to", "faces", "opposes", "in", "part_of", "next",
+                                                     "uses", "matches", "bound_to"}
+    for n in graph["nodes"]:
+        node = session.handle({"type": "graph_node", "node": n["id"]})["node"]
+        assert node["embedding"] == "gnn" and node["hidden"] == 32 and len(node["layers"]) == 2
+        assert node["stages"][-1]["dim"] == 32 and len(node["stages"][-1]["vector"]) == 16
+        for layer in node["layers"]:
+            assert layer["dim"] == 32 and len(layer["vector"]) == 16 and layer["incoming"]
+            for message in layer["incoming"]:
+                assert message["shown_as"] in forward and message["message"] >= 0
+                assert abs(sum(m["attention"] for m in message["neighbours"]) - 1) < 1e-2
+                assert all((m["node"], n["id"]) in linked for m in message["neighbours"])
+    glob = next(n for n in graph["nodes"] if n["type"] == "global")
+    layer = session.handle({"type": "graph_node", "node": glob["id"]})["node"]["layers"][0]
+    assert [(m["type"], len(m["neighbours"])) for m in layer["incoming"]] == [("in", 2)]
+
+
 def test_graph_has_no_actions_on_the_ais_decision():
     session = GameSession(fixture_set())
     session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1})

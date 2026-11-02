@@ -81,6 +81,8 @@ namespace Tcg.Board
 
         /// <summary>The overlay opened, or wants a fresh graph: send the graph request.</summary>
         public event Action Requested;
+        /// <summary>A node was tapped: send graph_node for its id and pass the reply to <see cref="ShowNode"/>.</summary>
+        public event Action<int> NodeRequested;
         public bool IsOpen => _panel.activeSelf;
 
         BoardView _board;
@@ -105,6 +107,7 @@ namespace Tcg.Board
         bool _dirty;
 
         RectTransform _policy, _legend;
+        GraphNodePopup _popup;
         readonly List<(int node, Color colour)> _focus = new List<(int, Color)>();
         RectTransform _focusRow;  // the action or value row whose inputs are drawn
         bool _pinned;
@@ -143,6 +146,10 @@ namespace Tcg.Board
             button.targetGraphic = toggle.GetComponent<Image>();
             toggle.GetComponent<Image>().raycastTarget = true;
             button.onClick.AddListener(view.Toggle);
+            // Last, so it covers the overlay's panels and the GNN button.
+            view._popup = GraphNodePopup.Create(root, view.NodeName,
+                type => NodeColours.TryGetValue(type, out var c) ? c : Color.white,
+                type => EdgeStyles.TryGetValue(type, out var e) ? e.Colour.WithAlpha(1f) : Color.white);
             return view;
         }
 
@@ -150,6 +157,7 @@ namespace Tcg.Board
         {
             bool open = !IsOpen;
             _panel.SetActive(open);
+            _popup.Hide();
             Ui.TintPill(_toggle, open ? Palette.HumanAccent : Palette.Glass);
             if (!open) return;
             transform.SetAsLastSibling();
@@ -161,6 +169,7 @@ namespace Tcg.Board
         public void Show(GraphData graph)
         {
             _graph = graph;
+            _popup.Hide();  // node ids change with the state
             foreach (var n in _nodes) Destroy(n.Rect.gameObject);
             _nodes.Clear();
             _abilitiesOf.Clear();
@@ -228,6 +237,7 @@ namespace Tcg.Board
             var hover = rt.gameObject.AddComponent<GraphNodeHover>();
             hover.Entered += () => SetHover(node.id);
             hover.Exited += () => { if (_hover == node.id) SetHover(-1); };
+            hover.Clicked += () => NodeRequested?.Invoke(node.id);
             return new NodeView { Node = node, Rect = rt, Group = group, Glyph = glyph, Frame = frame, Back = back,
                 Resolving = resolving };
         }
@@ -485,6 +495,31 @@ namespace Tcg.Board
             }
         }
 
+        /// <summary>Shows a node's graph_node reply in the popup, if the overlay is still open.</summary>
+        public void ShowNode(GraphNodeDetail node)
+        {
+            if (IsOpen && _graph != null && node.id < _nodes.Count) _popup.Show(node);
+        }
+
+        /// <summary>A node's name on one line: the card, the ability step and its card, or the player.</summary>
+        string NodeName(int id)
+        {
+            if (id < 0 || id >= _nodes.Count) return id.ToString();
+            var node = _nodes[id].Node;
+            switch (node.type)
+            {
+                case "card":
+                    return CardName(node.card_id);
+                case "ability":
+                    var card = node.card.HasValue && node.card.Value < _nodes.Count ? _nodes[node.card.Value].Node.card_id : null;
+                    return $"{node.label} ({CardName(card)})";
+                case "player":
+                    return node.owner == 0 ? UiText.GraphYou : UiText.GraphOpponent;
+                default:
+                    return UiText.GraphGlobal;
+            }
+        }
+
         string CardName(string cardId) =>
             cardId != null && _board.Defs != null && _board.Defs.TryGetValue(cardId, out var def) ? def.name : cardId;
 
@@ -537,8 +572,8 @@ namespace Tcg.Board
                 _edgeRows[type] = (group, label);
             }
             y += rows * Row + 4f;
-            Ui.Body(Ui.Box("Hint", legend, 12, y, W - 24, 28), UiText.GraphHint, 10, Palette.SubtleText);
-            y += 32f;
+            Ui.Body(Ui.Box("Hint", legend, 12, y, W - 24, 40), UiText.GraphHint, 10, Palette.SubtleText);
+            y += 44f;
             Ui.Anchor(legend, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-12, -PanelTop), new Vector2(W, y));
         }
 
@@ -656,9 +691,10 @@ namespace Tcg.Board
     }
 
     /// <summary>Tells the graph overlay which node the pointer is over.</summary>
-    public class GraphNodeHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    public class GraphNodeHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
     {
-        public event Action Entered, Exited;
+        public event Action Entered, Exited, Clicked;
+        public void OnPointerClick(PointerEventData e) => Clicked?.Invoke();
         public void OnPointerEnter(PointerEventData e) => Entered?.Invoke();
         public void OnPointerExit(PointerEventData e) => Exited?.Invoke();
     }

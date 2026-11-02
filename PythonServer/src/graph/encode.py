@@ -23,10 +23,17 @@ from src.game.terms import ASPECTS
 from src.graph.abilities import NODE_DIM, ability_nodes
 
 KEYWORD_SCALE = {"guard": 1, "elusive": 1, "charge": 1, "duelist": 3, "armor": 2}
-CARD_STATIC_DIM = 3 + len(KEYWORD_SCALE) + len(ASPECTS)
-CARD_DYNAMIC_DIM = 10
-PLAYER_DIM = 13 + len(ASPECTS)
-GLOBAL_DIM = 4
+# Feature names, in the order the encoder writes them below (for the client's GNN overlay).
+CARD_STATIC_FEATURES = ("cost", "power", "health", *KEYWORD_SCALE, *ASPECTS)
+CARD_DYNAMIC_FEATURES = ("in_hand", "in_play", "mine", "attacked", "fresh", "damage", "health_left",
+                         "mulligan_marked", "hidden", "frozen")
+PLAYER_FEATURES = ("health", "mana", "crystals", "hand", "deck", "discard", "units", "can_attack", "power_in_play",
+                   "spare_spore", "active", "mulligan_done", "fatigue", *ASPECTS)
+GLOBAL_FEATURES = ("turn", "mulligan", "main", "my_decision")
+CARD_STATIC_DIM = len(CARD_STATIC_FEATURES)
+CARD_DYNAMIC_DIM = len(CARD_DYNAMIC_FEATURES)
+PLAYER_DIM = len(PLAYER_FEATURES)
+GLOBAL_DIM = len(GLOBAL_FEATURES)
 
 
 @dataclass

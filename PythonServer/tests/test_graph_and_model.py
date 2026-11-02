@@ -174,6 +174,19 @@ def test_fast_hetero_collate_matches_pyg_batching():
         assert torch.allclose(a.float(), b.float(), atol=1e-5)
 
 
+def test_recording_messages_gives_the_same_embeddings():
+    net = small("gnn")
+    batch = net.collate([o.encoded for o in random_positions(4, seed=3)])
+    messages = []
+    with torch.no_grad():
+        plain, recorded = net.node_states(batch), net.node_states(batch, messages)
+    assert len(messages) == len(net.convs)
+    for a, b in zip(plain, recorded):
+        assert all(torch.allclose(a[t], b[t], atol=1e-6) for t in a)
+    for edge_type, (h, edge_index, alpha) in messages[0].items():
+        assert alpha.shape == (edge_index.size(1),) and h.size(0) == batch[edge_type[2]].num_nodes
+
+
 @pytest.mark.parametrize("arch", ARCHS)
 def test_older_checkpoints_load_with_zero_weights_for_new_ability_features(arch, tmp_path):
     net = create_model(arch, hidden=32, num_layers=2)

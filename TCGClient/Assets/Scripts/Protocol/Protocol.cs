@@ -34,6 +34,12 @@ namespace Tcg.Protocol
         public ActRequest(int actionIndex) : base("act") { action_index = actionIndex; }
     }
 
+    public class GraphNodeRequest : Request
+    {
+        public int node;
+        public GraphNodeRequest(int node) : base("graph_node") { this.node = node; }
+    }
+
     // --- responses
 
     public class Response
@@ -79,6 +85,12 @@ namespace Tcg.Protocol
     public class GraphResponse : Response
     {
         public GraphData graph;
+    }
+
+    /// <summary>Reply to graph_node: one node of the graph, from its input features to its final embedding.</summary>
+    public class GraphNodeResponse : Response
+    {
+        public GraphNodeDetail node;
     }
 
     // --- data
@@ -322,6 +334,68 @@ namespace Tcg.Protocol
         public string label;      // ability: its kind and what it does, e.g. "effect: deal_damage"
         public bool resolving;    // ability: the step being resolved now
         public List<List<float>> vectors;  // one per layer, averaged down to dim numbers
+    }
+
+    /// <summary>
+    /// What goes into one node's embedding: named input features, the stages that make the first
+    /// embedding, then each GNN layer with the messages the node takes in. Without a GNN model only
+    /// input and read_by are filled.
+    /// </summary>
+    public class GraphNodeDetail
+    {
+        public int id;
+        public string type;
+        public string embedding;           // "gnn" or "features"
+        public int? hidden;                // embedding size
+        public int? heads;                 // GATv2 attention heads per edge type
+        public List<FeatureGroup> input;
+        public List<GraphStage> stages;
+        public List<GraphLayer> layers;
+        public List<string> read_by;       // head slots that read the final embedding, e.g. "policy: actor"
+    }
+
+    /// <summary>A group of input features: its full size and the non-zero ones by name.</summary>
+    public class FeatureGroup
+    {
+        public string name;                // card: static, dynamic; others: features
+        public int dim;
+        public List<NamedValue> features;
+    }
+
+    public class NamedValue
+    {
+        public string name;
+        public float value;
+    }
+
+    public class GraphStage
+    {
+        public string name;
+        public string op;                  // mlp, linear, concat
+        public int dim;
+        public List<float> vector;         // averaged down to 16 numbers; null for concat
+    }
+
+    public class GraphLayer
+    {
+        public int dim;
+        public List<float> vector;         // the node's embedding after this layer, 16 numbers
+        public List<GraphMessage> incoming;
+    }
+
+    /// <summary>One edge type's message into the node: its size and the attention each sender got.</summary>
+    public class GraphMessage
+    {
+        public string type;                // the real edge type, including reverse ones such as has_card
+        public string shown_as;            // the forward type the overlay draws
+        public float message;              // L2 norm of the summed message
+        public List<GraphNeighbour> neighbours;  // highest attention first; adds up to 1
+    }
+
+    public class GraphNeighbour
+    {
+        public int node;
+        public float attention;
     }
 
     public class GraphEdge

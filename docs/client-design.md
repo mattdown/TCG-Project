@@ -195,7 +195,13 @@ Drag previews come from each legal action's server-side `preview`
     edges. A panel in the top right lists the legal actions by the
     network's probability (top 10), and the value, with the legend below it; hovering a row (tap to keep it) fades the other nodes
     and draws a line from each node the head reads, coloured by its slot in the head's input
-    (policy: actor, target, context, option, global; value: global, you, opponent). It refreshes after every state while open
+    (policy: actor, target, context, option, global; value: global, you, opponent). Tapping a node opens a popup (`Board/GraphNodePopup.cs`, from the `graph_node`
+    request) that draws, left to right, the node's named input features, the stages that make its
+    first embedding (for a card: an MLP on the static features, the dynamic ones joined on, a
+    linear projection), then a box per GNN layer between its vectors (16-number columns, each
+    with its size), and the head slots that read the final one. Under the layers, a table of
+    what each one takes in: per edge type a bar for the size of its message, and per neighbour
+    (the top three) the attention it gets. It refreshes after every state while open
     (`Board/GraphOverlay.cs`).
 
 ## Help screen

@@ -249,6 +249,43 @@ are null without a GNN model.
      "value": {"estimate": -0.05, "nodes": [9, 7, 8]}}}
 ```
 
+### `graph_node`: one node, in depth
+
+For the overlay's node popup. `node` is an `id` from `graph`. The reply says what goes into the
+node's embedding and how. `input` holds its raw features in groups (a card has `static`, what
+it is, and `dynamic`, its state now; other nodes have one `features` group), each with its full
+`dim` but only the non-zero features, by name. `stages` turn them into the first embedding:
+for a card the card encoder (an MLP on the static features), the dynamic features joined on,
+and a linear projection; for an ability node an MLP; for a player or the global node a linear
+projection. `layers` has one entry per GNN layer. Each lists `incoming`: every edge type that
+brings this node a message, under its real name (`type`, including the reverse ones such as
+`has_card`), with `shown_as` (the forward type the overlay draws), `message` (the size, as an
+L2 norm, of that type's summed message into the node) and `neighbours` (the nodes it came
+from, with the GATv2 attention each one got, averaged over the heads: within one edge type the
+attention adds up to 1). The layer's output is the node's embedding plus ReLU of the summed
+messages, then LayerNorm. Vectors are averaged down to 16 numbers. `read_by` names the head
+slots that read the final embedding. Without a GNN model, `embedding` is `"features"` and only
+`input` and `read_by` are filled.
+
+```json
+→ {"type": "graph_node", "node": 0}
+← {"status": "ok", "node": {"id": 0, "type": "card", "embedding": "gnn", "hidden": 128, "heads": 4,
+     "input": [{"name": "static", "dim": 14, "features": [{"name": "cost", "value": 0.5}, {"name": "power", "value": 0.6},
+                                                        {"name": "health", "value": 0.5}, {"name": "aspect_3", "value": 1.0}]},
+               {"name": "dynamic", "dim": 10, "features": [{"name": "in_hand", "value": 1.0}, {"name": "mine", "value": 1.0},
+                                                         {"name": "health_left", "value": 0.5}]}],
+     "stages": [{"name": "card encoder", "op": "mlp", "dim": 128, "vector": [0.0, -0.031, 0.038, …]},
+                {"name": "+ dynamic", "op": "concat", "dim": 138, "vector": null},
+                {"name": "projection", "op": "linear", "dim": 128, "vector": [0.109, -0.104, 0.055, …]}],
+     "layers": [{"dim": 128, "vector": [1.152, -0.412, 0.087, …], "incoming": [
+                  {"type": "has_card", "shown_as": "belongs_to", "message": 6.314, "neighbours": [{"node": 4, "attention": 1.0}]},
+                  {"type": "part_of", "shown_as": "part_of", "message": 1.818,
+                   "neighbours": [{"node": 7, "attention": 0.158}, {"node": 10, "attention": 0.156}, …]},
+                  {"type": "matches", "shown_as": "matches", "message": 2.218, "neighbours": [{"node": 12, "attention": 1.0}]}]},
+                …],
+     "read_by": ["policy: actor", "policy: target"]}}
+```
+
 ## The state
 
 Always from the human's point of view: the AI's hand and both decks' contents are never

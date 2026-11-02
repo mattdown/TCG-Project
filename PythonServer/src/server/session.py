@@ -13,6 +13,7 @@ Every request is a JSON object with a "type"; every response has "status" ("ok" 
   {"type": "ai_move"}                          → the AI makes one decision (call in a loop to animate)
   {"type": "ai_turn"}                          → the AI decides until it's the human's turn or the game ends
   {"type": "graph"}                            → the state graph the GNN reads, from the human's side (graph_view.py)
+  {"type": "graph_node", "node": 12}           → one node of it: input features, stages and each layer's messages
 
 The state never includes the AI's hand or either deck's contents.
 """
@@ -33,7 +34,7 @@ from src.game.state import Phase, Zone
 from src.game.terms import (ASPECT_DESCRIPTIONS, ASPECT_NAMES, ASPECTS, KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS,
                             NEUTRAL, NEUTRAL_DESCRIPTION, NEUTRAL_NAME)
 from src.model.registry import load_model
-from src.server.graph_view import graph_view
+from src.server.graph_view import graph_view, node_view
 
 # Zones whose cards both players see. A card burned from a full hand goes to the discard pile face up.
 PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD)
@@ -57,6 +58,7 @@ class GameSession:
             "ai_move": self._ai_move,
             "ai_turn": self._ai_turn,
             "graph": self._graph,
+            "graph_node": self._graph_node,
         }.get(request.get("type"))
         if handler is None:
             return {"status": "error", "msg": f"unknown request type {request.get('type')!r}"}
@@ -150,6 +152,9 @@ class GameSession:
 
     def _graph(self, _):
         return {"status": "ok", "graph": graph_view(self.game, self.human_seat, self._graph_net())}
+
+    def _graph_node(self, request):
+        return {"status": "ok", "node": node_view(self.game, self.human_seat, int(request.get("node", -1)), self._graph_net())}
 
     # --- helpers
 

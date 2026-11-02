@@ -10,15 +10,26 @@ final embeddings of its actor and target cards, the ability node being decided (
 first node of a chosen option, and the global node. The value head reads the global node and
 both player nodes. Actions are only sent for the human's own decisions: the AI's would need its
 observation, which includes its hand.
+
+node_view goes deeper for one node: its named input features, the stages that turn them
+into an embedding, and at each layer the messages it takes in along each edge type, with the
+attention it gives each neighbour.
 """
 import numpy as np
 import torch
 
 from src.game.engine import Game, describe_action
 from src.graph.abilities import FEATURES
-from src.graph.encode import observe
+from src.graph.builder import ABILITY_EDGES
+from src.graph.encode import CARD_DYNAMIC_FEATURES, CARD_STATIC_FEATURES, GLOBAL_FEATURES, PLAYER_FEATURES, observe
 
 VECTOR_DIM = 4
+DETAIL_DIM = 16  # numbers per vector in node_view
+# Reverse edge types → the forward type the overlay draws (faces and opposes go both ways already).
+SHOWN_AS = {"has_card": "belongs_to", "has": "in",
+            **{reverse[1]: forward[1] for forward, reverse in ABILITY_EDGES.values()}}
+READ_BY = {"card": ["policy: actor", "policy: target"], "ability": ["policy: context", "policy: option"],
+           "global": ["policy: global", "value: global"]}
 # Feature prefixes that name what an ability node does, after its kind.
 LABEL_PREFIXES = ("op:", "event:", "cond:")
 
@@ -102,3 +113,73 @@ def graph_view(game: Game, player: int, net=None) -> dict:
     return {"embedding": source, "layers": len(layers), "dim": VECTOR_DIM, "nodes": nodes,
             "edges": [{"type": t, "src": s, "dst": d} for t, s, d in edges],
             "actions": actions, "value": {"estimate": value, "nodes": [global_id, player_id, player_id + 1]}}
+
+
+def node_view(game: Game, player: int, node: int, net=None) -> dict:
+    """One node of graph_view (same ids): what goes into its embedding and how, layer by layer."""
+    obs = observe(game, player)
+    e = obs.encoded
+    n_cards = e.num_cards
+    first = {"card": 0, "player": n_cards, "global": n_cards + 2, "ability": n_cards + 3}
+    if not 0 <= node < n_cards + 3 + e.num_nodes:
+        raise ValueError(f"no node {node}")
+    node_type = ("card" if node < n_cards else "player" if node < n_cards + 2
+                 else "global" if node == n_cards + 2 else "ability")
+    i = node - first[node_type]
+
+    def named(name: str, names, values) -> dict:
+        return {"name": name, "dim": len(names),
+                "features": [{"name": n, "value": round(float(v), 3)} for n, v in zip(names, values) if v != 0]}
+
+    inputs = {
+        "card": lambda: [named("static", CARD_STATIC_FEATURES, e.card_static[i]),
+                         named("dynamic", CARD_DYNAMIC_FEATURES, e.card_dynamic[i])],
+        "player": lambda: [named("features", PLAYER_FEATURES, e.player[i])],
+        "global": lambda: [named("features", GLOBAL_FEATURES, e.global_)],
+        "ability": lambda: [named("features", FEATURES, e.node_features[i])],
+    }[node_type]()
+    read_by = READ_BY.get(node_type, ["value: you" if i == 0 else "value: opponent"])
+    view = {"id": node, "type": node_type, "embedding": "features", "input": inputs, "stages": [], "layers": [],
+            "read_by": read_by, "hidden": None, "heads": None}
+    if net is None or getattr(net, "arch", None) != "gnn":
+        return view
+
+    batch = net.collate([e])
+    messages = []
+    with torch.no_grad():
+        states = net.node_states(batch, messages)
+        encoded = net.card_encoder(batch["card"].x_static) if node_type == "card" else None
+    hidden = states[0][node_type].size(-1)
+
+    def vector(t: torch.Tensor) -> list[float]:
+        return squash(t.cpu().numpy(), DETAIL_DIM)
+
+    projected = vector(states[0][node_type][i])
+    if node_type == "card":
+        view["stages"] = [
+            {"name": "card encoder", "op": "mlp", "dim": hidden, "vector": vector(encoded[i])},
+            {"name": "+ dynamic", "op": "concat", "dim": hidden + len(CARD_DYNAMIC_FEATURES), "vector": None},
+            {"name": "projection", "op": "linear", "dim": hidden, "vector": projected}]
+    elif node_type == "ability":
+        view["stages"] = [{"name": "ability encoder", "op": "mlp", "dim": hidden, "vector": projected}]
+    else:
+        view["stages"] = [{"name": "projection", "op": "linear", "dim": hidden, "vector": projected}]
+
+    def overlay_id(t: str, local: int) -> int:
+        return first[t] + local
+
+    for depth, layer in enumerate(messages, start=1):
+        incoming = []
+        for (src, rel, dst), (h, edge_index, alpha) in layer.items():
+            if dst != node_type:
+                continue
+            into = (edge_index[1] == i).nonzero().flatten()
+            if len(into) == 0:
+                continue
+            neighbours = sorted(({"node": overlay_id(src, int(edge_index[0, k])), "attention": round(float(alpha[k]), 3)}
+                                 for k in into), key=lambda n: -n["attention"])
+            incoming.append({"type": rel, "shown_as": SHOWN_AS.get(rel, rel),
+                             "message": round(float(h[i].norm()), 3), "neighbours": neighbours})
+        view["layers"].append({"dim": hidden, "vector": vector(states[depth][node_type][i]), "incoming": incoming})
+    view.update(embedding="gnn", hidden=hidden, heads=net.hparams["heads"])
+    return view

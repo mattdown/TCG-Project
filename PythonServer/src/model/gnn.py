@@ -47,8 +47,13 @@ class GNNNet(nn.Module):
     def collate(observations: list[EncodedObs]) -> Batch:
         return collate_hetero(observations)
 
-    def node_states(self, batch: Batch) -> list[dict[str, torch.Tensor]]:
-        """Every node's embedding by node type: the input projection, then after each layer."""
+    def node_states(self, batch: Batch, messages: list | None = None) -> list[dict[str, torch.Tensor]]:
+        """Every node's embedding by node type: the input projection, then after each layer.
+
+        With a `messages` list, also appends one dict per layer for the client's GNN overlay:
+        edge type → (its summed message into each destination node, edge_index, attention per
+        edge averaged over the heads).
+        """
         card = batch["card"]
         x = {
             "card": self.card_in(torch.cat([self.card_encoder(card.x_static), card.x_dynamic], dim=-1)),
@@ -58,7 +63,7 @@ class GNNNet(nn.Module):
         }
         states = [x]
         for conv, norms in zip(self.convs, self.norms):
-            out = conv(x, batch.edge_index_dict)
+            out = conv(x, batch.edge_index_dict) if messages is None else self._conv_messages(conv, x, batch, messages)
             x = {nt: norms[nt](h + F.relu(out[nt])) if nt in out else h for nt, h in x.items()}
             states.append(x)
         return states
@@ -80,6 +85,19 @@ class GNNNet(nn.Module):
         players = x["player"].view(-1, 2, hidden)  # the observing player is always node 0
         value = torch.tanh(self.value_head(torch.cat([x["global"], players[:, 0], players[:, 1]], dim=-1)))
         return logits, actions.batch, value.squeeze(-1)
+
+    @staticmethod
+    def _conv_messages(conv: HeteroConv, x: dict, batch: Batch, messages: list) -> dict[str, torch.Tensor]:
+        """HeteroConv's sum over edge types, done by hand to keep each type's message and attention."""
+        out, layer = {}, {}
+        for edge_type, gat in conv.convs.items():
+            src, _, dst = edge_type
+            edge_index = batch.edge_index_dict[edge_type]
+            h, (edge_index, alpha) = gat((x[src], x[dst]), edge_index, return_attention_weights=True)
+            layer[edge_type] = (h, edge_index, alpha.mean(-1))
+            out[dst] = out[dst] + h if dst in out else h
+        messages.append(layer)
+        return out
 
     def _slot(self, h: torch.Tensor, local_idx: torch.Tensor, offset: torch.Tensor, slot: int) -> torch.Tensor:
         used = local_idx >= 0

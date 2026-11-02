@@ -64,7 +64,7 @@ namespace Tcg.View
         public const string GraphLoading = "Loading the graph…";
         public const string GraphGnn = "GNN embeddings after layer {0} of {1}";  // {0}, {1}: layer numbers
         public const string GraphFeatures = "Input features: the server has no GNN model";
-        public const string GraphHint = "Each column is a node's vector: <color=#F4F5F7>light</color> positive, <color=#8A9099>dark</color> negative. Tap an edge type to hide it.";
+        public const string GraphHint = "Each column is a node's vector: <color=#F4F5F7>light</color> positive, <color=#8A9099>dark</color> negative. Tap an edge type to hide it, or a node to see what goes into it.";
         public const string GraphYou = "You";
         public const string GraphOpponent = "Opponent";
         public const string GraphGlobal = "Turn and phase";
@@ -78,6 +78,20 @@ namespace Tcg.View
         public const string PolicyValue = "Value: reads global and both players";
         public const string PolicyNoActions = "Not your decision: your actions show when you choose.";
         public const string PolicyMore = "+{0} more";
+        // Node popup (tap a node in the GNN overlay).
+        public const string NodeClose = "Close";
+        public const string NodeSubtitle = "{0} node · {1}-number embedding after {2} layers · read by {3}";  // {0} type, {1} size, {2} layers, {3} head slots
+        public const string NodeNoModel = "{0} node · the server has no GNN model, so only the input features";  // {0}: node type
+        public const string NodeReadByNothing = "nothing";
+        public const string NodeGroup = "{0} · {1}";  // {0}: group name, {1}: its size
+        public const string NodeAllZero = "all zero";
+        public const string NodeMore = "+{0} more";
+        public const string NodeLayer = "Layer {0}";
+        public const string NodeLayerOps = "GATv2 · {0} heads\nΣ over edge types\nx + ReLU(Σ) → norm";  // {0}: heads
+        public const string NodeFinal = "final";
+        public const string NodeMessages = "Messages in, by edge type. Bar: the message's size in that layer. Below: the attention each neighbour gets (averaged over the heads; adds up to 1 per edge type).";
+        public const string NodeReverse = "{0} (reverse of {1})";  // {0}: edge type, {1}: the forward type
+        public const string NodeFootnote = "Vectors are averaged down to 16 numbers, each on its own scale: light positive, dark negative.";
 
         // Help screen. Keyword rules and class names come from the server's card_set.
         public const string HelpTitle = "How to read a card";
