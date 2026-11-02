@@ -201,7 +201,10 @@ Drag previews come from each legal action's server-side `preview`
     linear projection), then a box per GNN layer between its vectors (16-number columns, each
     with its size), and the head slots that read the final one. Under the layers, a table of
     what each one takes in: per edge type a bar for the size of its message, and per neighbour
-    (the top three) the attention it gets. It refreshes after every state while open
+    the attention it gets (all that fit). Tapping a layer opens a second popup on
+    top (`Board/GraphLayerPopup.cs`, the `graph_layer` request) with the layer's maths for that node:
+    a lane per edge type with the query, each neighbour's embedding and value, score and attention
+    per head, and the message; then the messages added, ReLU, the input added back, and LayerNorm. It refreshes after every state while open
     (`Board/GraphOverlay.cs`).
 
 ## Help screen

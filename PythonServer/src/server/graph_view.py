@@ -13,10 +13,12 @@ observation, which includes its hand.
 
 node_view goes deeper for one node: its named input features, the stages that turn them
 into an embedding, and at each layer the messages it takes in along each edge type, with the
-attention it gives each neighbour.
+attention it gives each neighbour. layer_view goes deeper again, into one layer for one node:
+every step of GATv2 per edge type and head, then the sum, ReLU, residual and LayerNorm.
 """
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from src.game.engine import Game, describe_action
 from src.graph.abilities import FEATURES
@@ -115,17 +117,22 @@ def graph_view(game: Game, player: int, net=None) -> dict:
             "actions": actions, "value": {"estimate": value, "nodes": [global_id, player_id, player_id + 1]}}
 
 
-def node_view(game: Game, player: int, node: int, net=None) -> dict:
-    """One node of graph_view (same ids): what goes into its embedding and how, layer by layer."""
-    obs = observe(game, player)
-    e = obs.encoded
+def _locate(e, node: int) -> tuple[str, int, dict]:
+    """A graph_view node id → (node type, index within its type, each type's first id)."""
     n_cards = e.num_cards
     first = {"card": 0, "player": n_cards, "global": n_cards + 2, "ability": n_cards + 3}
     if not 0 <= node < n_cards + 3 + e.num_nodes:
         raise ValueError(f"no node {node}")
     node_type = ("card" if node < n_cards else "player" if node < n_cards + 2
                  else "global" if node == n_cards + 2 else "ability")
-    i = node - first[node_type]
+    return node_type, node - first[node_type], first
+
+
+def node_view(game: Game, player: int, node: int, net=None) -> dict:
+    """One node of graph_view (same ids): what goes into its embedding and how, layer by layer."""
+    obs = observe(game, player)
+    e = obs.encoded
+    node_type, i, first = _locate(e, node)
 
     def named(name: str, names, values) -> dict:
         return {"name": name, "dim": len(names),
@@ -183,3 +190,63 @@ def node_view(game: Game, player: int, node: int, net=None) -> dict:
         view["layers"].append({"dim": hidden, "vector": vector(states[depth][node_type][i]), "incoming": incoming})
     view.update(embedding="gnn", hidden=hidden, heads=net.hparams["heads"])
     return view
+
+
+def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
+    """One GNN layer (1-based) for one node, step by step.
+
+    Per edge type r into the node, GATv2 with H heads of C numbers: each neighbour j's value
+    W_l·x_j and this node's query W_r·x_i; per head a score a·LeakyReLU(W_l·x_j + W_r·x_i),
+    softmax over the neighbours to attention; the message is the attention-weighted sum of
+    the values, heads joined end to end, plus a bias. The messages of every edge type are added,
+    then the layer's output is LayerNorm(x_i + ReLU(sum)). Recomputed here from the model's own
+    weights, step by step (the tests check it matches the forward pass).
+    """
+    if net is None or getattr(net, "arch", None) != "gnn":
+        raise ValueError("no GNN model on the server")
+    if not 1 <= layer <= len(net.convs):
+        raise ValueError(f"no layer {layer}")
+    e = observe(game, player).encoded
+    node_type, i, first = _locate(e, node)
+    batch = net.collate([e])
+    with torch.no_grad():
+        x = net.node_states(batch)[layer - 1]
+        conv, norm = net.convs[layer - 1], net.norms[layer - 1][node_type]
+        x_i = x[node_type][i]
+        total = torch.zeros_like(x_i)
+        edge_types = []
+        for (src, rel, dst), gat in conv.convs.items():
+            edge_index = batch.edge_index_dict[(src, rel, dst)]
+            senders = edge_index[0, edge_index[1] == i] if dst == node_type else edge_index[0, :0]
+            if len(senders) == 0:
+                continue
+            H, C = gat.heads, gat.out_channels
+            values = gat.lin_l(x[src][senders]).view(-1, H, C)
+            query = gat.lin_r(x_i).view(H, C)
+            scores = (F.leaky_relu(values + query, gat.negative_slope) * gat.att).sum(-1)  # [k, H]
+            attention = scores.softmax(0)
+            message = (attention.unsqueeze(-1) * values).sum(0).reshape(-1) + gat.bias
+            total += message
+            neighbours = [{"node": first[src] + int(j), "embedding": squash(x[src][j].numpy(), DETAIL_DIM),
+                           "value": squash(values[k].reshape(-1).numpy(), DETAIL_DIM),
+                           "scores": [round(float(v), 3) for v in scores[k]],
+                           "attention": [round(float(v), 3) for v in attention[k]]}
+                          for k, j in enumerate(senders.tolist())]
+            neighbours.sort(key=lambda n: -sum(n["attention"]))
+            edge_types.append({"type": rel, "shown_as": SHOWN_AS.get(rel, rel), "source": src,
+                               "query": squash(query.reshape(-1).numpy(), DETAIL_DIM),
+                               "neighbours": neighbours, "bias": round(float(gat.bias.norm()), 3),
+                               "message": squash(message.numpy(), DETAIL_DIM),
+                               "message_size": round(float(message.norm()), 3)})
+        relu = F.relu(total)
+        residual = x_i + relu
+        output = norm(residual)
+
+    def step(t: torch.Tensor) -> dict:
+        return {"vector": squash(t.numpy(), DETAIL_DIM), "size": round(float(t.norm()), 3)}
+
+    gat = next(iter(conv.convs.values()))
+    return {"node": node, "type": node_type, "layer": layer, "layers": len(net.convs), "hidden": x_i.numel(),
+            "heads": gat.heads, "head_dim": gat.out_channels, "negative_slope": gat.negative_slope,
+            "input": step(x_i), "edge_types": edge_types, "sum": step(total), "relu": step(relu),
+            "residual": step(residual), "output": step(output)}

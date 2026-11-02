@@ -58,6 +58,7 @@ namespace Tcg.Board
             _graph = GraphOverlay.Create(Board.Root, Board);
             _graph.Requested += RequestGraph;
             _graph.NodeRequested += RequestGraphNode;
+            _graph.LayerRequested += RequestGraphLayer;
             SetBusy(true);
             Network.Send<CardSetResponse>(new Request("card_set"), OnCardSet);
         }
@@ -80,6 +81,16 @@ namespace Tcg.Board
             {
                 if (r.Ok) _graph.ShowNode(r.node);
                 else Debug.LogWarning($"Graph node request failed: {r.msg}");
+            });
+        }
+
+        void RequestGraphLayer(int node, int layer)
+        {
+            if (_state == null) return;
+            Network.Send<GraphLayerResponse>(new GraphLayerRequest(node, layer), r =>
+            {
+                if (r.Ok) _graph.ShowLayer(r.layer);
+                else Debug.LogWarning($"Graph layer request failed: {r.msg}");
             });
         }
 

@@ -91,7 +91,16 @@ namespace Tcg.View
         public const string NodeFinal = "final";
         public const string NodeMessages = "Messages in, by edge type. Number: the size (length) of the vector that edge type adds to this node in the layer, before ReLU and LayerNorm; the bar compares it with the layer's biggest. Below: the attention each neighbour gets (averaged over the heads; adds up to 1 per edge type).";
         public const string NodeReverse = "{0} (reverse of {1})";  // {0}: edge type, {1}: the forward type
-        public const string NodeFootnote = "Vectors are averaged down to 16 numbers, each on its own scale: light positive, dark negative.";
+        public const string NodeFootnote = "Vectors are averaged down to 16 numbers, each on its own scale: light positive, dark negative. Tap a layer to see its steps.";
+        // Layer popup (tap a layer in the node popup).
+        public const string LayerTitle = "Layer {0} of {1} · {2}";  // {0} layer, {1} layers, {2} node name
+        public const string LayerSubtitle = "GATv2 for each edge type ({0} heads of {1} numbers), then: add the messages, ReLU, add the input back, LayerNorm";  // {0} heads, {1} numbers per head
+        public static readonly string[] LayerColumns = { "neighbour  x<sub>j</sub>", "value  W<sub>l</sub>x<sub>j</sub>", "score per head", "attention per head" };
+        public const string LayerQuery = "this node's query  W<sub>r</sub>x<sub>i</sub>";
+        public const string LayerMessage = "message  (bias length {0})";  // {0}: the bias's length
+        public const string LayerLength = "length {0}";  // {0}: a vector's length
+        public static readonly string[] LayerSteps = { "x<sub>i</sub> going in", "Σ: the messages added", "ReLU(Σ)", "x<sub>i</sub> + ReLU(Σ)", "LayerNorm: after layer {0}" };
+        public const string LayerFormula = "score = a · LeakyReLU(W<sub>l</sub>x<sub>j</sub> + W<sub>r</sub>x<sub>i</sub>), with slope {0}, for each head of {2} numbers.  attention = softmax of the scores over the neighbours, per head.  message = Σ attention · W<sub>l</sub>x<sub>j</sub> per head, the {1} heads joined end to end, + bias.  W<sub>l</sub>, W<sub>r</sub>, a and the bias belong to the edge type and the layer.";  // {0} slope, {1} heads, {2} numbers per head
 
         // Help screen. Keyword rules and class names come from the server's card_set.
         public const string HelpTitle = "How to read a card";

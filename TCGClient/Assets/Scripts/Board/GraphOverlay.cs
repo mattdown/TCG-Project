@@ -83,6 +83,8 @@ namespace Tcg.Board
         public event Action Requested;
         /// <summary>A node was tapped: send graph_node for its id and pass the reply to <see cref="ShowNode"/>.</summary>
         public event Action<int> NodeRequested;
+        /// <summary>A layer in the node popup was tapped: send graph_layer and pass the reply to <see cref="ShowLayer"/>.</summary>
+        public event Action<int, int> LayerRequested;
         public bool IsOpen => _panel.activeSelf;
 
         BoardView _board;
@@ -108,6 +110,7 @@ namespace Tcg.Board
 
         RectTransform _policy, _legend;
         GraphNodePopup _popup;
+        GraphLayerPopup _layerPopup;
         readonly List<(int node, Color colour)> _focus = new List<(int, Color)>();
         RectTransform _focusRow;  // the action or value row whose inputs are drawn
         bool _pinned;
@@ -150,6 +153,10 @@ namespace Tcg.Board
             view._popup = GraphNodePopup.Create(root, view.NodeName,
                 type => NodeColours.TryGetValue(type, out var c) ? c : Color.white,
                 type => EdgeStyles.TryGetValue(type, out var e) ? e.Colour.WithAlpha(1f) : Color.white);
+            view._popup.LayerRequested += (node, layer) => view.LayerRequested?.Invoke(node, layer);
+            view._layerPopup = GraphLayerPopup.Create(root, view.NodeName,
+                type => NodeColours.TryGetValue(type, out var c) ? c : Color.white,
+                type => EdgeStyles.TryGetValue(type, out var e) ? e.Colour.WithAlpha(1f) : Color.white);
             return view;
         }
 
@@ -158,6 +165,7 @@ namespace Tcg.Board
             bool open = !IsOpen;
             _panel.SetActive(open);
             _popup.Hide();
+            _layerPopup.Hide();
             Ui.TintPill(_toggle, open ? Palette.HumanAccent : Palette.Glass);
             if (!open) return;
             transform.SetAsLastSibling();
@@ -170,6 +178,7 @@ namespace Tcg.Board
         {
             _graph = graph;
             _popup.Hide();  // node ids change with the state
+            _layerPopup.Hide();
             foreach (var n in _nodes) Destroy(n.Rect.gameObject);
             _nodes.Clear();
             _abilitiesOf.Clear();
@@ -499,6 +508,12 @@ namespace Tcg.Board
         public void ShowNode(GraphNodeDetail node)
         {
             if (IsOpen && _graph != null && node.id < _nodes.Count) _popup.Show(node);
+        }
+
+        /// <summary>Shows a graph_layer reply over the node popup, if that's still open.</summary>
+        public void ShowLayer(GraphLayerDetail layer)
+        {
+            if (IsOpen && _popup.IsOpen) _layerPopup.Show(layer);
         }
 
         /// <summary>A node's name on one line: the card, the ability step and its card, or the player.</summary>

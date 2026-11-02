@@ -31,6 +31,8 @@ namespace Tcg.Board
         Func<string, Color> _nodeColour, _edgeColour;
 
         public bool IsOpen => gameObject.activeSelf;
+        /// <summary>A layer box was tapped: (node id, layer from 1).</summary>
+        public event Action<int, int> LayerRequested;
 
         public static GraphNodePopup Create(RectTransform parent, Func<int, string> nameOf,
             Func<string, Color> nodeColour, Func<string, Color> edgeColour)
@@ -174,7 +176,12 @@ namespace Tcg.Board
             var layer = node.layers[index];
             float boxX = (fromX + toX) / 2f, boxW = toX - fromX - VectorW - 26f;
             var box = Ui.Box($"Layer {index + 1}", _content, boxX - boxW / 2f, BandY - LayerBoxH / 2f, boxW, LayerBoxH);
-            Ui.Rounded(box, Palette.Lantern.WithAlpha(0.08f), 8);
+            var hit = Ui.Rounded(box, Palette.Lantern.WithAlpha(0.08f), 8);
+            hit.raycastTarget = true;
+            var button = box.gameObject.AddComponent<UnityEngine.UI.Button>();
+            button.targetGraphic = hit;
+            int layerNumber = index + 1;
+            button.onClick.AddListener(() => LayerRequested?.Invoke(node.id, layerNumber));
             Ui.Rim(Ui.Stretch("Rim", box, 0, 0, 0, 0), Palette.Lantern.WithAlpha(0.5f), 8);
             Text("Name", 4, 5, boxW - 8, 14, string.Format(UiText.NodeLayer, index + 1), 11, Color.white, true, box,
                 TextAlignmentOptions.Center);

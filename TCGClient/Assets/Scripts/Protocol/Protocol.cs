@@ -40,6 +40,13 @@ namespace Tcg.Protocol
         public GraphNodeRequest(int node) : base("graph_node") { this.node = node; }
     }
 
+    public class GraphLayerRequest : Request
+    {
+        public int node;
+        public int layer;  // from 1
+        public GraphLayerRequest(int node, int layer) : base("graph_layer") { this.node = node; this.layer = layer; }
+    }
+
     // --- responses
 
     public class Response
@@ -91,6 +98,12 @@ namespace Tcg.Protocol
     public class GraphNodeResponse : Response
     {
         public GraphNodeDetail node;
+    }
+
+    /// <summary>Reply to graph_layer: one GNN layer for one node, step by step.</summary>
+    public class GraphLayerResponse : Response
+    {
+        public GraphLayerDetail layer;
     }
 
     // --- data
@@ -396,6 +409,53 @@ namespace Tcg.Protocol
     {
         public int node;
         public float attention;
+    }
+
+    /// <summary>
+    /// One GNN layer for one node: per edge type, GATv2's query, each neighbour's value, scores and
+    /// attention per head, and the message; then the sum, ReLU, residual and LayerNorm.
+    /// </summary>
+    public class GraphLayerDetail
+    {
+        public int node;
+        public string type;
+        public int layer;                  // from 1
+        public int layers;
+        public int hidden;
+        public int heads;
+        public int head_dim;
+        public float negative_slope;       // LeakyReLU's slope in the score
+        public LayerStep input;            // x_i, the node's embedding going in
+        public List<LayerEdgeType> edge_types;
+        public LayerStep sum, relu, residual, output;
+    }
+
+    /// <summary>A vector averaged down to 16 numbers, and the full vector's length.</summary>
+    public class LayerStep
+    {
+        public List<float> vector;
+        public float size;
+    }
+
+    public class LayerEdgeType
+    {
+        public string type;
+        public string shown_as;
+        public string source;              // the senders' node type
+        public List<float> query;          // W_r·x_i
+        public List<LayerNeighbour> neighbours;  // most attention first
+        public float bias;                 // the bias's length
+        public List<float> message;        // Σ attention · W_l·x_j per head, heads joined, + bias
+        public float message_size;
+    }
+
+    public class LayerNeighbour
+    {
+        public int node;
+        public List<float> embedding;      // x_j
+        public List<float> value;          // W_l·x_j
+        public List<float> scores;         // per head: a·LeakyReLU(W_l·x_j + W_r·x_i)
+        public List<float> attention;      // per head: softmax of the scores over the neighbours
     }
 
     public class GraphEdge

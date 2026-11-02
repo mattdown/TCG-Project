@@ -404,6 +404,29 @@ def test_graph_node_has_each_layers_messages_and_attention():
     assert [(m["type"], len(m["neighbours"])) for m in layer["incoming"]] == [("in", 2)]
 
 
+def test_graph_layer_steps_match_the_networks_forward_pass():
+    session = GameSession(fixture_set())
+    session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1, "scenario": {"mana": 3}})
+    assert session.handle({"type": "graph_layer", "node": 0, "layer": 1})["status"] == "error"  # no model
+    session._net = create_model("gnn", hidden=32, num_layers=2)
+    graph = session.handle({"type": "graph"})["graph"]
+    for n in graph["nodes"]:
+        node = session.handle({"type": "graph_node", "node": n["id"]})["node"]
+        for depth, summary in enumerate(node["layers"], start=1):
+            layer = session.handle({"type": "graph_layer", "node": n["id"], "layer": depth})["layer"]
+            assert layer["layer"] == depth and layer["heads"] * layer["head_dim"] == layer["hidden"] == 32
+            assert layer["output"]["vector"] == pytest.approx(summary["vector"], abs=2e-3)
+            assert [t["type"] for t in layer["edge_types"]] == [m["type"] for m in summary["incoming"]]
+            for steps, message in zip(layer["edge_types"], summary["incoming"]):
+                assert steps["message_size"] == pytest.approx(message["message"], abs=2e-3)
+                averaged = {nb["node"]: sum(nb["attention"]) / layer["heads"] for nb in steps["neighbours"]}
+                for nb in message["neighbours"]:
+                    assert averaged[nb["node"]] == pytest.approx(nb["attention"], abs=2e-3)
+                for head in range(layer["heads"]):
+                    assert sum(nb["attention"][head] for nb in steps["neighbours"]) == pytest.approx(1, abs=1e-2)
+    assert session.handle({"type": "graph_layer", "node": 0, "layer": 3})["status"] == "error"
+
+
 def test_graph_has_no_actions_on_the_ais_decision():
     session = GameSession(fixture_set())
     session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 1})
