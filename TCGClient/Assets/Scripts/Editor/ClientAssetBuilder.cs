@@ -311,8 +311,8 @@ public static class ClientAssetBuilder
         cv.SubtitleText.fontSizeMin = 5f;
         cv.SubtitleText.fontSizeMax = 8.5f;
 
-        // The parchment, kept clear of the badges on the side edges.
-        cv.BodyText = Text(FrameBox("Text", visual, 300, 1385, 780, 380), "", f.Body, 10, Palette.ParchmentText,
+        // Most of the parchment's width, above the badges in the bottom corners.
+        cv.BodyText = Text(FrameBox("Text", visual, 248.5f, 1379.7f, 871.5f, 390.2f), "", f.Body, 10, Palette.ParchmentText,
             TextAlignmentOptions.Center);
         cv.BodyText.textWrappingMode = TextWrappingModes.Normal;
         cv.BodyText.lineSpacing = -12f;

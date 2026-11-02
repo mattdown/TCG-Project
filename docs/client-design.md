@@ -108,7 +108,7 @@ inspected. Every card on the field shows its full text.
   `ClientAssetBuilder.PartBox`.
 - **Cost:** on the frame's pink gem, top left.
 - **Name:** inked in Marcellus SC on the banner under the art, thickened (face dilate 0.4, max 14.5 pt) with a faint parchment highlight below, since its hairlines vanish at card size; the subtitle goes on the small tab below it.
-- **Text box:** the parchment, in dark brown, kept clear of the stat badges. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
+- **Text box:** most of the parchment's width, in dark brown, above the stat badges in the bottom corners. Keywords are bold and end with a full stop (`Guard.`); triggers are bold and end with a colon (`On play:`). Text is centred and auto-sizes (10 down to 5 pt) so the box never resizes. Vanilla cards show flavour text in italics.
 - **Job:** on the wooden banner across the bottom edge, inked on its parchment. It auto-sizes (9 down
   to 4 pt) so long jobs and two jobs fit. Action cards show "Action" there.
 - **Power:** on the gold disc of the sword badge, in the bottom-left corner beside the job banner,
