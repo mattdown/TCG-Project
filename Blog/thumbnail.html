@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Part 1 Thumbnail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
+<style>
+/* The Lantern look (docs/client-design.md). 1200x630 for sharing; the posts list crops the middle 4:3, so
+   everything sits between x 180 and 1020. */
+:root {
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209;
+}
+html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--night); }
+#bg { position: absolute; inset: -30px; background: center / cover no-repeat; filter: blur(6px) brightness(.36) saturate(.9); }
+#bg::after { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(11, 22, 18, 0) 0%, rgba(5, 12, 10, .8) 100%); }
+#graph { position: absolute; left: 0; top: 0; z-index: 3; }
+.slot { position: absolute; transform-origin: 50% 130%; filter: drop-shadow(0 18px 24px rgba(3, 8, 6, .7)); }
+.slot .pcard { --w: 236px; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="fan"></div>
+<svg id="graph" width="1200" height="630" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<!--CARD_KIT-->
+<!--PAINTED_CARD-->
+<!--CARD_ART-->
+<!--LAB_DATA-->
+<script>
+const D = window.LAB_DATA, NS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs, parent) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return parent.appendChild(el);
+}
+
+// The cards, fanned in the middle.
+const FAN = [[352, 168, -12], [482, 140, 0], [612, 168, 12]];
+D.fan.forEach((c, i) => {
+  const slot = document.createElement("div"), [x, y, turn] = FAN[i];
+  slot.className = "slot";
+  Object.assign(slot.style, { left: `${x}px`, top: `${y}px`, transform: `rotate(${turn}deg)`, zIndex: i === 1 ? 2 : 1 });
+  slot.innerHTML = paintedCard({ ...c.card, art: true }, c.kind, c.art);
+  document.getElementById("fan").appendChild(slot);
+  fitPainted(slot);
+});
+
+// A graph over the top, in the client's GNN colours (GraphOverlay.cs): a node on each card's text, and a few
+// nodes off to the sides joined to them. It's a picture of the idea, not a real state graph.
+const COLOURS = { card: "#3D7CF0", ability: "#B675FF", player: "#FFC93C", global: "#E9EEF8" };
+const SIDES = { l1: ["player", 232, 170], l2: ["ability", 250, 460], r1: ["global", 962, 165], r2: ["ability", 972, 455] };
+const EDGES = [["c0", "c1", "#FF4D5E"], ["c1", "c2", "#FF8A3C"], ["l1", "c0", "#8FB3FF"], ["l2", "c0", "#B675FF"],
+  ["l1", "c1", "#E9EEF8"], ["r1", "c2", "#E9EEF8"], ["r2", "c2", "#B675FF"], ["r1", "c1", "#8FB3FF"]];
+
+const radius = (type) => (type === "global" ? 30 : type === "ability" ? 20 : 28);
+
+function drawGraph() {
+  // Card nodes sit on the middle of each card's rules text, wherever the fan put it.
+  const nodes = { ...SIDES };
+  document.querySelectorAll(".slot .text").forEach((text, i) => {
+    const r = text.getBoundingClientRect();
+    nodes[`c${i}`] = ["card", r.left + r.width / 2, r.top + r.height / 2];
+  });
+  const root = document.getElementById("graph");
+  svg("defs", {}, root).innerHTML = `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+  const lines = svg("g", { filter: "url(#glow)" }, root);
+  for (const [a, b, colour] of EDGES) {  // stopping at each node's edge, so the rings stay clear
+    const [ta, ax, ay] = nodes[a], [tb, bx, by] = nodes[b], d = Math.hypot(bx - ax, by - ay);
+    const ux = (bx - ax) / d, uy = (by - ay) / d, ra = radius(ta), rb = radius(tb);
+    const x1 = ax + ux * ra, y1 = ay + uy * ra, x2 = bx - ux * rb, y2 = by - uy * rb;
+    svg("line", { x1, y1, x2, y2, stroke: colour, "stroke-width": 4.5, "stroke-opacity": 0.85, "stroke-linecap": "round" }, lines);
+  }
+  for (const [type, x, y] of Object.values(nodes)) {
+    const r = radius(type);
+    if (type === "card") {  // a ring, so the card shows through
+      svg("circle", { cx: x, cy: y, r: r - 4, fill: "rgba(11, 22, 18, .3)", stroke: COLOURS.card, "stroke-width": 8, filter: "url(#glow)" }, root);
+      svg("circle", { cx: x, cy: y, r: r + 0.5, fill: "none", stroke: "#06100D", "stroke-width": 2 }, root);
+      continue;
+    }
+    svg("circle", { cx: x, cy: y, r, fill: COLOURS[type], stroke: "#06100D", "stroke-width": 3, filter: "url(#glow)" }, root);
+    svg("circle", { cx: x, cy: y, r: r - 8, fill: "#0B1612" }, root);
+  }
+}
+
+document.getElementById("bg").style.backgroundImage = `url(${window.CARD_ART.background})`;
+document.fonts.ready.then(() => { document.querySelectorAll(".slot").forEach(fitPainted); drawGraph(); window.ready = true; });
+</script>
+</body>
+</html>
