@@ -6,6 +6,8 @@
 <title>GNN Visualiser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
 /* The Lantern look (docs/client-design.md), as in the card generation visualiser. */
 :root {
@@ -39,6 +41,9 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 .crumbs { font: 700 18px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
 .what { font: 400 46px/1.15 "Marcellus SC", serif; color: var(--text); margin: 6px 0 8px; text-shadow: 0 3px 10px var(--shadow); }
 .how { font: 500 23px/1.35 Outfit; color: var(--muted); }
+.what .katex { font-size: .9em; } .how .katex { font-size: 1.08em; color: var(--text); }
+/* Part 2's symbols, typeset by KaTeX over the SVG: centred on x, sitting on the line y. */
+.tex { position: absolute; transform: translate(-50%, -80%); white-space: nowrap; line-height: 1; }
 
 /* The feature table: one row per input feature, in the encoder's order. */
 #table { position: absolute; left: 1010px; top: 128px; width: 820px; }
@@ -51,7 +56,7 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 .row .rule { left: 350px; width: 150px; color: var(--muted); }
 .row .rule b { color: var(--gold); font-weight: 800; }
 .row .val { left: 510px; width: 80px; text-align: right; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
-#links, #column, #layer, #heads { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+#links, #column, #layer, #maths, #heads { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
 
 /* The edge types lit so far, bottom right. */
 #legend { position: absolute; right: 64px; bottom: 56px; width: 330px; }
@@ -95,6 +100,7 @@ body.render #controls { display: none; }
   <div id="table"></div>
   <svg id="column" xmlns="http://www.w3.org/2000/svg"></svg>
   <svg id="layer" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="maths"></div>
   <svg id="heads" xmlns="http://www.w3.org/2000/svg"></svg>
   <div id="chips"></div>
   <div class="caption" id="caption"><div class="crumbs" id="crumbs"></div><div class="what" id="what"></div><div class="how" id="how"></div></div>
@@ -633,6 +639,21 @@ function reach(t) {
 }
 function layerAt(t) { return t >= L.reach ? [0, 1, 2, 3].filter((k) => t >= L.layer + k * L.layerStep).length : 0; }
 
+// Maths is written as $...$ and typeset by KaTeX (the page still reads if it doesn't load).
+const tex = (src) => (window.katex ? katex.renderToString(src, { throwOnError: false }) : esc(src));
+const rich = (text) => text.split(/\$([^$]+)\$/).map((part, i) => (i % 2 ? tex(part) : esc(part))).join("");
+function mathLabel(src, size, colour) {
+  // An HTML label over #layer, standing in for an SVG <text>: place() it, and style.opacity multiplies its group's.
+  const el = document.createElement("div");
+  el.className = "tex"; el.style.fontSize = `${size}px`; el.style.color = colour; el.innerHTML = tex(src);
+  $("maths").appendChild(el);
+  let group = 1, own = 1;
+  const apply = () => { el.style.opacity = group * own; };
+  return { style: { set opacity(v) { own = +v; apply(); } },
+           place(x, y, opacity) { el.style.left = `${x}px`; el.style.top = `${y}px`; group = opacity; apply(); } };
+}
+const isMath = (s) => s?.startsWith("$");
+
 function makeCol(parent, values, opts = {}) {
   // A vector as a column of cells, its length on its top right; set() places it with a cell height.
   const g = svg("g", {}, parent), inner = svg("g", {}, g), scale = opts.scale ?? spread(values);
@@ -640,9 +661,9 @@ function makeCol(parent, values, opts = {}) {
   const frame = svg("rect", { fill: "none", stroke: opts.colour || "rgba(160,235,215,.45)", "stroke-width": 1.5 }, g);
   const tag = svg("text", { fill: "#A9C9BC", "font-family": "Outfit", "font-weight": 700, "font-size": 15 }, g);
   tag.textContent = values.length;
-  const label = svg("text", { fill: opts.labelColour || "#E6FBF4", "font-family": "Outfit", "font-weight": 700, "font-size": 18,
-    "text-anchor": "middle" }, g);
-  label.textContent = opts.label || "";
+  const label = isMath(opts.label) ? mathLabel(opts.label.slice(1, -1), 22, opts.labelColour || "#E6FBF4")
+    : svg("text", { fill: opts.labelColour || "#E6FBF4", "font-family": "Outfit", "font-weight": 700, "font-size": 18, "text-anchor": "middle" }, g);
+  if (!label.place) label.textContent = opts.label || "";
   return {
     g, n: values.length, label,
     set(x, y, w, cell, opacity = 1, tagX = null) {
@@ -650,7 +671,8 @@ function makeCol(parent, values, opts = {}) {
       inner.setAttribute("transform", `translate(${x} ${y}) scale(${w} ${cell})`);
       for (const [k, v] of Object.entries({ x, y, width: w, height: h })) frame.setAttribute(k, v);
       tag.setAttribute("x", tagX ?? x + w + 6); tag.setAttribute("y", y + 12);
-      label.setAttribute("x", x + w / 2); label.setAttribute("y", y - 12);
+      if (label.place) label.place(x + w / 2, y - 12, opacity);
+      else { label.setAttribute("x", x + w / 2); label.setAttribute("y", y - 12); }
       g.style.opacity = opacity;
       return { x, y, w, h };
     },
@@ -659,12 +681,16 @@ function makeCol(parent, values, opts = {}) {
 function makeBox(parent, title, sub, atTop = false) {
   const g = svg("g", {}, parent);
   const rect = svg("rect", { rx: 12, fill: "rgba(9,19,16,.92)", stroke: "rgba(126,240,216,.7)", "stroke-width": 2 }, g);
-  const a = svg("text", { "text-anchor": "middle", fill: "#E6FBF4", "font-family": "Marcellus SC", "font-size": 24 }, g);
+  const a = isMath(title) ? mathLabel(title.slice(1, -1), 30, "#E6FBF4")
+    : svg("text", { "text-anchor": "middle", fill: "#E6FBF4", "font-family": "Marcellus SC", "font-size": 24 }, g);
   const b = svg("text", { "text-anchor": "middle", fill: "#A9C9BC", "font-family": "Outfit", "font-weight": 500, "font-size": 16 }, g);
-  a.textContent = title; b.textContent = sub || "";
+  if (!a.place) a.textContent = title;
+  b.textContent = sub || "";
   return { g, set(x, y, w, h, opacity) {
     for (const [k, v] of Object.entries({ x, y, width: w, height: h })) rect.setAttribute(k, v);
-    a.setAttribute("x", x + w / 2); a.setAttribute("y", atTop ? y + 40 : y + h / 2 + (sub ? -2 : 8));
+    const ty = atTop ? y + 40 : y + h / 2 + (sub ? -2 : 8);
+    if (a.place) a.place(x + w / 2, ty, opacity);
+    else { a.setAttribute("x", x + w / 2); a.setAttribute("y", ty); }
     b.setAttribute("x", x + w / 2); b.setAttribute("y", atTop ? y + 66 : y + h / 2 + 22);
     g.style.opacity = opacity;
   } };
@@ -714,18 +740,18 @@ function buildLayer() {
   P2.hubAfter = makeDisc(root, NODE_COLOURS.card, LAYER.output.vector, HUB.size);
   P2.hubName = makeText(root, { class: "nlabel", "font-size": 18 }, card().label);
 
-  // The score for one neighbour: W_l·x_j and W_r·x_i, added, LeakyReLU, then · a.
+  // The score for one neighbour, GATv2's: W_l x_j and W_r x_i, added, LeakyReLU, then a dot product with a.
   const head = FACES.query[HEAD].length;
-  P2.xj = makeCol(root, NB1.embedding, { label: "x_j" });
-  P2.xi = makeCol(root, LAYER.input.vector, { label: "x_i" });
-  P2.wl = makeBox(root, "W_l", `${NB1.embedding.length} → ${head}`);
-  P2.wr = makeBox(root, "W_r", `${LAYER.input.vector.length} → ${head}`);
-  P2.wlxj = makeCol(root, NB1.value[HEAD], { label: "W_l·x_j" });
-  P2.wrxi = makeCol(root, FACES.query[HEAD], { label: "W_r·x_i" });
+  P2.xj = makeCol(root, NB1.embedding, { label: "$\\mathbf{x}_j$" });
+  P2.xi = makeCol(root, LAYER.input.vector, { label: "$\\mathbf{x}_i$" });
+  P2.wl = makeBox(root, "$\\mathbf{W}_l$", `${NB1.embedding.length} → ${head}`);
+  P2.wr = makeBox(root, "$\\mathbf{W}_r$", `${LAYER.input.vector.length} → ${head}`);
+  P2.wlxj = makeCol(root, NB1.value[HEAD], { label: "$\\mathbf{W}_l\\mathbf{x}_j$" });
+  P2.wrxi = makeCol(root, FACES.query[HEAD], { label: "$\\mathbf{W}_r\\mathbf{x}_i$" });
   P2.pre = makeCol(root, PRE, { label: "sum" });
   P2.lrelu = makeBox(root, "LeakyReLU", `negatives × ${LAYER.negative_slope}`);
   P2.leaky = makeCol(root, PRE.map(leaky));
-  P2.a = makeCol(root, FACES.att[HEAD], { label: "a", colour: "rgba(244,199,107,.7)" });
+  P2.a = makeCol(root, FACES.att[HEAD], { label: "$\\mathbf{a}$", colour: "rgba(244,199,107,.7)" });
   P2.plus = makeText(root, { "font-size": 40 }, "+");
   P2.dot = makeText(root, { "font-size": 44 }, "·");
   P2.eq = makeText(root, { "font-size": 40 }, "=");
@@ -749,11 +775,11 @@ function buildLayer() {
   P2.sum = makeCol(root, LAYER.sum.vector, { label: "Σ messages" });
   P2.reluBox = makeBox(root, "ReLU", "negatives → 0");
   P2.relu = makeCol(root, LAYER.relu.vector, { label: "ReLU" });
-  P2.xi2 = makeCol(root, LAYER.input.vector, { label: "x_i" });
+  P2.xi2 = makeCol(root, LAYER.input.vector, { label: "$\\mathbf{x}_i$" });
   P2.plus3 = makeText(root, { "font-size": 40 }, "+");
   P2.res = makeCol(root, LAYER.residual.vector, { label: "added" });
   P2.normBox = makeBox(root, "LayerNorm", "a steady spread");
-  P2.out = makeCol(root, LAYER.output.vector, { label: "new x_i" });
+  P2.out = makeCol(root, LAYER.output.vector, { label: "$\\mathbf{x}_i'$" });
 
   $("chips").innerHTML = [1, 2, 3, 4].map((k) => `<div>Layer ${k}</div>`).join("");
 }
@@ -770,6 +796,7 @@ const rectOf = (b) => ({ x: b.x, y: b.y, w: b.w, h: b.h });
 function layerScene(t, c) {
   const on = span(t, L.fan, L.fan + 0.8) * (1 - span(t, L.reach, L.reach + 0.8));
   $("layer").style.opacity = on;
+  $("maths").style.opacity = on;
   $("world").style.opacity = 1 - span(t, L.fan, L.fanEnd) + span(t, L.reach, L.reachEnd);
   $("chips").style.opacity = span(t, L.reach + 0.6, L.reachEnd + 0.4) * (1 - span(t, HD.move, HD.move + 0.6));
   [...$("chips").children].forEach((el, k) => el.classList.toggle("on", t >= L.layer + k * L.layerStep));
@@ -911,15 +938,15 @@ function layerBeats() {
   const n = FACES.neighbours.length, head = FACES.query[HEAD].length, heads = FACES.heads.length;
   const maxHop = Math.max(...Object.values(LAYERS.hops));
   return [
-    [L.fan, "Part 2 · One layer", "Messages along the edges", `A GNN layer lets each node gather from its neighbours. Every vector is now ${EMB.hidden} numbers: each node type has its own encoder.`],
+    [L.fan, "Part 2 · One layer", "Messages along the edges", `A GATv2 layer lets each node gather from its neighbours, using attention to weigh them. Every vector is now ${EMB.hidden} numbers: each node type has its own encoder.`],
     [L.faces, "One edge type", "Start with Faces", `Each edge type has its own weights. Here, the ${n} enemy units this card faces.`],
-    [L.fly, `Faces · head 1 · ${shortName(NB1.node)}`, "Two learned matrices, W_l and W_r", `W_l reads the neighbour x_j, W_r the card itself x_i: each turns ${EMB.hidden} numbers into ${head}.`],
+    [L.fly, `Faces · head 1 · ${shortName(NB1.node)}`, "Two learned matrices, $\\mathbf{W}_l$ and $\\mathbf{W}_r$", `$\\mathbf{W}_l$ reads the neighbour $\\mathbf{x}_j$, $\\mathbf{W}_r$ the card itself $\\mathbf{x}_i$: each turns ${EMB.hidden} numbers into ${head}.`],
     [L.add, `Faces · head 1 · ${shortName(NB1.node)}`, "Added, then LeakyReLU", `LeakyReLU keeps positive numbers and shrinks negative ones to ${LAYER.negative_slope} of their size.`],
-    [L.dot, `Faces · head 1 · ${shortName(NB1.node)}`, "A dot product with a gives a score", `a is learned too: ${head} numbers saying what matters. One number for this neighbour: how relevant it is.`],
+    [L.dot, `Faces · head 1 · ${shortName(NB1.node)}`, "A dot product with $\\mathbf{a}$ gives a score", `$\\mathbf{a}$ is learned too: ${head} numbers saying what matters. One number, how relevant this neighbour is: $e_{ij} = \\mathbf{a}^{\\top}\\,\\mathrm{LeakyReLU}(\\mathbf{W}_l\\mathbf{x}_j + \\mathbf{W}_r\\mathbf{x}_i)$.`],
     [L.sibling, "Faces · head 1", "Every neighbour of the kind gets a score", `${shortName(NB2.node)} is scored the same way: ${fmt(NB2.scores[HEAD])}.`],
-    [L.softmax, "Faces · head 1", "Softmax turns scores into attention", `Positive, and adding up to 1: here ${shortName(NB1.node)} gets ${Math.round(NB1.attention[HEAD] * 100)}% of this head's attention.`],
-    [L.values, "Faces · head 1", "The weighted values are added", `W_l·x_j is also what each neighbour sends. Weighted by attention and added, it makes head 1's ${head} numbers.`],
-    [L.heads, "Faces · all heads", `${heads} heads, joined`, `Each head has its own W_l, W_r and a, so each can look for something different. ${heads} × ${head} numbers make the ${EMB.hidden}-number message.`],
+    [L.softmax, "Faces · head 1", "Softmax turns scores into attention", `$\\alpha_{ij} = \\mathrm{softmax}_j(e_{ij})$: positive, and adding up to 1. Here ${shortName(NB1.node)} gets ${Math.round(NB1.attention[HEAD] * 100)}% of this head's attention.`],
+    [L.values, "Faces · head 1", "The weighted values are added", `$\\mathbf{W}_l\\mathbf{x}_j$ is also what each neighbour sends. Weighted by attention and added, $\\sum_j \\alpha_{ij}\\mathbf{W}_l\\mathbf{x}_j$ makes head 1's ${head} numbers.`],
+    [L.heads, "Faces · all heads", `${heads} heads, joined`, `Each head has its own $\\mathbf{W}_l$, $\\mathbf{W}_r$ and $\\mathbf{a}$, so each can look for something different. ${heads} × ${head} numbers make the ${EMB.hidden}-number message.`],
     [L.types, "Every edge type", "Each edge type sends its own message", "Belongs to, faces, part of and matches: the same steps, each with its own weights. The messages are added."],
     [L.relu, "After the messages", "ReLU", "Negative numbers become 0."],
     [L.resid, "After the messages", "The card's own vector is added back", "A residual connection: the layer only has to learn what to change."],
@@ -1118,7 +1145,7 @@ function caption(t) {
   if (k === shownBeat) return;
   shownBeat = k;
   const [, crumbs, what, how] = BEATS[k];
-  $("crumbs").textContent = crumbs; $("what").textContent = what; $("how").textContent = how;
+  $("crumbs").textContent = crumbs; $("what").innerHTML = rich(what); $("how").innerHTML = rich(how);
 }
 
 // ------------------------------------------------------------------ setup and playback

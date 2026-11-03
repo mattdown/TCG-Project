@@ -26,7 +26,9 @@ Decisions already made (don't re-open without a reason):
 - **Rules v2:** Hearthstone-style, chosen because more players and readers know it. Heroes
   with 30 health, mana up to 10, units attack units or the hero. Units only attack.
 - **Blog series:** part 1 setup and card generation, part 2 self-play and balancing, part 3 a
-  twist of our own.
+  game of our own:
+  parts 1 and 2 are the proof of concept, part 3 uses the tools to make something original that keeps
+  the usual TCG DNA.
 - **Model:** PyTorch, with the heterogeneous GNN (`--arch gnn`) as the default model. The
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
