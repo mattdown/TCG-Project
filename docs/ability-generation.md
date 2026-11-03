@@ -187,7 +187,7 @@ The card lab (`Blog/card_lab.py`) runs the whole pipeline and shows every stage,
 what was thrown away and why. Run these from the repository root: they use PythonServer's
 environment.
 
-The web page, at <http://localhost:8765>. Change the seed, set size, jobs, action share and variety there:
+The web page, at <http://localhost:8765>. Change the seed, set size, jobs, the vanilla, keyword-only and action shares, and variety there:
 
 ```bash
 uv run --project PythonServer python Blog/card_lab.py
@@ -205,26 +205,17 @@ A self-contained page with one batch baked in, which needs no Python to view (fo
 uv run --project PythonServer python Blog/card_lab.py --export lab.html --seed 7 --count 80
 ```
 
-The **card explorer** (<http://localhost:8765/explorer>, linked from the lab) generates one card per
-button press and shows its *derivation*: the path the sampler took through the grammar. Every
-random decision is listed in its section (trigger, steps, effect, target, card), with:
-- all the options it had, as a bar whose segment widths are their probabilities, and the one it took
-- the options the rules had closed at that point, and forced steps with the reason
-- how likely the whole path was ("1 in 7,831" for the ability)
-- the draws thrown away on the way to the card, each with its own path and the test it failed
-
-The sampler records this through `src/cards/trace.py`. The tracer makes exactly the same calls on
-the random generator as plain sampling, so tracing never changes what is generated. To bake
-100 cards into a page where the button deals from the batch:
-
-```bash
-uv run --project PythonServer python Blog/card_lab.py --export-explorer explorer.html --count 100 --variety 1
-```
-
-The page shows:
-- each kept card in the client's card style
+The page has the client's Lantern look, like the visualisers, and shows:
+- each kept card as the client draws it (`Blog/painted_card.html`), with its painted art. The
+  default seed, 0, gives the first cards of `set_200`, which have art; other cards get a
+  placeholder mushroom in their aspect's colour
 - the funnel of draws through each stage, with counts per reason
 - for each card, the checks it passed, its costing, its ability tree and its shape
+
+One card's path through the grammar, animated, is the card generation visualiser
+(`Blog/card_generation_visualiser.py`). It reads the sampler's derivation from
+`src/cards/trace.py`, which makes exactly the same calls on the random generator as plain
+sampling, so tracing never changes what is generated.
 
 `scripts.generate_cards --kind set --count N` writes a playable set of N cards straight from
 this pipeline (`cardsets/set_N.json`, plus a checklist `.md`), with `--vanilla-share`,

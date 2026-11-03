@@ -19,6 +19,16 @@ def test_card_lab_data():
     assert render(ability["tree"], ability["card_type"])
 
 
+
+def test_card_lab_default_batch_has_art():
+    """The default seed is the saved set's, so the lab opens on cards with painted art, and an export bakes it in."""
+    from card_lab import ART, DEFAULTS, PAGE, art_keys, bake
+    data = run(**DEFAULTS | {"count": 5})
+    keys = {data["attempts"][i]["card"]["art"] for i in data["kept"]}
+    assert all((ART / "cards" / f"{k}.webp").exists() for k in keys)
+    html = bake(PAGE, data, art_keys(data))
+    assert "<!--" + "CARD_ART-->" not in html and all(f'"{k}": "data:image/webp' in html for k in keys)
+
 def test_visualiser_shows_the_set_with_art():
     """The visualiser's cards are the saved set's, so each one has the art painted for it."""
     from card_generation_visualiser import ART, SET_SIZE, pool_data

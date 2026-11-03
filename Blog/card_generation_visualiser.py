@@ -21,22 +21,17 @@ into the page; --refresh-art makes them again from TCGClient. --render steps the
 frame in Chrome and joins the frames with ffmpeg, so the video is smooth and the same every time.
 """
 import argparse
-import base64
-import json
 import shutil
 import subprocess
 import webbrowser
 from pathlib import Path
 
-from card_lab import DEFAULTS, _attempt_json, make_generator, page  # next to this file; it puts PythonServer on the path
+from card_lab import ART, DEFAULTS, _attempt_json, bake, make_generator  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import Renderer, render as card_text  # noqa: E402
-from src.cards.art import art_key  # noqa: E402
 from src.cards.generate import Attempt  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("card_generation_visualiser.html")
-PAINTED_CARD = Path(__file__).with_name("painted_card.html")  # the client's card, shared with gnn_visualiser
 OUT = Path(__file__).parent / "build"
-ART = Path(__file__).with_name("art")  # the frame, its parts and the background; cards/ has each card's art
 CLIENT = Path(__file__).parents[1] / "TCGClient"
 SET_SEED, SET_SIZE = 0, 200  # cardsets/set_200.json, the set the card art was painted for
 WIDTH, HEIGHT = 1920, 1080
@@ -61,7 +56,7 @@ def set_cards(count: int) -> list[Attempt]:
 
 def card_data(number: int, a: Attempt) -> dict:
     kept = _attempt_json(a, trace=True)
-    return {"number": number, "art": art_key(a.card.name, a.card.subtitle, a.card.aspects), "kept": kept,
+    return {"number": number, "art": kept["card"]["art"], "kept": kept,
             "text_stages": text_stages(kept)}
 
 
@@ -118,21 +113,6 @@ def refresh_art(keys: set[str]):
         image.save(ART / "cards" / f"{key}.webp", quality=72, method=6)
     print(f"Wrote {len(PARTS)} parts and {len(keys) - len(missing)} card images to {ART}"
           + (f"; no art yet for {len(missing)}: {', '.join(missing)}" if missing else ""))
-
-
-def card_art(keys: set[str]) -> str:
-    """The frame, parts and the cards' art as data URIs, so the page stays one file. A card without
-    art shows an empty window."""
-    uri = lambda f: "data:image/webp;base64," + base64.b64encode(f.read_bytes()).decode()
-    parts = {f.stem: uri(f) for f in sorted(ART.glob("*.webp"))}
-    cards = {k: uri(ART / "cards" / f"{k}.webp") for k in sorted(keys) if (ART / "cards" / f"{k}.webp").exists()}
-    return f"<script>window.CARD_ART = {json.dumps(parts)};\nwindow.CARD_IMAGES = {json.dumps(cards)};</script>"
-
-
-def bake(template: Path, data: dict, keys: set[str]) -> str:
-    """A page as one file: the card kit, the painted card, the images for these art keys and the data."""
-    html = page(data, template).replace("<!--PAINTED_CARD-->", PAINTED_CARD.read_text())
-    return html.replace("<!--CARD_ART-->", card_art(keys))
 
 
 def render(html: Path, video: Path, fps: int):

@@ -39,12 +39,13 @@
 <script>
 function paintedCard(c, kind, art) {
   // The card like the client's CardView: units and actions share the frame; units add the sword and shield.
-  // c.art shows the art (the visualiser hides it until the card is named); c.damaged colours the health.
+  // c.art shows the art (the visualiser hides it until the card is named); c.damaged colours the health;
+  // c.placeholder is markup for the art window when the card has no image (the card lab's mushrooms).
   const unit = c.type === "unit", parts = window.CARD_ART, image = window.CARD_IMAGES[art];
   const kw = c.keywords.map((k) => `<b>${esc(k)}.</b>`).join(" ");
   const job = unit ? c.traits.filter(Boolean).join(" · ") : "Action";
   return `<div class="pcard ${unit ? "" : "action"} ${c.art && image ? "" : "no-art"}">
-    <div class="art">${image ? `<img src="${image}" alt="">` : ""}</div>
+    <div class="art">${image ? `<img src="${image}" alt="">` : c.placeholder || ""}</div>
     <img class="frame" src="${parts.card_frame}" alt="">
     <div class="num cost">${c.cost}</div>
     <div class="name">${esc(c.name)}</div>

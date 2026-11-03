@@ -6,11 +6,16 @@
 
 Run from the repository root: the cards come from the generator in PythonServer, so this uses its environment.
 
+The page has the Lantern look and draws cards like the Unity client (painted_card.html). The default seed, 0,
+gives the first cards of cardsets/set_200.json, which have painted art (Blog/art/cards); other cards get a
+placeholder mushroom in their aspect's colour.
+
 One card's path through the grammar, animated, is card_generation_visualiser.py.
 
 The pipeline is described in docs/ability-generation.md.
 """
 import argparse
+import base64
 import json
 import random
 import sys
@@ -21,6 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "PythonServer"))
 from src.cards.abilities import validate  # noqa: E402
+from src.cards.art import art_key  # noqa: E402
 from src.cards.generate import STAGES, Attempt, CardGenerator  # noqa: E402
 from src.cards.quality import (ACTION_COMPLEXITY, MAX_COMPLEXITY, MAX_NARROWING, complexity,  # noqa: E402
                                 disconnected_steps, dominated_options, narrowing, skeleton)
@@ -29,8 +35,10 @@ from src.cards.trace import decisions, path_probability  # noqa: E402
 from src.game.terms import ASPECT_NAMES, keyword_text  # noqa: E402
 
 PAGE = Path(__file__).with_name("card_lab.html")
-CARD_KIT = Path(__file__).with_name("card_kit.html")  # the card's markup and style
-DEFAULTS = {"seed": 1, "count": 60, "jobs": 6, "action_share": 0.25, "vanilla_share": 0.04, "keyword_share": 0.25,
+CARD_KIT = Path(__file__).with_name("card_kit.html")  # card text helpers, shared by every page
+PAINTED_CARD = Path(__file__).with_name("painted_card.html")  # the client's card
+ART = Path(__file__).with_name("art")  # the frame, its parts and the background; cards/ has each card's art
+DEFAULTS = {"seed": 0, "count": 60, "jobs": 6, "action_share": 0.25, "vanilla_share": 0.04, "keyword_share": 0.25,
             "variety": 4}
 
 
@@ -73,6 +81,7 @@ def _attempt_json(a: Attempt, trace: bool = False) -> dict:
         "aspect": c.aspects[0] if c.aspects else None,
         "aspect_name": ASPECT_NAMES[c.aspects[0]] if c.aspects else "Neutral",
         "traits": list(c.traits), "keywords": [keyword_text(k, v) for k, v in c.keywords], "archetype": a.archetype,
+        "art": art_key(c.name, c.subtitle, c.aspects),
     }
     kind = a.ability["kind"] if a.ability else a.kind  # triggered, static, … or vanilla, keywords
     shape = skeleton(a.ability, abstract_traits=True) if a.ability else json.dumps(a.kind)
@@ -135,11 +144,37 @@ def page(data: dict | None, source: Path = PAGE) -> str:
     return html
 
 
+def card_art(keys: set[str] | None, inline: bool = True) -> str:
+    """The frame, parts and the cards' art (these keys, or all of it), as data URIs so a page stays one
+    file, or as /art/ URLs for the lab's server. A card without art gets no entry."""
+    def src(f: Path) -> str:
+        if not inline:
+            return "/" + f.relative_to(ART.parent).as_posix()
+        return "data:image/webp;base64," + base64.b64encode(f.read_bytes()).decode()
+    parts = {f.stem: src(f) for f in sorted(ART.glob("*.webp"))}
+    files = sorted((ART / "cards").glob("*.webp")) if keys is None else \
+        [f for k in sorted(keys) if (f := ART / "cards" / f"{k}.webp").exists()]
+    cards = {f.stem: src(f) for f in files}
+    return f"<script>window.CARD_ART = {json.dumps(parts)};\nwindow.CARD_IMAGES = {json.dumps(cards)};</script>"
+
+
+def bake(template: Path, data: dict | None, keys: set[str] | None, inline: bool = True) -> str:
+    """A page with the card kit, the painted card, the images for these art keys and the data."""
+    html = page(data, template).replace("<!--PAINTED_CARD-->", PAINTED_CARD.read_text())
+    return html.replace("<!--CARD_ART-->", card_art(keys, inline))
+
+
+def art_keys(data: dict) -> set[str]:
+    return {a["card"]["art"] for a in data["attempts"] if a["card"]}
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         if url.path == "/":
-            self._send(200, "text/html; charset=utf-8", page(None))
+            self._send(200, "text/html; charset=utf-8", bake(PAGE, None, None, inline=False))
+        elif url.path.startswith("/art/") and ".." not in url.path and (ART.parent / url.path[1:]).is_file():
+            self._send(200, "image/webp", (ART.parent / url.path[1:]).read_bytes())
         elif url.path == "/api/generate":
             query = {k: v[0] for k, v in parse_qs(url.query).items()}
             try:
@@ -152,8 +187,8 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, "text/plain", "not found")
 
-    def _send(self, status: int, content_type: str, body: str):
-        data = body.encode()
+    def _send(self, status: int, content_type: str, body: str | bytes):
+        data = body.encode() if isinstance(body, str) else body
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
@@ -179,7 +214,8 @@ def main():
     if args.text:
         print_text(run(**params), args.rejected)
     elif args.export:
-        args.export.write_text(page(run(**params)))
+        data = run(**params)
+        args.export.write_text(bake(PAGE, data, art_keys(data)))
         print(f"Wrote {args.export}")
     else:
         url = f"http://localhost:{args.port}/"

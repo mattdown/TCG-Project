@@ -5,131 +5,178 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Card Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
 <style>
+/* The Lantern look (docs/client-design.md), as in the card generation and GNN visualisers: smoked glass over the
+   forest, Lantern for what's on and kept, Firefly for the one you picked, coral for what was thrown away. */
 :root {
-  --outline: #0E1733; --panel: #16203D; --bg: #1E2C55; --bg-deep: #141E3F; --light: #E9EEF8;
-  --energy: #E24BD6; --power: #F08A24; --health: #E8364F; --gold: #FFC93C; --gold-lip: #D98A10;
-  --good: #5BEA5B; --bad: #FF4D5E; --muted: #9AA8CF; --text: #F4F6FC;
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209; --coral: #FF6A5C; --down: #FF8A96;
+  --rim: rgba(160, 235, 215, .3); --pane: rgba(9, 19, 16, .8);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg-deep); color: var(--text); font: 700 15px/1.45 Nunito, system-ui, sans-serif; }
-button, input { font: inherit; }
-.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font: 400 40px/1 "Lilita One", system-ui; margin: 0; letter-spacing: .5px; text-shadow: 0 3px 0 var(--outline); }
-.sub { color: var(--muted); margin: 6px 0 0; max-width: 720px; }
-header { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; justify-content: space-between; }
+html { background: #050C0A; }
+body { margin: 0; min-height: 100vh; color: var(--text); font: 500 15px/1.45 Outfit, system-ui, sans-serif; }
+button, input { font: inherit; color: inherit; }
+#bg { position: fixed; inset: -30px; z-index: -1; background: var(--night) center / cover no-repeat; filter: blur(7px) brightness(.32) saturate(.85); }
+#bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 40% 30%, rgba(11, 22, 18, .1) 0%, rgba(5, 12, 10, .8) 100%); }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 40px 16px 80px; }
 
-.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-.controls label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 3px; }
-.controls input { width: 84px; padding: 7px 9px; border-radius: 9px; border: 2px solid var(--outline); background: var(--panel); color: var(--text); }
-.btn { font: 400 17px "Lilita One", system-ui; color: var(--outline); background: var(--gold); border: 2px solid var(--outline);
-  border-radius: 11px; padding: 7px 16px; box-shadow: inset 0 -4px 0 var(--gold-lip); cursor: pointer; }
-.btn.alt { background: #DDE4F5; box-shadow: inset 0 -4px 0 #A9B5D6; }
-.btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 var(--gold-lip); }
-.note { font-size: 13px; color: var(--muted); }
+header { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between; }
+h1 { font: 400 54px/1 "Marcellus SC", serif; margin: 0; text-shadow: 0 3px 10px var(--shadow); }
+.sub { color: var(--muted); margin: 14px 0 0; max-width: 680px; font-size: 18px; line-height: 1.4; }
+.crumbs { font: 700 12px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
 
-.funnel { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 10px; align-items: stretch; }
-.stage { flex: 1 1 120px; background: var(--panel); border: 2px solid var(--outline); border-radius: 12px; padding: 10px 12px; cursor: pointer; text-align: left; color: inherit; }
-.stage .n { font: 400 28px/1 "Lilita One", system-ui; }
-.stage .l { font-size: 12px; color: var(--muted); }
-.stage.drop .n { color: var(--bad); }
-.stage.kept .n { color: var(--good); }
-.stage[aria-pressed="true"] { border-color: var(--gold); }
-.reasons { display: grid; grid-template-columns: max-content 1fr max-content; gap: 4px 12px; align-items: center; font-size: 13px; margin: 6px 0 22px; }
-.bar { height: 10px; border-radius: 5px; background: var(--bad); opacity: .8; }
+.panel { background: var(--pane); border: 1.5px solid var(--rim); border-radius: 14px; backdrop-filter: blur(6px); }
+.controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 14px 16px; }
+.controls label { display: flex; flex-direction: column; gap: 5px; }
+.controls input { width: 84px; padding: 7px 12px; border-radius: 999px; border: 1.5px solid var(--rim); background: var(--glass);
+  font-weight: 700; font-variant-numeric: tabular-nums; outline: none; }
+.controls input:focus { border-color: var(--lantern); }
+.btn { font: 400 16px "Marcellus SC", serif; background: var(--glass); color: var(--lantern); border: 1.5px solid var(--lantern);
+  border-radius: 999px; padding: 6px 18px; cursor: pointer; }
+.btn.primary { border-width: 2px; color: var(--text); background: color-mix(in srgb, var(--lantern) 12%, var(--glass)); }
+.btn.quiet { color: var(--muted); border-color: var(--rim); }
+.btn:active { background: rgba(126, 240, 216, .18); transform: scale(.95); }
+.note { font-size: 14px; color: var(--muted); margin: 18px 0 0; }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; }
-.chip { border: 2px solid var(--outline); background: var(--panel); color: var(--text); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
-.chip[aria-pressed="true"] { background: var(--gold); color: var(--outline); }
-.search { flex: 1 1 180px; padding: 6px 12px; border-radius: 999px; border: 2px solid var(--outline); background: var(--panel); color: var(--text); }
+.funnel { display: flex; flex-wrap: wrap; gap: 10px; margin: 28px 0 14px; align-items: stretch; }
+.stage { flex: 1 1 140px; padding: 12px 14px; cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; }
+.stage .n { font: 800 36px/1.05 Outfit; font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px var(--shadow); }
+.stage .s { font: 400 18px "Marcellus SC", serif; margin-top: 4px; }
+.stage .l { font-size: 13px; color: var(--muted); line-height: 1.3; }
+.stage.drop .n { color: var(--coral); }
+.stage.kept { cursor: default; border-color: color-mix(in srgb, var(--lantern) 55%, transparent); }
+.stage.kept .n { color: var(--lantern); }
+.stage[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 16px rgba(244, 199, 107, .35); }
+.reasons { display: grid; grid-template-columns: max-content 1fr max-content; gap: 6px 14px; align-items: center; font-size: 14px;
+  margin: 0 0 30px; padding: 14px 16px; }
+.reasons .crumbs { grid-column: 1 / -1; margin-bottom: 2px; }
+.reasons .num { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--down); }
+.bar { height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgba(255, 106, 92, .55), var(--coral)); }
 
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 22px 14px; justify-items: center; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 26px; }
+.chip { padding: 5px 16px; border-radius: 999px; border: 1.5px solid rgba(126, 240, 216, .35); background: var(--pane);
+  font: 400 16px "Marcellus SC", serif; color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--lantern); color: var(--text); box-shadow: 0 0 14px rgba(126, 240, 216, .4); }
+.toolbar .gap { width: 14px; }
+.search { flex: 1 1 200px; padding: 7px 16px; border-radius: 999px; border: 1.5px solid var(--rim); background: var(--pane); outline: none; }
+.search:focus { border-color: var(--lantern); }
+.search::placeholder { color: var(--muted); opacity: .7; }
+
+/* Kept cards, drawn like the client's (painted_card.html). The frame spills past the card, so slots leave room. */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 30px 12px; justify-items: center; }
+.slot { display: block; padding: 16px 0 10px; border: 0; background: none; cursor: pointer; transition: transform .14s; }
+.slot .pcard { --w: 200px; }
+.slot:hover { transform: translateY(-6px); }
+.slot:hover .frame { filter: drop-shadow(0 0 8px rgba(244, 199, 107, .85)) drop-shadow(0 calc(var(--u) * 4) 0 rgba(5, 10, 8, .5)); }
+.pcard .ph { position: absolute; inset: 0; background: radial-gradient(circle at 50% 55%, var(--aspect) 0%,
+  color-mix(in srgb, var(--aspect) 30%, var(--night)) 75%); }
+.pcard .ph svg { position: absolute; left: 50%; bottom: 22%; width: 72%; transform: translateX(-50%); }
 .empty { color: var(--muted); padding: 30px 0; }
 
+/* Thrown-away draws. */
 .list { display: flex; flex-direction: column; gap: 8px; }
-.row { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 10px 12px; background: var(--panel); border: 2px solid var(--outline); border-radius: 12px; cursor: pointer; text-align: left; color: inherit; }
-.row:hover { border-color: #3B4C85; }
-.tag { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; border-radius: 6px; padding: 2px 6px; background: var(--bad); color: var(--outline); justify-self: start; align-self: start; font-weight: 900; }
-.tag.variety { background: #8FA0D8; }
-.row .why { color: #FF9AA5; font-size: 13px; }
-.row .meta, .meta { color: var(--muted); font-size: 12px; }
+.row { display: grid; grid-template-columns: 104px 1fr; gap: 14px; padding: 12px 16px; cursor: pointer; text-align: left; transition: border-color .15s; }
+.row:hover { border-color: var(--lantern); }
+.tag { justify-self: start; align-self: start; padding: 2px 10px; border-radius: 999px; border: 1.5px solid var(--coral);
+  font: 700 11px Outfit; letter-spacing: .1em; text-transform: uppercase; color: var(--coral); background: rgba(255, 106, 92, .08); }
+.tag.variety, .tag.duplicate { border-color: var(--gold); color: var(--gold); background: rgba(244, 199, 107, .08); }
+.row .why { color: var(--down); font-size: 14px; }
+.meta { color: var(--muted); font-size: 13px; }
 
-/* Detail drawer */
-.scrim { position: fixed; inset: 0; background: rgba(5, 9, 25, .55); opacity: 0; pointer-events: none; transition: opacity .15s; }
+/* Detail drawer. */
+.scrim { position: fixed; inset: 0; background: rgba(5, 12, 10, .6); opacity: 0; pointer-events: none; transition: opacity .15s; }
 .scrim.open { opacity: 1; pointer-events: auto; }
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%); background: var(--bg); border-left: 3px solid var(--outline);
-  transform: translateX(100%); transition: transform .18s; overflow-y: auto; padding: 20px 20px 40px; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: rgba(9, 19, 16, .92); backdrop-filter: blur(14px);
+  border-left: 1.5px solid var(--rim); transform: translateX(100%); transition: transform .2s; overflow-y: auto; padding: 26px 24px 48px; }
 .drawer.open { transform: none; }
-.drawer .close { position: absolute; right: 14px; top: 12px; }
-.drawer h2 { font: 400 24px/1.1 "Lilita One"; margin: 0 52px 4px 0; }
-.drawer h3 { font: 400 17px "Lilita One"; margin: 22px 0 8px; color: var(--gold); letter-spacing: .3px; }
-.drawer .hero { display: flex; justify-content: center; padding: 18px 0 10px; }
-.drawer .hero .card { --w: 230px; cursor: default; }
-.drawer .hero .card:hover { transform: none; }
+.drawer .close { position: absolute; right: 18px; top: 20px; padding: 4px 14px; }
+.drawer h2 { font: 400 32px/1.1 "Marcellus SC", serif; margin: 0 70px 4px 0; text-shadow: 0 2px 8px var(--shadow); }
+.drawer .subtitle { color: var(--muted); font-style: italic; font-size: 17px; }
+.drawer h3 { margin: 28px 0 10px; font-size: 13px; }
+.drawer .hero { display: flex; justify-content: center; padding: 34px 0 18px; }
+.drawer .hero .pcard { --w: 300px; }
+.verdict { display: inline-block; margin-top: 10px; padding: 3px 12px; border-radius: 999px; border: 1.5px solid var(--lantern); color: var(--lantern);
+  font: 700 12px Outfit; letter-spacing: .1em; text-transform: uppercase; }
+.verdict.out { border-color: var(--coral); color: var(--coral); }
 .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.checks li { background: var(--panel); border-radius: 10px; padding: 8px 10px; border: 2px solid var(--outline); }
-.checks .ok::before { content: "✓ "; color: var(--good); font-weight: 900; }
-.checks .no::before { content: "✗ "; color: var(--bad); font-weight: 900; }
-.checks .skip { color: var(--muted); }
-.checks .skip::before { content: "· "; }
-.checks small { display: block; color: #FF9AA5; font-size: 12.5px; margin-top: 2px; }
-.kv { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; font-size: 14px; }
+.checks li { padding: 8px 14px; border-radius: 12px; background: var(--pane); border: 1.5px solid rgba(126, 240, 216, .35); }
+.checks li::before { margin-right: 8px; font-weight: 800; }
+.checks .ok::before { content: "✓"; color: var(--lantern); }
+.checks .no { border-color: rgba(255, 106, 92, .6); }
+.checks .no::before { content: "✗"; color: var(--coral); }
+.checks .skip { color: var(--muted); border-color: var(--rim); border-style: dashed; }
+.checks .skip::before { content: "·"; }
+.checks small { display: block; color: var(--down); font-size: 13px; margin-top: 2px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
 .kv dt { color: var(--muted); }
-.kv dd { margin: 0; }
-pre { background: var(--outline); border-radius: 10px; padding: 12px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; color: #CFE0FF; margin: 0; }
-.say { background: var(--light); color: var(--outline); border-radius: 10px; padding: 10px 12px; }
-@media (max-width: 600px) { h1 { font-size: 32px; } .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } .card { --w: 150px; } }
+.kv dd { margin: 0; font-weight: 700; }
+pre { background: rgba(6, 16, 13, .9); border: 1.5px solid var(--rim); border-radius: 12px; padding: 12px 14px; margin: 0; overflow-x: auto;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #BFE9DC; }
+.say { background: var(--pane); border: 1.5px solid var(--rim); border-radius: 12px; padding: 12px 14px; font-size: 16px; }
+.drawer p.meta { margin: 0 0 8px; }
+
+@media (max-width: 600px) {
+  h1 { font-size: 40px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 22px 8px; }
+  .slot .pcard { --w: 150px; }
+  .drawer .hero .pcard { --w: 240px; }
+  .row { grid-template-columns: 1fr; gap: 6px; }
+}
 </style>
-<!--CARD_KIT-->
 </head>
 <body>
+<div id="bg"></div>
 <!--LAB_DATA-->
 <div class="wrap">
   <header>
     <div>
       <h1>Card Lab</h1>
       <p class="sub">Cards generated from scratch by an ability grammar: no example cards, no hand-picked templates.
-        Each draw goes through the grammar, the quality tests and costing; you can see what was kept and what was thrown away, and why.</p>
+        Each draw goes through the grammar, the quality tests and costing; see what was kept, what was thrown away, and why.</p>
     </div>
-    <form class="controls" id="controls">
-      <label>Seed <input name="seed" type="number" min="0"></label>
-      <label>Cards <input name="count" type="number" min="1" max="500"></label>
-      <label>Jobs <input name="jobs" type="number" min="1" max="20"></label>
-      <label>Vanilla <input name="vanilla_share" type="number" min="0" max="1" step="0.01"></label>
-      <label>Keyword-only <input name="keyword_share" type="number" min="0" max="1" step="0.05"></label>
-      <label>Actions <input name="action_share" type="number" min="0" max="1" step="0.05"></label>
-      <label>Variety <input name="variety" type="number" min="1" max="16"></label>
-      <button class="btn" type="submit">Generate</button>
-      <button class="btn alt" type="button" id="reroll">New seed</button>
+    <form class="controls panel" id="controls">
+      <label><span class="crumbs">Seed</span><input name="seed" type="number" min="0"></label>
+      <label><span class="crumbs">Cards</span><input name="count" type="number" min="1" max="500"></label>
+      <label><span class="crumbs">Jobs</span><input name="jobs" type="number" min="1" max="20"></label>
+      <label><span class="crumbs">Vanilla</span><input name="vanilla_share" type="number" min="0" max="1" step="0.01"></label>
+      <label><span class="crumbs">Keywords</span><input name="keyword_share" type="number" min="0" max="1" step="0.05"></label>
+      <label><span class="crumbs">Actions</span><input name="action_share" type="number" min="0" max="1" step="0.05"></label>
+      <label><span class="crumbs">Variety</span><input name="variety" type="number" min="1" max="16"></label>
+      <button class="btn primary" type="submit">Generate</button>
+      <button class="btn quiet" type="button" id="reroll">New seed</button>
     </form>
   </header>
   <p class="note" id="status"></p>
 
   <div class="funnel" id="funnel"></div>
-  <div class="reasons" id="reasons"></div>
+  <div class="reasons panel" id="reasons"></div>
 
   <div class="toolbar" id="toolbar">
     <button class="chip" data-view="kept" aria-pressed="true">Kept cards</button>
     <button class="chip" data-view="stopped" aria-pressed="false">Thrown away</button>
-    <span style="width:12px"></span>
+    <span class="gap"></span>
     <button class="chip" data-kind="" aria-pressed="true">All</button>
     <button class="chip" data-kind="triggered" aria-pressed="false">Triggered</button>
     <button class="chip" data-kind="static" aria-pressed="false">Static</button>
     <button class="chip" data-kind="on_resolve" aria-pressed="false">Actions</button>
     <button class="chip" data-kind="keywords" aria-pressed="false">Keyword-only</button>
     <button class="chip" data-kind="vanilla" aria-pressed="false">Vanilla</button>
-    <input class="search" id="search" type="search" placeholder="Search card text…">
+    <input class="search" id="search" type="search" placeholder="Search names and card text…">
   </div>
   <div id="results"></div>
 </div>
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true">
-  <button class="btn alt close" id="close" type="button">✕</button>
+  <button class="btn quiet close" id="close" type="button">✕</button>
   <div id="detail"></div>
 </aside>
 
+<!--CARD_KIT-->
+<!--PAINTED_CARD-->
+<!--CARD_ART-->
 <script>
 const STAGE_TEXT = {
   grammar: ["Grammar", "illegal trees"], quality: ["Quality", "complex, narrow, unconnected or fake choices"],
@@ -143,35 +190,65 @@ const TEST_TEXT = {
 };
 const KIND_TEXT = { triggered: "Triggered ability", static: "Static ability",
   on_resolve: "Action", vanilla: "Vanilla", keywords: "Keyword-only" };
+const ASPECT_COLOURS = { aspect_1: "#F0533A", aspect_2: "#2F86E8", aspect_3: "#43B04F", aspect_4: "#F5B52E", aspect_5: "#9152E0", aspect_6: "#22BCC9" };
+const NEUTRAL_COLOUR = "#8A93AD";  // cards any deck can use
 
 const state = { data: null, view: "kept", kind: "", stage: "", search: "", selected: null };
 const $ = (id) => document.getElementById(id);
+
+function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
+
+function mushroom(name, colour) {
+  // Placeholder art, like the client's silhouettes: cap shape and spots vary with the name, so a card always looks the same.
+  const h = hash(name), w = 30 + (h % 9), top = 6 + ((h >> 4) % 10), spots = [];
+  for (let i = 0; i < 2 + ((h >> 8) % 3); i++) {
+    const x = 50 + (((h >> (10 + i * 3)) % 9) - 4) * 6, y = 22 + ((h >> (12 + i * 2)) % 3) * 7;
+    spots.push(`<ellipse cx="${x}" cy="${y}" rx="${4 + ((h >> i) % 3)}" ry="3.2" fill="#FFF8EC" opacity=".92"/>`);
+  }
+  return `<div class="ph" style="--aspect:${colour}"><svg viewBox="0 0 100 80" aria-hidden="true">
+    <ellipse cx="50" cy="75" rx="26" ry="4.5" fill="rgba(0,0,0,.3)"/>
+    <path d="M41 44 Q38 64 35 74 L65 74 Q62 64 59 44 Z" fill="#F7EBD8" stroke="#06100D" stroke-width="3" stroke-linejoin="round"/>
+    <ellipse cx="45" cy="58" rx="2.2" ry="3.4" fill="#06100D"/><ellipse cx="55" cy="58" rx="2.2" ry="3.4" fill="#06100D"/>
+    <path d="M${50 - w - 6} 47 Q${50 - w} ${top} 50 ${top} Q${50 + w} ${top} ${50 + w + 6} 47 Q50 55 ${50 - w - 6} 47 Z"
+      fill="color-mix(in srgb, var(--aspect) 80%, #fff)" stroke="#06100D" stroke-width="3" stroke-linejoin="round"/>
+    ${spots.join("")}</svg></div>`;
+}
+
+function cardHtml(a) {
+  const c = a.card;
+  return paintedCard({ ...c, text: a.text, art: true, placeholder: mushroom(c.name, ASPECT_COLOURS[c.aspect] || NEUTRAL_COLOUR) },
+    a.kind, c.art);
+}
+
+function fitAll(root) { root.querySelectorAll(".pcard").forEach((el) => fitPainted(el.parentElement)); }
 
 function firstFailure(a) { return a.checks.find((c) => c.problems.length); }
 
 function renderSummary() {
   const d = state.data, atts = d.attempts, kept = new Set(d.kept);
   const by = (s) => atts.filter((a) => a.stopped_at === s).length;
-  let html = `<button class="stage" data-stage="" aria-pressed="${state.stage === ""}"><div class="n">${atts.length}</div><div class="l">draws from the grammar</div></button>`;
+  let html = `<button class="stage panel" data-stage="" aria-pressed="${state.stage === ""}"><div class="n">${atts.length}</div>
+    <div class="s">Draws</div><div class="l">from the grammar</div></button>`;
   for (const s of d.stages) {
-    html += `<button class="stage drop" data-stage="${s}" aria-pressed="${state.stage === s}"><div class="n">−${by(s)}</div><div class="l">${STAGE_TEXT[s][0]}: ${STAGE_TEXT[s][1]}</div></button>`;
+    html += `<button class="stage panel drop" data-stage="${s}" aria-pressed="${state.stage === s}"><div class="n">${by(s) ? "−" + by(s) : 0}</div>
+      <div class="s">${STAGE_TEXT[s][0]}</div><div class="l">${STAGE_TEXT[s][1]}</div></button>`;
   }
-  html += `<div class="stage kept"><div class="n">${kept.size}</div><div class="l">cards kept</div></div>`;
+  html += `<div class="stage panel kept"><div class="n">${kept.size}</div><div class="s">Kept</div><div class="l">cards in the set</div></div>`;
   $("funnel").innerHTML = html;
 
   const counts = {};
   for (const a of atts) if (a.stopped_at) { const f = firstFailure(a); const k = f ? f.test : a.stopped_at; counts[k] = (counts[k] || 0) + 1; }
   const rows = Object.entries(counts).sort((x, y) => y[1] - x[1]);
   const max = Math.max(1, ...rows.map((r) => r[1]));
-  $("reasons").innerHTML = rows.map(([k, n]) =>
-    `<span>${TEST_TEXT[k] || k}</span><div class="bar" style="width:${(100 * n) / max}%"></div><span>${n}</span>`).join("");
+  $("reasons").innerHTML = `<div class="crumbs">Why draws were thrown away</div>` + rows.map(([k, n]) =>
+    `<span>${TEST_TEXT[k] || k}</span><div class="bar" style="width:${(100 * n) / max}%"></div><span class="num">${n}</span>`).join("");
   const p = d.params;
   $("status").textContent = `Seed ${p.seed} · ${p.count} cards · jobs: ${d.job_list.join(", ")} · ` +
     `complexity budget ${d.max_complexity} nodes (+2 for actions) · variety: best of ${p.variety}` + (window.LAB_DATA ? " · saved snapshot" : "");
 }
 
 function visible() {
-  const d = state.data, kept = new Set(d.kept), q = state.search.toLowerCase();
+  const d = state.data, q = state.search.toLowerCase();
   const pool = state.view === "kept" ? d.kept.map((i) => d.attempts[i]) : d.attempts.filter((a) => a.stopped_at && (!state.stage || a.stopped_at === state.stage));
   return pool.filter((a) => (!state.kind || a.kind === state.kind) &&
     (!q || a.text.toLowerCase().includes(q) || (a.card && (a.card.name + " " + a.card.subtitle).toLowerCase().includes(q))));
@@ -181,16 +258,17 @@ function renderResults() {
   const items = visible(), out = $("results");
   if (!items.length) { out.innerHTML = `<p class="empty">Nothing matches.</p>`; return; }
   if (state.view === "kept") {
-    out.innerHTML = `<div class="grid">${items.map(cardHtml).join("")}</div>`;
+    out.innerHTML = `<div class="grid">${items.map((a) =>
+      `<button class="slot" data-i="${a.index}" title="${esc(a.card.subtitle ? a.card.name + " – " + a.card.subtitle : a.card.name)}">${cardHtml(a)}</button>`).join("")}</div>`;
+    fitAll(out);
   } else {
     out.innerHTML = `<div class="list">${items.map((a) => {
       const f = firstFailure(a);
-      return `<button class="row" data-i="${a.index}"><span class="tag ${a.stopped_at}">${a.stopped_at}</span>
+      return `<button class="row panel" data-i="${a.index}"><span class="tag ${a.stopped_at}">${a.stopped_at}</span>
         <div><div>${esc(a.text || (a.card ? `${a.card.cost} mana ${a.card.power}/${a.card.health} ${a.card.keywords.join(", ")}` : ""))}</div><div class="why">${esc((f ? f.problems : a.problems).join("; "))}</div>
         <div class="meta">${KIND_TEXT[a.kind]}${a.tree ? ` · ${a.complexity} nodes` : ""}</div></div></button>`;
     }).join("")}</div>`;
   }
-  fitText(out);
 }
 
 function renderDetail(i) {
@@ -209,17 +287,21 @@ function renderDetail(i) {
       <dt>Cost</dt><dd>${c.cost} mana</dd>
       ${c.type === "unit" ? `<dt>Stats</dt><dd>${c.power} power · ${c.health} health</dd>` : ""}
       ${c.keywords.length ? `<dt>Keywords</dt><dd>${c.keywords.map(esc).join(", ")}</dd>` : ""}
-      <dt>Aspect</dt><dd>${c.aspect_name}</dd></dl>` : `<p class="meta">Not reached: the card is only built once the ability passes the tests.</p>`;
+      <dt>Aspect</dt><dd>${c.aspect_name}</dd>
+      <dt>Art</dt><dd>${window.CARD_IMAGES[c.art] ? "painted" : "placeholder (no art painted yet)"}</dd></dl>`
+    : `<p class="meta">Not reached: the card is only built once the ability passes the tests.</p>`;
   $("detail").innerHTML = `
-    <h2>${esc(c ? c.name : "Draw #" + a.index)}</h2>${c && c.subtitle ? `<div class="meta" style="font-style:italic">${esc(c.subtitle)}</div>` : ""}
-    <div class="meta">${verdict} · draw #${a.index} · ${KIND_TEXT[a.kind]}${a.tree ? ` · ${a.complexity} nodes` : ""}</div>
-    ${c ? `<div class="hero">${cardHtml({ ...a, stopped_at: null })}</div>` : `<h3>Card text</h3><div class="say">${esc(a.text)}</div>`}
-    <h3>Pipeline</h3><ul class="checks">${checks}</ul>
-    <h3>Costing</h3>${costing}
-    ${a.tree ? `<h3>Ability tree</h3><pre>${esc(JSON.stringify(a.tree, null, 2))}</pre>
-    <h3>Shape</h3><p class="meta">The tree with numbers and jobs blanked out. The variety stage counts these.</p><pre>${esc(JSON.stringify(JSON.parse(a.shape)))}</pre>` : ""}`;
-  fitText($("detail"));
+    <h2>${esc(c ? c.name : "Draw #" + a.index)}</h2>${c && c.subtitle ? `<div class="subtitle">${esc(c.subtitle)}</div>` : ""}
+    <span class="verdict ${a.stopped_at ? "out" : ""}">${verdict}</span>
+    <div class="meta" style="margin-top:8px">Draw #${a.index} · ${KIND_TEXT[a.kind]}${a.tree ? ` · ${a.complexity} nodes` : ""}</div>
+    ${c ? `<div class="hero">${cardHtml(a)}</div>` : `<h3 class="crumbs">Card text</h3><div class="say">${esc(a.text)}</div>`}
+    <h3 class="crumbs">Pipeline</h3><ul class="checks">${checks}</ul>
+    <h3 class="crumbs">Costing</h3>${costing}
+    ${a.tree ? `<h3 class="crumbs">Ability tree</h3><pre>${esc(JSON.stringify(a.tree, null, 2))}</pre>
+    <h3 class="crumbs">Shape</h3><p class="meta">The tree with numbers and jobs blanked out. The variety stage counts these.</p><pre>${esc(JSON.stringify(JSON.parse(a.shape)))}</pre>` : ""}`;
   $("drawer").classList.add("open"); $("scrim").classList.add("open"); $("drawer").setAttribute("aria-hidden", "false");
+  $("drawer").scrollTop = 0;
+  fitAll($("detail"));
 }
 
 function closeDetail() { $("drawer").classList.remove("open"); $("scrim").classList.remove("open"); $("drawer").setAttribute("aria-hidden", "true"); }
@@ -245,6 +327,7 @@ async function generate() {
   state.data = data; render();
 }
 
+$("bg").style.backgroundImage = `url(${window.CARD_ART.background})`;
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-view],[data-kind],[data-stage],[data-i]");
   if (!t || $("drawer").contains(t)) return;
@@ -255,7 +338,7 @@ document.addEventListener("click", (e) => {
   render();
 });
 // Fonts can finish loading after the first render, which changes how much text fits.
-document.fonts.addEventListener("loadingdone", () => fitText(document));
+document.fonts.addEventListener("loadingdone", () => fitAll(document));
 $("search").addEventListener("input", (e) => { state.search = e.target.value; renderResults(); });
 $("close").addEventListener("click", closeDetail);
 $("scrim").addEventListener("click", closeDetail);
@@ -264,9 +347,9 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetai
 if (window.LAB_DATA) {
   state.data = window.LAB_DATA;
   $("controls").style.display = "none";
-  render();
+  document.fonts.ready.then(render);
 } else {
-  fillForm({ seed: 1, count: 60, jobs: 6, vanilla_share: 0.04, keyword_share: 0.25, action_share: 0.25, variety: 4, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) });
+  fillForm({ seed: 0, count: 60, jobs: 6, vanilla_share: 0.04, keyword_share: 0.25, action_share: 0.25, variety: 4, ...Object.fromEntries(new URLSearchParams(location.hash.slice(1))) });
   $("controls").addEventListener("submit", (e) => { e.preventDefault(); generate(); });
   $("reroll").addEventListener("click", () => { $("controls").elements.seed.value = Math.floor(Math.random() * 100000); generate(); });
   document.fonts.ready.then(generate);
