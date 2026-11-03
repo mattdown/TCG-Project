@@ -30,7 +30,6 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
   font: 800 23px/1 Outfit; color: #fff; -webkit-text-stroke: .16em var(--shadow); paint-order: stroke fill; }
 #graph { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
 .nlabel { font: 700 15px Outfit; fill: var(--text); paint-order: stroke; stroke: var(--shadow); stroke-width: 5px; }
-.nlabel .count { fill: var(--muted); font-weight: 500; }
 .shade { position: absolute; left: 0; right: 0; pointer-events: none; }
 .shade.top { top: 0; height: 220px; background: linear-gradient(rgba(6, 14, 11, .9) 25%, rgba(6, 14, 11, 0)); }
 .shade.bottom { bottom: 0; height: 280px; background: linear-gradient(rgba(5, 12, 10, 0), rgba(5, 12, 10, .95) 65%); }
@@ -103,7 +102,10 @@ body.render #controls { display: none; }
 <!--LAB_DATA-->
 <script>
 // Everything on screen is a function of the time t, so the page can be scrubbed and the video rendered frame by frame.
-const D = window.LAB_DATA, NODES = D.nodes, EDGES = D.edges, FOCUS = D.focus, FEATURES = D.features;
+const D = window.LAB_DATA, NODES = D.nodes, EDGES = D.edges, FOCUS = D.focus, FEATURES = D.features, EMB = D.embedding;
+// Embeddings aren't 0 to 1: shade them against their own spread (95th percentile of |v|), dark for negative.
+const spread = (v) => { const a = v.map(Math.abs).sort((x, y) => x - y); return a[Math.floor(0.95 * (a.length - 1))] || 1; };
+const EMB_SCALE = spread(EMB.projected), ENC_SCALE = spread(EMB.encoded);
 const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
 const $ = (id) => document.getElementById(id);
 const clamp = (x) => Math.max(0, Math.min(1, x));
@@ -132,9 +134,13 @@ const T = {
   read: 7.0, readStep: 0.15,           // step 1: each feature read off the card
   scale: 11.4, scaleStep: 0.09,        // step 2: each scaled to a number
   collapse: 14.4, collapseEnd: 15.6,   // the numbers become a column
-  dock: 15.8, dockEnd: 17.2,           // ... which goes into the node
-  pull: 17.6, pullEnd: 19.4,           // out to the neighbourhood
-  edges: 19.8, edgeStep: 2.6,          // one edge type at a time
+  split: 16.0, splitEnd: 16.6,         // step 3: what it is apart from its state
+  encode: 16.7, encodeEnd: 18.0,       // ... the card encoder: 14 → 128
+  join: 18.0, joinEnd: 18.7,           // ... the state joins on: 138
+  project: 18.8, projectEnd: 19.9,     // ... the projection: 138 → 128
+  dock: 20.4, dockEnd: 21.8,           // the embedding goes into the node
+  pull: 22.2, pullEnd: 24.0,           // out to the neighbourhood
+  edges: 24.4, edgeStep: 2.6,          // one edge type at a time
 };
 const EDGE_ORDER = ["belongs_to", "faces", "part_of", "matches"];
 T.edgesEnd = T.edges + EDGE_ORDER.length * T.edgeStep;
@@ -209,10 +215,10 @@ function svg(tag, attrs, parent) {
   return e;
 }
 
-function glyph(parent, values, x, y, w, h) {
+function glyph(parent, values, x, y, w, h, scale = 1) {
   // A vector as a column of cells, like the client's EmbeddingGlyph.
   const g = svg("g", {}, parent), cell = h / values.length, gap = cell > 4 ? 1 : 0;
-  values.forEach((v, i) => svg("rect", { x, y: y + i * cell, width: w, height: cell - gap + (gap ? 0 : 0.35), fill: glyphColour(v) }, g));
+  values.forEach((v, i) => svg("rect", { x, y: y + i * cell, width: w, height: cell - gap + (gap ? 0 : 0.35), fill: glyphColour(v, scale) }, g));
   return g;
 }
 
@@ -237,6 +243,10 @@ function buildGraph() {
     svg("circle", { cx: 0, cy: 0, r: s / 2 - ring, fill: "#0B1612" }, n.inner);
     n.cw = Math.max(2, s * 0.3); n.ch = s * 0.56;
     n.glyph = glyph(n.inner, n.vector, -n.cw / 2, -n.ch / 2, n.cw, n.ch);
+    if (n.id === FOCUS) {  // after step 3 the focus node holds its embedding instead
+      n.embedded = glyph(n.inner, EMB.projected, -n.cw / 2, -n.ch / 2, n.cw, n.ch, EMB_SCALE);
+      n.embedded.style.display = "none";
+    }
     if (n.id !== FOCUS && firstLit[n.id] !== undefined) {
       // Players' labels above them; an ability node's on the side away from its card's centre; others to the right.
       const above = n.type === "player", left = n.type === "ability" && p.x < pos[n.card].x - 1;
@@ -244,7 +254,7 @@ function buildGraph() {
         "text-anchor": above ? "middle" : left ? "end" : "start" }, n.g);
       const own = n.type === "ability" && n.card === FOCUS;
       const text = n.type === "ability" && !own ? `${NODES[n.card].label}: ${n.label}` : n.label;  // say whose ability
-      n.tag.innerHTML = `${esc(text)} <tspan class="count">· ${n.vector.length}</tspan>`;
+      n.tag.textContent = text;
     }
     n.g.setAttribute("transform", `translate(${p.x} ${p.y})`);
   }
@@ -277,13 +287,124 @@ function buildTable() {
 }
 const featureRows = () => rows.filter((r) => r.el);
 
-// The column: one cell per feature at the end of its row, then pushed together, then into the node.
+// The column: one cell per feature at the end of its row, then pushed together; step 3 splits it, runs the card's
+// part through the card encoder, joins the state on and projects the lot; the result goes into the node.
 const CELL_X = 1010 + 620, CELL_W = 40;
-let cells = [];
+const PACKED = { x: 1485, w: 30, cell: 18 };
+const SPLIT = { x: 1050, w: 30, cell: 18, top: 300, gap: 44 };
+const JOINED = { x: 1418, w: 26, cell: 3.4, top: 306 };
+const OUT = { x: 1748, w: 26, cell: 3.6 };
+let cells = [], encoded = [], projected = [], boxes = {};
 function buildColumn() {
-  cells = FEATURES.map((f) => svg("rect", { width: CELL_W, height: 24, rx: 3, fill: glyphColour(0), stroke: "rgba(160,235,215,.35)",
-    "stroke-width": 1.5 }, $("column")));
+  const col = $("column");
+  boxes.funnels = svg("g", {}, col);
+  for (const [key, x, label, sub] of [["encoder", 1140, "Card encoder", `MLP · ${EMB.static} → ${EMB.hidden}`],
+                                      ["projection", 1500, "Projection", `linear · ${EMB.hidden + EMB.dynamic} → ${EMB.hidden}`]]) {
+    const g = svg("g", {}, col);
+    g.box = svg("rect", { x, width: 190, rx: 14, fill: "rgba(9,19,16,.92)", stroke: "rgba(126,240,216,.7)", "stroke-width": 2 }, g);
+    g.title = svg("text", { x: x + 95, "text-anchor": "middle", fill: "#E6FBF4", "font-family": "Marcellus SC", "font-size": 26 }, g);
+    g.title.textContent = label;
+    g.sub = svg("text", { x: x + 95, "text-anchor": "middle", fill: "#A9C9BC", "font-family": "Outfit", "font-weight": 500, "font-size": 18 }, g);
+    g.sub.textContent = sub;
+    boxes[key] = g;
+  }
+  boxes.labels = ["in", "joined", "out"].map(() => svg("text", { "text-anchor": "middle", fill: "#A9C9BC", "font-family": "Outfit",
+    "font-weight": 700, "font-size": 19 }, col));
+  cells = FEATURES.map(() => svg("rect", { width: CELL_W, height: 24, rx: 3, fill: glyphColour(0), stroke: "rgba(160,235,215,.35)",
+    "stroke-width": 1.5 }, col));
+  encoded = EMB.encoded.map((v) => svg("rect", { x: JOINED.x, width: JOINED.w, fill: glyphColour(v, ENC_SCALE) }, col));
+  projected = EMB.projected.map((v) => svg("rect", { width: OUT.w, fill: glyphColour(v, EMB_SCALE) }, col));
 }
+
+function place(rect, b, extra = {}) {
+  rect.setAttribute("x", b.x); rect.setAttribute("y", b.y);
+  rect.setAttribute("width", Math.max(0, b.w)); rect.setAttribute("height", Math.max(0.5, b.h));
+  for (const [k, v] of Object.entries(extra)) rect.setAttribute(k, v);
+}
+function funnel(from, to, opacity) {
+  // A soft band from one column or box edge to the next: the numbers flowing through.
+  svg("path", { d: `M${from.x} ${from.y0} C${(from.x + to.x) / 2} ${from.y0} ${(from.x + to.x) / 2} ${to.y0} ${to.x} ${to.y0}
+    L${to.x} ${to.y1} C${(from.x + to.x) / 2} ${to.y1} ${(from.x + to.x) / 2} ${from.y1} ${from.x} ${from.y1} Z`,
+    fill: "rgba(126,240,216,.06)", stroke: "rgba(126,240,216,.2)", "stroke-width": 1, opacity }, boxes.funnels);
+}
+
+function column(t, c) {
+  const n = cells.length, ns = EMB.static, rowsEl = featureRows();
+  const collapse = span(t, T.collapse, T.collapseEnd), split = span(t, T.split, T.splitEnd);
+  const into = span(t, T.encode, T.encode + 0.6), join = span(t, T.join, T.joinEnd), dock = span(t, T.dock, T.dockEnd);
+  const away = span(t, T.dock, T.dock + 0.5);  // the boxes and funnels go as the embedding leaves
+  const node = card(), p = toScreen(c, pos[FOCUS]);
+  const dest = { x: p.x - node.cw * c.z * 1.35 / 2, y: p.y - node.ch * c.z * 1.35 / 2, w: node.cw * c.z * 1.35, h: node.ch * c.z * 1.35 };
+  $("column").style.opacity = t >= T.dockEnd ? 0 : 1;
+  const packedTop = 540 - PACKED.cell * n / 2;
+  const staticBottom = SPLIT.top + ns * SPLIT.cell, dynTop = staticBottom + SPLIT.gap;
+  const joinedH = (EMB.hidden + EMB.dynamic) * JOINED.cell, outTop = 540 - EMB.hidden * OUT.cell / 2;
+
+  // The 24 inputs: rows → one column → split in two; the card's 14 go into the encoder, the state's 10 join its output.
+  cells.forEach((cell, i) => {
+    const s = span(t, T.scale + i * T.scaleStep, T.scale + i * T.scaleStep + 0.35);
+    const ry = rowY(rowsEl[i].el);
+    let b = blendRect({ x: CELL_X, y: ry - 12, w: CELL_W, h: 24 },
+                      { x: PACKED.x, y: packedTop + i * PACKED.cell, w: PACKED.w, h: PACKED.cell }, collapse);
+    const isStatic = i < ns;
+    const apart = { x: SPLIT.x, y: isStatic ? SPLIT.top + i * SPLIT.cell : dynTop + (i - ns) * SPLIT.cell, w: SPLIT.w, h: SPLIT.cell };
+    b = blendRect(b, apart, split);
+    let opacity = span(t, T.read + i * T.readStep, T.read + i * T.readStep + 0.3);
+    if (isStatic) {
+      b = blendRect(b, { x: 1150, y: b.y, w: 6, h: b.h }, into);  // into the encoder
+      opacity *= 1 - into;
+    } else {
+      b = blendRect(b, { x: JOINED.x, y: JOINED.top + (EMB.hidden + i - ns) * JOINED.cell, w: JOINED.w, h: JOINED.cell }, join);
+      opacity *= 1 - away;  // the joined column stays while it feeds the projection
+    }
+    place(cell, { ...b, h: b.h - lerp(2, 0, collapse) }, { rx: lerp(3, 0, collapse), "stroke-opacity": 1 - collapse,
+      fill: s > 0 ? glyphColour(FEATURES[i].value * s) : "rgba(0,0,0,0)" });
+    cell.style.opacity = opacity;
+  });
+
+  // The encoder's 128 come out top to bottom; with the state joined on they feed the projection.
+  encoded.forEach((r, i) => {
+    const on = span(t, T.encode + 0.5 + 0.6 * i / EMB.hidden, T.encode + 0.7 + 0.6 * i / EMB.hidden);
+    place(r, { x: JOINED.x, y: JOINED.top + i * JOINED.cell, w: JOINED.w, h: JOINED.cell });
+    r.style.opacity = on * (1 - away);
+  });
+  projected.forEach((r, i) => {
+    const on = span(t, T.project + 0.4 + 0.6 * i / EMB.hidden, T.project + 0.6 + 0.6 * i / EMB.hidden);
+    const b = blendRect({ x: OUT.x, y: outTop + i * OUT.cell, w: OUT.w, h: OUT.cell },
+                        { x: dest.x, y: dest.y + i * dest.h / EMB.hidden, w: dest.w, h: dest.h / EMB.hidden }, dock);
+    place(r, b);
+    r.style.opacity = on;
+  });
+
+  // The two boxes, the bands between them and the sizes under each column.
+  const enc = boxes.encoder, proj = boxes.projection;
+  const box = (g, y0, y1, opacity) => {
+    g.box.setAttribute("y", y0); g.box.setAttribute("height", y1 - y0);
+    g.title.setAttribute("y", (y0 + y1) / 2 - 4); g.sub.setAttribute("y", (y0 + y1) / 2 + 24);
+    g.style.opacity = opacity;
+  };
+  box(enc, SPLIT.top, staticBottom, span(t, T.encode - 0.3, T.encode) * (1 - away));
+  box(proj, JOINED.top, JOINED.top + joinedH, span(t, T.project - 0.3, T.project) * (1 - away));
+  boxes.funnels.replaceChildren();
+  funnel({ x: SPLIT.x + SPLIT.w, y0: SPLIT.top, y1: staticBottom }, { x: 1140, y0: SPLIT.top, y1: staticBottom },
+         span(t, T.encode - 0.3, T.encode) * (1 - away));
+  funnel({ x: 1330, y0: SPLIT.top, y1: staticBottom }, { x: JOINED.x, y0: JOINED.top, y1: JOINED.top + EMB.hidden * JOINED.cell },
+         span(t, T.encode + 0.3, T.encode + 0.7) * (1 - away));
+  funnel({ x: JOINED.x + JOINED.w, y0: JOINED.top, y1: JOINED.top + joinedH }, { x: 1500, y0: JOINED.top, y1: JOINED.top + joinedH },
+         span(t, T.project - 0.3, T.project) * (1 - away));
+  funnel({ x: 1690, y0: JOINED.top, y1: JOINED.top + joinedH }, { x: OUT.x, y0: outTop, y1: outTop + EMB.hidden * OUT.cell },
+         span(t, T.project + 0.2, T.project + 0.6) * (1 - away));
+  const [lin, ljoined, lout] = boxes.labels;
+  const label = (el, x, y, text, opacity) => { el.setAttribute("x", x); el.setAttribute("y", y); el.textContent = text; el.style.opacity = opacity; };
+  label(lin, SPLIT.x + SPLIT.w / 2, dynTop + EMB.dynamic * SPLIT.cell + 32, `${ns} + ${EMB.dynamic}`, split * (1 - away));
+  label(ljoined, JOINED.x + JOINED.w / 2, JOINED.top + joinedH + 32, `${EMB.hidden} + ${EMB.dynamic}`, join * (1 - away));
+  label(lout, OUT.x + OUT.w / 2, outTop + EMB.hidden * OUT.cell + 32, `${EMB.hidden}`, span(t, T.project + 0.8, T.projectEnd) * (1 - away));
+}
+function rowY(el) {
+  // The row's centre in stage pixels, from its place in the table (independent of the table's fade).
+  return 128 + el.offsetTop + el.offsetHeight / 2;
+}
+function blendRect(a, b, x) { return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x), w: lerp(a.w, b.w, x), h: lerp(a.h, b.h, x) }; }
 
 // ------------------------------------------------------------------ the camera
 const card = () => NODES[FOCUS];
@@ -335,6 +456,8 @@ function draw(t) {
       // It gives way to the card while the card is read, and forms again round its column.
       const away = span(t, T.zoom, T.zoom + 0.6), back = span(t, T.dockEnd - 0.5, T.dockEnd + 0.3);
       opacity = appear * (1 - away + back);
+      n.glyph.style.display = t < T.dock ? "" : "none";
+      n.embedded.style.display = t < T.dock ? "none" : "";
       scale *= lerp(1, 1.35, back) * (1 + 0.15 * Math.sin(Math.PI * clamp((t - T.dockEnd) / 0.5)));
     } else {
       opacity *= 1 - 0.85 * focusIn - 0.85 * neighbours * (1 - lit(n.id));
@@ -412,36 +535,6 @@ function rowLeft(el) {
   return { x: (r.left - s.left) / k, y: (r.top + r.height / 2 - s.top) / k };
 }
 
-function column(t, c) {
-  // The cells: at the end of each row once scaled, then pushed into one column, then into the node.
-  const n = cells.length, rowsEl = featureRows();
-  const collapse = span(t, T.collapse, T.collapseEnd), dock = span(t, T.dock, T.dockEnd);
-  const node = card(), p = toScreen(c, pos[FOCUS]);
-  const tight = { h: 18 * n, w: 30 }, top = 540 - tight.h / 2;  // the column, centred on the right
-  const dest = { x: p.x - node.cw * c.z * 1.35 / 2, y: p.y - node.ch * c.z * 1.35 / 2, w: node.cw * c.z * 1.35, h: node.ch * c.z * 1.35 };
-  const after = t >= T.dockEnd;
-  $("column").style.opacity = after ? 0 : 1;
-  cells.forEach((cell, i) => {
-    const f = FEATURES[i], s = span(t, T.scale + i * T.scaleStep, T.scale + i * T.scaleStep + 0.35);
-    const ry = rowY(rowsEl[i].el);
-    const inRow = { x: CELL_X, y: ry - 12, w: CELL_W, h: 24 };
-    const packed = { x: 1500 - tight.w / 2, y: top + i * 18, w: tight.w, h: 18 };
-    const docked = { x: dest.x, y: dest.y + i * dest.h / n, w: dest.w, h: dest.h / n };
-    let b = blendRect(inRow, packed, collapse);
-    b = blendRect(b, docked, dock);
-    cell.setAttribute("x", b.x); cell.setAttribute("y", b.y);
-    cell.setAttribute("width", b.w); cell.setAttribute("height", Math.max(0.5, b.h - lerp(2, 0, collapse)));
-    cell.setAttribute("rx", lerp(3, 0, collapse));
-    cell.setAttribute("fill", s > 0 ? glyphColour(f.value * s) : "rgba(0,0,0,0)");
-    cell.setAttribute("stroke-opacity", 1 - collapse);
-    cell.style.opacity = span(t, T.read + i * T.readStep, T.read + i * T.readStep + 0.3);
-  });
-}
-function rowY(el) {
-  // The row's centre in stage pixels, from its place in the table (independent of the table's fade).
-  return 128 + el.offsetTop + el.offsetHeight / 2;
-}
-function blendRect(a, b, x) { return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x), w: lerp(a.w, b.w, x), h: lerp(a.h, b.h, x) }; }
 
 const EDGE_TEXT = {
   belongs_to: ["Belongs to", "Each card is joined to its owner's player node."],
@@ -474,7 +567,9 @@ function beats() {
     [T.read, "Step 1 · Read it", "What the card is, and where it is now", `${FEATURES.filter((f) => f.group === "card").length} numbers for the card itself and ${FEATURES.filter((f) => f.group === "state").length} for its state, in the same order for every card. No name, no card ID.`],
     [T.scale, "Step 2 · Scale it", "Each one becomes a number from 0 to 1", "Costs and stats are divided by 10, numbered keywords by their largest value; yes or no is 1 or 0."],
     [T.collapse, "The feature vector", `${FEATURES.length} numbers: the card's input`, "Drawn as a column, as in the in-game GNN overlay: light is 1, grey is 0."],
-    [T.pull, "Its neighbours", "Who this node is joined to", `${n} neighbours, joined by ${types} kinds of edge. Each has its own input vector; the number is its length.`],
+    [T.split, "Step 3 · Embed it", `Into the network's own ${EMB.hidden} numbers`, `What the card is goes through the card encoder; its state joins on, and one more layer brings it all to ${EMB.hidden}. Both are learned in training.`],
+    [T.dock, "The embedding", `${EMB.hidden} numbers: the node's starting point`, "Light is positive, dark is negative. Every node type gets its own encoder, so every node ends up the same size."],
+    [T.pull, "Its neighbours", "Who this node is joined to", `${n} neighbours, joined by ${types} kinds of edge.`],
   ];
   EDGE_ORDER.forEach((type, k) => b.push([T.edges + k * T.edgeStep, "Its neighbours · " + EDGE_TEXT[type][0], EDGE_TEXT[type][0], EDGE_TEXT[type][1]]));
   b.push([T.edgesEnd, "Next", "Every node starts like this", "Then the GNN's layers pass messages along these edges, so each node learns about its neighbours."]);

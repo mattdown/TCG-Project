@@ -32,8 +32,12 @@ def test_visualiser_shows_the_set_with_art():
 
 def test_gnn_visualiser_reads_the_encoder():
     """The focus card's features are the encoder's own numbers, and it has neighbours of each edge type shown."""
-    from gnn_visualiser import graph_data
+    import pytest
+    from gnn_visualiser import MODEL, graph_data
+    if not MODEL.exists():
+        pytest.skip("needs the trained model (models/ is gitignored)")
     data = graph_data()
+    assert len(data["embedding"]["encoded"]) == len(data["embedding"]["projected"]) == data["embedding"]["hidden"]
     focus = data["nodes"][data["focus"]]
     assert focus["type"] == "card" and [f["value"] for f in data["features"]] == focus["vector"]
     assert all(r["value"] in (0.0, 1.0) for r in data["features"] if r["rule"] == "1 if yes")

@@ -10,8 +10,9 @@ A small position from set_200 (two units a side, hands left out) is turned into 
 the GNN reads (src/graph/encode.py, the edges as src/server/graph_view.py sends them to the client's
 overlay). The page shows the board, lays the graph over it, zooms into one card's node, turns the
 card into its 24 input features in two steps (read them off the card, then scale them) as a
-greyscale column like the client's EmbeddingGlyph, and then brings in the node's neighbours, edge
-type by edge type. Everything is a function of the time t, so it can be scrubbed and rendered
+greyscale column like the client's EmbeddingGlyph, embeds them with the trained model (--model:
+the card encoder, then the projection to the hidden size; src/model/gnn.py), and then brings in the
+node's neighbours, edge type by edge type. Everything is a function of the time t, so it can be scrubbed and rendered
 frame by frame like the card generation visualiser.
 """
 import argparse
@@ -19,6 +20,7 @@ import webbrowser
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from card_generation_visualiser import SET_SIZE, bake, render  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import render as card_text  # noqa: E402
@@ -28,13 +30,15 @@ from src.game.actions import Action, ActionType  # noqa: E402
 from src.game.engine import Game  # noqa: E402
 from src.game.state import CardInstance, Zone  # noqa: E402
 from src.game.terms import ASPECT_NAMES, KEYWORD_NAMES, KEYWORDS, keyword_text  # noqa: E402
-from src.graph.encode import (CARD_DYNAMIC_FEATURES, CARD_STATIC_FEATURES, KEYWORD_SCALE,  # noqa: E402
-                              observe)
+from src.graph.encode import (CARD_DYNAMIC_DIM, CARD_DYNAMIC_FEATURES, CARD_STATIC_DIM,  # noqa: E402
+                              CARD_STATIC_FEATURES, KEYWORD_SCALE, observe)
+from src.model.registry import load_model  # noqa: E402
 from src.server.graph_view import ability_label, graph_view  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("gnn_visualiser.html")
 OUT = Path(__file__).parent / "build"
 CARD_SET = Path(__file__).parents[1] / "PythonServer" / "cardsets" / f"set_{SET_SIZE}.json"
+MODEL = Path(__file__).parents[1] / "PythonServer" / "models" / "tcgnet.pt"  # the server's AI
 
 # The position, by card number in set_200: the first of yours is the card the camera follows.
 YOURS, THEIRS = (132, 24), (2, 12)  # Fly-agaric Lamplighter and Honey Chef; Porcini Baker and Lion's-mane Baker
@@ -113,7 +117,21 @@ def features(game: Game, uid: int, values: np.ndarray) -> list[dict]:
     return rows
 
 
-def graph_data() -> dict:
+def embedding(net, e, i: int) -> dict:
+    """How the card node's input becomes its embedding (GNN.node_states): the static features through the
+    card encoder, the dynamic ones joined on, and a linear projection to the hidden size."""
+    if getattr(net, "arch", None) != "gnn":
+        raise SystemExit("the GNN visualiser needs a GNN model (--model)")
+    batch = net.collate([e])
+    with torch.no_grad():
+        encoded = net.card_encoder(batch["card"].x_static)[i]
+        projected = net.node_states(batch)[0]["card"][i]
+    vector = lambda t: [round(float(v), 3) for v in t]
+    return {"static": CARD_STATIC_DIM, "dynamic": CARD_DYNAMIC_DIM, "hidden": net.hparams["hidden"],
+            "encoded": vector(encoded), "projected": vector(projected)}
+
+
+def graph_data(model: Path = MODEL) -> dict:
     game, uids = position()
     obs = observe(game, 0)
     e = obs.encoded
@@ -143,18 +161,20 @@ def graph_data() -> dict:
     focus = obs.card_uids.index(uids[YOURS[0]])
     return {"nodes": nodes, "edges": view["edges"], "focus": focus,
             "features": features(game, uids[YOURS[0]], inputs["card"][focus]),
+            "embedding": embedding(load_model(model), e, focus),
             "heroes": [{"owner": p, "name": "You" if p == 0 else "Opponent", "health": HEALTH[p]} for p in (0, 1)]}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--model", type=Path, default=MODEL, help="the GNN whose embedding is shown")
     parser.add_argument("--out", type=Path, default=OUT / "gnn_visualiser.html")
     parser.add_argument("--render", action="store_true", help="also render the video next to the page (needs playwright)")
     parser.add_argument("--fps", type=int, default=60)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
-    data = graph_data()
+    data = graph_data(args.model)
     keys = {n["card"]["art_key"] for n in data["nodes"] if n["type"] == "card"}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(bake(TEMPLATE, data, keys))
