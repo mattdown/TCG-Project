@@ -426,6 +426,11 @@ def test_graph_layer_steps_match_the_networks_forward_pass():
                     assert sum(nb["attention"][head] for nb in steps["neighbours"]) == pytest.approx(1, abs=1e-2)
                     assert len(steps["query"][head]) == layer["head_dim"]
                     for nb in steps["neighbours"]:
+                        # score = a · LeakyReLU(W_l·x_j + W_r·x_i), with the a the layer sends
+                        pre = [v + q for v, q in zip(nb["value"][head], steps["query"][head])]
+                        leaky = [x if x > 0 else layer["negative_slope"] * x for x in pre]
+                        assert nb["scores"][head] == pytest.approx(
+                            sum(x * a for x, a in zip(leaky, steps["att"][head])), abs=2e-2)
                         assert nb["weighted"][head] == pytest.approx(
                             [nb["attention"][head] * v for v in nb["value"][head]], abs=5e-3)
                     assert steps["heads"][head] == pytest.approx(

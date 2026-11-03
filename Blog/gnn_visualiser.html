@@ -51,12 +51,17 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 .row .rule { left: 350px; width: 150px; color: var(--muted); }
 .row .rule b { color: var(--gold); font-weight: 800; }
 .row .val { left: 510px; width: 80px; text-align: right; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
-#links, #column { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+#links, #column, #layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
 
 /* The edge types lit so far, bottom right. */
 #legend { position: absolute; right: 64px; bottom: 56px; width: 330px; }
 #legend .item { display: flex; align-items: center; gap: 14px; height: 34px; font: 500 20px Outfit; color: var(--text); }
 #legend .swatch { width: 34px; height: 4px; border-radius: 2px; }
+/* Part 2's layer counter, top right. */
+#chips { position: absolute; right: 64px; top: 56px; display: flex; gap: 10px; }
+#chips div { padding: 6px 16px; border-radius: 999px; border: 1.5px solid rgba(126, 240, 216, .35); background: rgba(9, 19, 16, .8);
+  font: 400 20px "Marcellus SC", serif; color: var(--muted); }
+#chips div.on { border-color: var(--lantern); color: var(--text); box-shadow: 0 0 14px rgba(126, 240, 216, .45); }
 
 .pcard[data-hl] { transition: none; }
 .pcard[data-hl="card"] .frame { filter: drop-shadow(0 0 12px rgba(244, 199, 107, .95)); }
@@ -88,6 +93,8 @@ body.render #controls { display: none; }
   <svg id="links" xmlns="http://www.w3.org/2000/svg"></svg>
   <div id="table"></div>
   <svg id="column" xmlns="http://www.w3.org/2000/svg"></svg>
+  <svg id="layer" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="chips"></div>
   <div class="caption" id="caption"><div class="crumbs" id="crumbs"></div><div class="what" id="what"></div><div class="how" id="how"></div></div>
   <div id="legend"></div>
 </div>
@@ -106,6 +113,7 @@ const D = window.LAB_DATA, NODES = D.nodes, EDGES = D.edges, FOCUS = D.focus, FE
 // Embeddings aren't 0 to 1: shade them against their own spread (95th percentile of |v|), dark for negative.
 const spread = (v) => { const a = v.map(Math.abs).sort((x, y) => x - y); return a[Math.floor(0.95 * (a.length - 1))] || 1; };
 const EMB_SCALE = spread(EMB.projected), ENC_SCALE = spread(EMB.encoded);
+const LAYERS = D.layers, LAYER = LAYERS.detail;  // layer 1 for the focus node, step by step
 const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
 const $ = (id) => document.getElementById(id);
 const clamp = (x) => Math.max(0, Math.min(1, x));
@@ -144,7 +152,17 @@ const T = {
 };
 const EDGE_ORDER = ["belongs_to", "faces", "part_of", "matches"];
 T.edgesEnd = T.edges + EDGE_ORDER.length * T.edgeStep;
-const DURATION = window.DURATION = T.edgesEnd + 3.2;
+// Part 2: one GNN layer for the focus node, then the four layers (seconds from its start).
+const L0 = T.edgesEnd + 0.8, at = (x) => L0 + x;
+const L = {
+  fan: at(0), fanEnd: at(2.4), faces: at(3.0),
+  fly: at(4.4), flyEnd: at(5.4), wl: at(5.6), wr: at(6.9), add: at(8.4), leaky: at(9.6), dot: at(11.0),
+  scoreFly: at(12.8), sibling: at(14.0), softmax: at(16.0), values: at(18.5), weigh: at(19.5), headSum: at(20.8),
+  heads: at(22.8), types: at(26.4), merge: at(29.4), relu: at(31.2), resid: at(33.2), norm: at(35.4),
+  dock: at(37.4), dockEnd: at(38.8), reach: at(39.8), reachEnd: at(41.2), layer: at(41.4), layerStep: 2.2,
+};
+L.end = L.layer + 3 * L.layerStep + 3.2;
+const DURATION = window.DURATION = L.end;
 
 // ------------------------------------------------------------------ layout, in world pixels
 const CARD_W = 200, CARD_U = CARD_W / 151.24, CARD_H = 210 * CARD_U;
@@ -246,6 +264,11 @@ function buildGraph() {
     if (n.id === FOCUS) {  // after step 3 the focus node holds its embedding instead
       n.embedded = glyph(n.inner, EMB.projected, -n.cw / 2, -n.ch / 2, n.cw, n.ch, EMB_SCALE);
       n.embedded.style.display = "none";
+      n.after = LAYERS.states.slice(1).map((v) => {  // after layers 1 to 4
+        const g = glyph(n.inner, v, -n.cw / 2, -n.ch / 2, n.cw, n.ch, spread(v));
+        g.style.display = "none";
+        return g;
+      });
     }
     if (n.id !== FOCUS && firstLit[n.id] !== undefined) {
       // Players' labels above them; an ability node's on the side away from its card's centre; others to the right.
@@ -427,6 +450,7 @@ function camera(t) {
   let c = overview();
   if (t >= T.zoom) c = blend(c, onCard(), span(t, T.zoom, T.zoomEnd));
   if (t >= T.pull) c = blend(onCard(), neighbourhood(), span(t, T.pull, T.pullEnd));
+  if (t >= L.reach) c = blend(neighbourhood(), overview(), span(t, L.reach, L.reachEnd));  // back to the board
   $("world").style.transform = `translate(${c.sx - c.x * c.z}px, ${c.sy - c.y * c.z}px) scale(${c.z})`;
   return c;
 }
@@ -456,16 +480,23 @@ function draw(t) {
       // It gives way to the card while the card is read, and forms again round its column.
       const away = span(t, T.zoom, T.zoom + 0.6), back = span(t, T.dockEnd - 0.5, T.dockEnd + 0.3);
       opacity = appear * (1 - away + back);
+      const k = layerAt(t);  // 0 until the four-layers beat
       n.glyph.style.display = t < T.dock ? "" : "none";
-      n.embedded.style.display = t < T.dock ? "none" : "";
+      n.embedded.style.display = t >= T.dock && k === 0 ? "" : "none";
+      n.after.forEach((g, j) => { g.style.display = k === j + 1 ? "" : "none"; });
       scale *= lerp(1, 1.35, back) * (1 + 0.15 * Math.sin(Math.PI * clamp((t - T.dockEnd) / 0.5)));
     } else {
       opacity *= 1 - 0.85 * focusIn - 0.85 * neighbours * (1 - lit(n.id));
       scale *= 1 + 0.35 * lit(n.id);
     }
+    if (t >= L.reach) {
+      const reached = n.id === FOCUS || LAYERS.hops[n.id] <= reach(t);
+      opacity = lerp(opacity, reached ? 1 : 0.15, span(t, L.reach, L.reachEnd));
+      scale = n.id === FOCUS ? scale : lerp(scale, 1, span(t, L.reach, L.reachEnd));
+    }
     n.g.style.opacity = opacity;
     n.inner.setAttribute("transform", `scale(${scale})`);
-    if (n.tag) n.tag.style.opacity = lit(n.id);
+    if (n.tag) n.tag.style.opacity = lit(n.id) * (1 - span(t, L.reach, L.reach + 0.4));
   }
   for (const e of EDGES) {
     const draw = span(t, T.graph + 1.2, T.graphEnd + 0.4);
@@ -479,6 +510,12 @@ function draw(t) {
     } else {
       opacity *= 1 - 0.9 * focusIn - 0.88 * neighbours;
     }
+    if (t >= L.reach) {
+      const reached = Math.max(LAYERS.hops[e.src], LAYERS.hops[e.dst]) <= reach(t);
+      opacity = lerp(opacity, reached ? e.alpha : 0.06, span(t, L.reach, L.reachEnd));
+      width = lerp(width, e.width, span(t, L.reach, L.reachEnd));
+      e.el.style.strokeDashoffset = 0;
+    }
     e.el.style.opacity = Math.max(0, opacity);
     e.el.style.strokeWidth = width;
   }
@@ -486,6 +523,7 @@ function draw(t) {
   table(t, c);
   column(t, c);
   legend(t);
+  layerScene(t, c);
   caption(t);
   $("shade-bottom").style.opacity = 1;
 }
@@ -552,8 +590,326 @@ function legend(t) {
     }
   }
   EDGE_ORDER.forEach((type, k) => {
-    el.children[k].style.opacity = span(t, T.edges + k * T.edgeStep, T.edges + k * T.edgeStep + 0.5);
+    el.children[k].style.opacity = span(t, T.edges + k * T.edgeStep, T.edges + k * T.edgeStep + 0.5) * (1 - span(t, L.fan, L.fan + 0.6));
   });
+}
+
+// ------------------------------------------------------------------ part 2: one GNN layer
+// Like the schematic in the client's layer inspector: the node x_i with its neighbours x_j on an arc above it.
+// Every vector carries its length. Head 1 of the faces edge type is worked through in full.
+const LANES = LAYER.edge_types.slice().sort((a, b) => EDGE_ORDER.indexOf(a.shown_as) - EDGE_ORDER.indexOf(b.shown_as));
+const SENDERS = LANES.flatMap((et) => et.neighbours.map((nb) => ({ et, nb })));
+const FACES = LANES.find((et) => et.shown_as === "faces"), HEAD = 0;
+const NB1 = FACES.neighbours[0], NB2 = FACES.neighbours[1];  // the most attended first
+const HUB = { x: 470, y: 770, size: 96 }, RING = { rx: 390, ry: 430 }, NB_SIZE = 64;
+const leaky = (v) => (v > 0 ? v : LAYER.negative_slope * v);
+const PRE = NB1.value[HEAD].map((v, c) => v + FACES.query[HEAD][c]);
+const fmt = (x) => (x < 0 ? "−" : "") + Math.abs(x).toFixed(2);
+const shortName = (id) => (NODES[id].type === "ability" ? NODES[NODES[id].card].label : NODES[id].label);
+
+function reach(t) {
+  // How many edges away the focus node has heard from, in the four-layers beat.
+  const done = [0, 1, 2, 3].filter((k) => t >= L.layer + k * L.layerStep).length;
+  return Math.min(done, Math.max(...Object.values(LAYERS.hops)));
+}
+function layerAt(t) { return t >= L.reach ? [0, 1, 2, 3].filter((k) => t >= L.layer + k * L.layerStep).length : 0; }
+
+function makeCol(parent, values, opts = {}) {
+  // A vector as a column of cells, its length on its top right; set() places it with a cell height.
+  const g = svg("g", {}, parent), inner = svg("g", {}, g), scale = opts.scale ?? spread(values);
+  values.forEach((v, i) => svg("rect", { x: 0, y: i, width: 1, height: 1.04, fill: glyphColour(v, scale) }, inner));
+  const frame = svg("rect", { fill: "none", stroke: opts.colour || "rgba(160,235,215,.45)", "stroke-width": 1.5 }, g);
+  const tag = svg("text", { fill: "#A9C9BC", "font-family": "Outfit", "font-weight": 700, "font-size": 15 }, g);
+  tag.textContent = values.length;
+  const label = svg("text", { fill: opts.labelColour || "#E6FBF4", "font-family": "Outfit", "font-weight": 700, "font-size": 18,
+    "text-anchor": "middle" }, g);
+  label.textContent = opts.label || "";
+  return {
+    g, n: values.length, label,
+    set(x, y, w, cell, opacity = 1, tagX = null) {
+      const h = cell * this.n;
+      inner.setAttribute("transform", `translate(${x} ${y}) scale(${w} ${cell})`);
+      for (const [k, v] of Object.entries({ x, y, width: w, height: h })) frame.setAttribute(k, v);
+      tag.setAttribute("x", tagX ?? x + w + 6); tag.setAttribute("y", y + 12);
+      label.setAttribute("x", x + w / 2); label.setAttribute("y", y - 12);
+      g.style.opacity = opacity;
+      return { x, y, w, h };
+    },
+  };
+}
+function makeBox(parent, title, sub, atTop = false) {
+  const g = svg("g", {}, parent);
+  const rect = svg("rect", { rx: 12, fill: "rgba(9,19,16,.92)", stroke: "rgba(126,240,216,.7)", "stroke-width": 2 }, g);
+  const a = svg("text", { "text-anchor": "middle", fill: "#E6FBF4", "font-family": "Marcellus SC", "font-size": 24 }, g);
+  const b = svg("text", { "text-anchor": "middle", fill: "#A9C9BC", "font-family": "Outfit", "font-weight": 500, "font-size": 16 }, g);
+  a.textContent = title; b.textContent = sub || "";
+  return { g, set(x, y, w, h, opacity) {
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h })) rect.setAttribute(k, v);
+    a.setAttribute("x", x + w / 2); a.setAttribute("y", atTop ? y + 40 : y + h / 2 + (sub ? -2 : 8));
+    b.setAttribute("x", x + w / 2); b.setAttribute("y", atTop ? y + 66 : y + h / 2 + 22);
+    g.style.opacity = opacity;
+  } };
+}
+function makeText(parent, attrs, text = "") {
+  const el = svg("text", { "font-family": "Outfit", "font-weight": 800, fill: "#E6FBF4", "text-anchor": "middle", ...attrs }, parent);
+  el.textContent = text;
+  el.put = (x, y, opacity, value) => {
+    el.setAttribute("x", x); el.setAttribute("y", y); el.style.opacity = opacity;
+    if (value !== undefined) el.textContent = value;
+  };
+  return el;
+}
+function makeDisc(parent, colour, values, size) {
+  // A node as the overlay draws one: a disc in its type's colour, a dark ring inside, its vector as a column.
+  const g = svg("g", {}, parent);
+  const outer = svg("circle", { fill: colour, stroke: "#06100D", "stroke-width": 1.5 }, g);
+  const back = svg("circle", { fill: "#0B1612" }, g);
+  const col = makeCol(g, values, { colour: "rgba(0,0,0,0)" });
+  return { g, col, set(x, y, s, opacity = 1) {
+    outer.setAttribute("cx", x); outer.setAttribute("cy", y); outer.setAttribute("r", s / 2);
+    back.setAttribute("cx", x); back.setAttribute("cy", y); back.setAttribute("r", s / 2 - Math.max(2, s * 0.16));
+    const w = Math.max(2, s * 0.3), h = s * 0.56;
+    col.set(x - w / 2, y - h / 2, w, h / col.n, 1, x + s / 2 + 5);
+    g.style.opacity = opacity;
+    return { x: x - w / 2, y: y - h / 2, w, cell: h / col.n };
+  } };
+}
+
+const P2 = {};
+function buildLayer() {
+  const root = $("layer");
+  P2.bands = svg("g", {}, root);
+  P2.edges = SENDERS.map(({ et }) => svg("line", { stroke: EDGE_STYLES[et.shown_as][0], "stroke-linecap": "round" }, root));
+  P2.discs = SENDERS.map(({ et, nb }) => {
+    const d = makeDisc(root, NODE_COLOURS[et.source], nb.embedding, NB_SIZE);
+    const name = svg("text", { class: "nlabel", "text-anchor": "middle" }, root);
+    // Another card's ability node: its card, then the part; the focus card's own: just the part.
+    const n = NODES[nb.node], own = n.type === "ability" && n.card === FOCUS;
+    const lines = n.type !== "ability" ? [n.label] : own ? [n.label] : [shortName(nb.node), n.label];
+    name.innerHTML = lines.map((l, i) => `<tspan x="0" dy="${i ? 17 : 0}">${esc(l)}</tspan>`).join("");
+    d.name = name;
+    return d;
+  });
+  P2.tags = SENDERS.map(() => makeText(root, { "font-size": 22, fill: "#F4C76B", stroke: "#06100D", "stroke-width": 6, "paint-order": "stroke" }));
+  P2.hub = makeDisc(root, NODE_COLOURS.card, LAYER.input.vector, HUB.size);
+  P2.hubAfter = makeDisc(root, NODE_COLOURS.card, LAYER.output.vector, HUB.size);
+  P2.hubName = makeText(root, { class: "nlabel", "font-size": 18 }, card().label);
+
+  // The score for one neighbour: W_l·x_j and W_r·x_i, added, LeakyReLU, then · a.
+  const head = FACES.query[HEAD].length;
+  P2.xj = makeCol(root, NB1.embedding, { label: "x_j" });
+  P2.xi = makeCol(root, LAYER.input.vector, { label: "x_i" });
+  P2.wl = makeBox(root, "W_l", `${NB1.embedding.length} → ${head}`);
+  P2.wr = makeBox(root, "W_r", `${LAYER.input.vector.length} → ${head}`);
+  P2.wlxj = makeCol(root, NB1.value[HEAD], { label: "W_l·x_j" });
+  P2.wrxi = makeCol(root, FACES.query[HEAD], { label: "W_r·x_i" });
+  P2.pre = makeCol(root, PRE, { label: "sum" });
+  P2.lrelu = makeBox(root, "LeakyReLU", `negatives × ${LAYER.negative_slope}`);
+  P2.leaky = makeCol(root, PRE.map(leaky));
+  P2.a = makeCol(root, FACES.att[HEAD], { label: "a", colour: "rgba(244,199,107,.7)" });
+  P2.plus = makeText(root, { "font-size": 40 }, "+");
+  P2.dot = makeText(root, { "font-size": 44 }, "·");
+  P2.eq = makeText(root, { "font-size": 40 }, "=");
+  P2.score = makeText(root, { "font-size": 40, fill: "#F4C76B", "text-anchor": "start" }, fmt(NB1.scores[HEAD]));
+
+  // Softmax, then the weighted sum of the values.
+  P2.soft = makeBox(root, "Softmax", "scores → attention, adding up to 1", true);
+  P2.softRows = FACES.neighbours.map((nb) => makeText(root, { "font-size": 22, "font-weight": 500, "text-anchor": "start" },
+    `${shortName(nb.node)}   ${fmt(nb.scores[HEAD])}  →  ${nb.attention[HEAD].toFixed(3)}`));
+  P2.values = FACES.neighbours.map((nb) => makeCol(root, nb.value[HEAD], { label: shortName(nb.node) }));
+  P2.times = FACES.neighbours.map((nb) => makeText(root, { "font-size": 26, fill: "#F4C76B" }, `× ${nb.attention[HEAD].toFixed(3)}`));
+  P2.weighted = FACES.neighbours.map((nb, k) => makeCol(root, nb.weighted[HEAD], { scale: spread(nb.value[HEAD]) }));
+  P2.plus2 = makeText(root, { "font-size": 40 }, "+");
+  P2.heads = FACES.heads.map((h, k) => makeCol(root, h, { label: `head ${k + 1}`, scale: spread(FACES.heads.flat()) }));
+  P2.headNames = FACES.heads.map((_, k) => makeText(root, { "font-size": 17, fill: "#A9C9BC", "text-anchor": "end", "font-weight": 700 }, `head ${k + 1}`));
+  P2.bias = makeText(root, { "font-size": 18, fill: "#A9C9BC", "font-weight": 500 }, "joined, + bias");
+
+  // Every edge type's message, added; ReLU; the input added back; LayerNorm.
+  P2.msgs = LANES.map((et) => makeCol(root, et.message, { label: EDGE_TEXT[et.shown_as][0], labelColour: EDGE_STYLES[et.shown_as][0],
+    colour: EDGE_STYLES[et.shown_as][0] }));
+  P2.sum = makeCol(root, LAYER.sum.vector, { label: "Σ messages" });
+  P2.reluBox = makeBox(root, "ReLU", "negatives → 0");
+  P2.relu = makeCol(root, LAYER.relu.vector, { label: "ReLU" });
+  P2.xi2 = makeCol(root, LAYER.input.vector, { label: "x_i" });
+  P2.plus3 = makeText(root, { "font-size": 40 }, "+");
+  P2.res = makeCol(root, LAYER.residual.vector, { label: "added" });
+  P2.normBox = makeBox(root, "LayerNorm", "a steady spread");
+  P2.out = makeCol(root, LAYER.output.vector, { label: "new x_i" });
+
+  $("chips").innerHTML = [1, 2, 3, 4].map((k) => `<div>Layer ${k}</div>`).join("");
+}
+
+function band(from, to, opacity) {
+  if (opacity <= 0) return;
+  const mx = (from.x + to.x) / 2;
+  svg("path", { d: `M${from.x} ${from.y0} C${mx} ${from.y0} ${mx} ${to.y0} ${to.x} ${to.y0} L${to.x} ${to.y1}
+    C${mx} ${to.y1} ${mx} ${from.y1} ${from.x} ${from.y1} Z`, fill: "rgba(126,240,216,.06)", stroke: "rgba(126,240,216,.2)",
+    "stroke-width": 1, opacity }, P2.bands);
+}
+const rectOf = (b) => ({ x: b.x, y: b.y, w: b.w, h: b.h });
+
+function layerScene(t, c) {
+  const on = span(t, L.fan, L.fan + 0.8) * (1 - span(t, L.reach, L.reach + 0.8));
+  $("layer").style.opacity = on;
+  $("world").style.opacity = 1 - span(t, L.fan, L.fanEnd) + span(t, L.reach, L.reachEnd);
+  $("chips").style.opacity = span(t, L.reach + 0.6, L.reachEnd + 0.4);
+  [...$("chips").children].forEach((el, k) => el.classList.toggle("on", t >= L.layer + k * L.layerStep));
+  P2.bands.replaceChildren();
+  if (on <= 0) return;
+
+  // The fan: each node flies from its place on the board to its place round the hub.
+  const fan = span(t, L.fan, L.fanEnd), faces = span(t, L.faces, L.faces + 0.8), others = span(t, L.types, L.types + 0.8);
+  const hubFrom = toScreen(c, pos[FOCUS]);
+  const hub = { x: lerp(hubFrom.x, HUB.x, fan), y: lerp(hubFrom.y, HUB.y, fan), s: lerp(46 * c.z, HUB.size, fan) };
+  const docked = span(t, L.dockEnd - 0.3, L.dockEnd);
+  P2.hub.set(hub.x, hub.y, hub.s, 1 - docked);
+  P2.hubAfter.set(hub.x, hub.y, hub.s * (1 + 0.15 * Math.sin(Math.PI * clamp((t - L.dockEnd + 0.3) / 0.6))), docked);
+  P2.hubName.put(hub.x, hub.y + hub.s / 2 + 26, fan);
+  const soft = span(t, L.softmax + 0.6, L.softmax + 1.4), placed = [];
+  SENDERS.forEach(({ et, nb }, k) => {
+    const angle = Math.PI * (1 - (k + 0.5) / SENDERS.length);
+    const to = { x: HUB.x + RING.rx * Math.cos(angle), y: HUB.y - RING.ry * Math.sin(angle) };
+    const from = toScreen(c, pos[nb.node]);
+    const p = { x: lerp(from.x, to.x, fan), y: lerp(from.y, to.y, fan) };
+    const isFaces = et === FACES;
+    const dim = 1 - 0.8 * faces * (isFaces ? 0 : 1) + 0.8 * others * (isFaces ? 0 : 1);
+    placed[k] = P2.discs[k].set(p.x, p.y, lerp(SIZE[NODES[nb.node].type] * c.z, NB_SIZE, fan), dim);
+    P2.discs[k].name.setAttribute("transform", `translate(${p.x} ${p.y - NB_SIZE / 2 - 30})`);
+    P2.discs[k].name.style.opacity = fan * dim;
+    // The edge into the hub; in the faces lane as thick as this head's attention once it's known.
+    const d = Math.hypot(hub.x - p.x, hub.y - p.y) || 1, ux = (hub.x - p.x) / d, uy = (hub.y - p.y) / d;
+    const line = P2.edges[k];
+    line.setAttribute("x1", p.x + ux * NB_SIZE / 2); line.setAttribute("y1", p.y + uy * NB_SIZE / 2);
+    line.setAttribute("x2", hub.x - ux * (hub.s / 2 + 4)); line.setAttribute("y2", hub.y - uy * (hub.s / 2 + 4));
+    line.setAttribute("stroke-width", isFaces ? lerp(3, 1.5 + 9 * nb.attention[HEAD], soft) : 3);
+    line.style.opacity = fan * dim * 0.9;
+    // Its score, then its attention, on the edge.
+    const tag = P2.tags[k], tx = lerp(p.x, hub.x, 0.42), ty = lerp(p.y, hub.y, 0.42);
+    const shown = isFaces ? (nb === NB1 ? span(t, L.scoreFly + 0.6, L.scoreFly + 0.8) : span(t, L.sibling + 0.4, L.sibling + 0.9)) : 0;
+    tag.put(tx, ty, shown * (1 - others), soft > 0.5 ? nb.attention[HEAD].toFixed(3) : fmt(nb.scores[HEAD]));
+  });
+
+  // One neighbour, one head: the columns fly out of their nodes into the working.
+  const fly = span(t, L.fly, L.flyEnd), math = 1 - span(t, L.sibling, L.sibling + 0.6);
+  const nbDisc = placed[SENDERS.findIndex((x) => x.nb === NB1)];  // where its column starts from
+  const hubCol = { x: HUB.x - HUB.size * 0.15, y: HUB.y - HUB.size * 0.28, w: HUB.size * 0.3, cell: HUB.size * 0.56 / 128 };
+  const CELL = 2.6, H32 = 32 * CELL;
+  const XJ = { x: 1000, y: 140 }, XI = { x: 1000, y: 520 };
+  const xj = blendRect({ x: nbDisc.x, y: nbDisc.y, w: nbDisc.w, h: nbDisc.cell * 128 }, { x: XJ.x, y: XJ.y, w: 26, h: CELL * 128 }, fly);
+  const xi = blendRect({ x: hubCol.x, y: hubCol.y, w: hubCol.w, h: hubCol.cell * 128 }, { x: XI.x, y: XI.y, w: 26, h: CELL * 128 }, fly);
+  P2.xj.set(xj.x, xj.y, xj.w, xj.h / 128, (t >= L.fly ? 1 : 0) * math);
+  P2.xi.set(xi.x, xi.y, xi.w, xi.h / 128, (t >= L.fly ? 1 : 0) * math);
+  const wl = span(t, L.wl, L.wl + 0.4), wr = span(t, L.wr, L.wr + 0.4);
+  const midJ = XJ.y + CELL * 64, midI = XI.y + CELL * 64;
+  P2.wl.set(1070, midJ - 46, 140, 92, wl * math);
+  P2.wr.set(1070, midI - 46, 140, 92, wr * math);
+  band({ x: 1026, y0: XJ.y, y1: XJ.y + CELL * 128 }, { x: 1070, y0: midJ - 46, y1: midJ + 46 }, wl * math);
+  band({ x: 1026, y0: XI.y, y1: XI.y + CELL * 128 }, { x: 1070, y0: midI - 46, y1: midI + 46 }, wr * math);
+  const add = span(t, L.add, L.add + 0.8), mid = (midJ + midI) / 2;
+  const wlxj = blendRect({ x: 1260, y: midJ - H32 / 2, w: 26, h: H32 }, { x: 1390, y: mid - H32 / 2, w: 26, h: H32 }, add);
+  const wrxi = blendRect({ x: 1260, y: midI - H32 / 2, w: 26, h: H32 }, { x: 1390, y: mid - H32 / 2, w: 26, h: H32 }, add);
+  P2.wlxj.set(wlxj.x, wlxj.y, 26, CELL, span(t, L.wl + 0.4, L.wl + 0.9) * math * (1 - add));
+  P2.wrxi.set(wrxi.x, wrxi.y, 26, CELL, span(t, L.wr + 0.4, L.wr + 0.9) * math * (1 - add));
+  band({ x: 1210, y0: midJ - 46, y1: midJ + 46 }, { x: 1260, y0: midJ - H32 / 2, y1: midJ + H32 / 2 }, wl * math * (1 - add));
+  band({ x: 1210, y0: midI - 46, y1: midI + 46 }, { x: 1260, y0: midI - H32 / 2, y1: midI + H32 / 2 }, wr * math * (1 - add));
+  P2.plus.put(1340, mid + 14, span(t, L.add, L.add + 0.3) * (1 - span(t, L.add + 0.6, L.add + 0.9)) * math);
+  P2.pre.set(1390, mid - H32 / 2, 26, CELL, span(t, L.add + 0.6, L.add + 0.9) * math);
+  const lr = span(t, L.leaky, L.leaky + 0.4);
+  P2.lrelu.set(1450, mid - 46, 150, 92, lr * math);
+  band({ x: 1416, y0: mid - H32 / 2, y1: mid + H32 / 2 }, { x: 1450, y0: mid - 46, y1: mid + 46 }, lr * math);
+  band({ x: 1600, y0: mid - 46, y1: mid + 46 }, { x: 1630, y0: mid - H32 / 2, y1: mid + H32 / 2 }, span(t, L.leaky + 0.3, L.leaky + 0.6) * math);
+  P2.leaky.set(1630, mid - H32 / 2, 26, CELL, span(t, L.leaky + 0.4, L.leaky + 0.9) * math);
+  const dt = span(t, L.dot, L.dot + 0.5), sc = span(t, L.dot + 0.6, L.dot + 1.1);
+  P2.dot.put(1678, mid + 12, dt * math);
+  P2.a.set(1698, mid - H32 / 2, 26, CELL, dt * math);
+  P2.eq.put(1752, mid + 14, sc * math);
+  // The score, then flown to its edge.
+  const sf = span(t, L.scoreFly, L.scoreFly + 0.8);
+  const k1 = SENDERS.findIndex((x) => x.nb === NB1);
+  const edgeTag = { x: +P2.tags[k1].getAttribute("x") || 0, y: +P2.tags[k1].getAttribute("y") || 0 };
+  P2.score.setAttribute("text-anchor", sf > 0 ? "middle" : "start");
+  P2.score.put(lerp(1772, edgeTag.x, sf), lerp(mid + 15, edgeTag.y, sf), sc * (1 - span(t, L.scoreFly + 0.6, L.scoreFly + 0.8)));
+
+  // Softmax over the faces scores, then the values weighted by attention and added.
+  const sm = span(t, L.softmax, L.softmax + 0.5) * (1 - span(t, L.values - 0.4, L.values));
+  P2.soft.set(1000, 300, 640, 220, sm);
+  P2.softRows.forEach((row, k) => row.put(1040, 430 + k * 44, sm));
+  const v = span(t, L.values, L.values + 0.6), w = span(t, L.weigh, L.weigh + 0.8), hs = span(t, L.headSum, L.headSum + 0.8);
+  const stack = span(t, L.heads, L.heads + 1.0), joined = span(t, L.heads + 2.0, L.heads + 2.6);
+  const gone = 1 - span(t, L.types, L.types + 0.6);
+  [0, 1].forEach((k) => {
+    const y = k === 0 ? 270 : 560;
+    P2.values[k].set(1000, y, 26, CELL, v * (1 - hs));
+    P2.times[k].put(1100, y + H32 / 2 + 9, span(t, L.weigh - 0.2, L.weigh + 0.3) * (1 - hs));
+    const into = blendRect({ x: 1200, y, w: 26, h: H32 }, { x: 1360, y: 415 - H32 / 2, w: 26, h: H32 }, hs);
+    P2.weighted[k].set(into.x, into.y, 26, CELL, w * (1 - span(t, L.headSum + 0.6, L.headSum + 0.8)));
+  });
+  P2.plus2.put(1290, 430, w * (1 - hs));
+  // Four heads: head 1 drops into the top quarter; the others join below it into the 128-number message.
+  const top = 300;
+  P2.heads.forEach((col, k) => {
+    const from = k === 0 ? { x: 1360, y: 415 - H32 / 2 } : { x: 1700, y: top + k * H32 };
+    const b = blendRect({ ...from, w: 26, h: H32 }, { x: 1560, y: top + k * H32, w: 26, h: H32 }, stack);
+    const shown = k === 0 ? span(t, L.headSum + 0.6, L.headSum + 0.8) : span(t, L.heads + 0.3 + 0.3 * k, L.heads + 0.6 + 0.3 * k);
+    col.set(b.x, b.y, 26, CELL, shown * (1 - joined));
+    col.label.style.opacity = k === 0 ? 1 - stack : 0;
+    P2.headNames[k].put(1545, top + k * H32 + H32 / 2 + 6, shown * stack * gone);
+  });
+  P2.bias.put(1573, top + 4 * H32 + 30, joined * gone);
+
+  // Every edge type's message (the faces one from its heads), then added up.
+  const merge = span(t, L.merge, L.merge + 1.0);
+  LANES.forEach((et, k) => {
+    const isFaces = et === FACES, slot = { x: 1000 + k * 130, y: top };
+    const from = isFaces ? { x: 1560, y: top } : slot;
+    const b = blendRect(blendRect({ ...from, w: 26, h: 128 * CELL }, { ...slot, w: 26, h: 128 * CELL }, others),
+                        { x: 1000, y: top, w: 26, h: 128 * CELL }, merge);
+    const shown = isFaces ? joined : span(t, L.types + 0.4 + 0.4 * k, L.types + 0.9 + 0.4 * k);
+    P2.msgs[k].set(b.x, b.y, 26, CELL, shown * (1 - span(t, L.merge + 0.8, L.merge + 1.0)));
+  });
+  // Σ, ReLU, + x_i, LayerNorm, along one row; then the new x_i goes into the node.
+  const r = span(t, L.relu, L.relu + 0.5), x2 = span(t, L.resid, L.resid + 0.9), nm = span(t, L.norm, L.norm + 0.5);
+  const dock = span(t, L.dock, L.dockEnd), after = 1 - dock;
+  P2.sum.set(1000, top, 26, CELL, span(t, L.merge + 0.8, L.merge + 1.0) * after);
+  P2.reluBox.set(1056, top + 64 * CELL - 46, 130, 92, r * after);
+  band({ x: 1026, y0: top, y1: top + 128 * CELL }, { x: 1056, y0: top + 64 * CELL - 46, y1: top + 64 * CELL + 46 }, r * after);
+  band({ x: 1186, y0: top + 64 * CELL - 46, y1: top + 64 * CELL + 46 }, { x: 1216, y0: top, y1: top + 128 * CELL }, r * after);
+  P2.relu.set(1216, top, 26, CELL, span(t, L.relu + 0.3, L.relu + 0.8) * after);
+  const xiFrom = { x: hubCol.x, y: hubCol.y, w: hubCol.w, h: hubCol.cell * 128 };
+  const xiB = blendRect(xiFrom, { x: 1320, y: top, w: 26, h: 128 * CELL }, x2);
+  P2.xi2.set(xiB.x, xiB.y, xiB.w, xiB.h / 128, (t >= L.resid ? 1 : 0) * after);
+  P2.plus3.put(1281, top + 64 * CELL + 14, span(t, L.resid + 0.6, L.resid + 0.9) * after);
+  P2.res.set(1420, top, 26, CELL, span(t, L.resid + 1.0, L.resid + 1.4) * after);
+  P2.normBox.set(1490, top + 64 * CELL - 46, 170, 92, nm * after);
+  band({ x: 1446, y0: top, y1: top + 128 * CELL }, { x: 1490, y0: top + 64 * CELL - 46, y1: top + 64 * CELL + 46 }, nm * after);
+  band({ x: 1660, y0: top + 64 * CELL - 46, y1: top + 64 * CELL + 46 }, { x: 1700, y0: top, y1: top + 128 * CELL }, nm * after);
+  const out = blendRect({ x: 1700, y: top, w: 26, h: 128 * CELL }, { x: hubCol.x, y: hubCol.y, w: hubCol.w, h: hubCol.cell * 128 }, dock);
+  P2.out.set(out.x, out.y, out.w, out.h / 128, span(t, L.norm + 0.4, L.norm + 0.9) * (t < L.dockEnd ? 1 : 0));
+  P2.out.label.style.opacity = after;
+}
+
+function layerBeats() {
+  const n = FACES.neighbours.length, head = FACES.query[HEAD].length, heads = FACES.heads.length;
+  const maxHop = Math.max(...Object.values(LAYERS.hops));
+  return [
+    [L.fan, "Part 2 · One layer", "Messages along the edges", `A GNN layer lets each node gather from its neighbours. Every vector is now ${EMB.hidden} numbers: each node type has its own encoder.`],
+    [L.faces, "One edge type", "Start with Faces", `Each edge type has its own weights. Here, the ${n} enemy units this card faces.`],
+    [L.fly, `Faces · head 1 · ${shortName(NB1.node)}`, "Two learned matrices, W_l and W_r", `W_l reads the neighbour x_j, W_r the card itself x_i: each turns ${EMB.hidden} numbers into ${head}.`],
+    [L.add, `Faces · head 1 · ${shortName(NB1.node)}`, "Added, then LeakyReLU", `LeakyReLU keeps positive numbers and shrinks negative ones to ${LAYER.negative_slope} of their size.`],
+    [L.dot, `Faces · head 1 · ${shortName(NB1.node)}`, "A dot product with a gives a score", `a is learned too: ${head} numbers saying what matters. One number for this neighbour: how relevant it is.`],
+    [L.sibling, "Faces · head 1", "Every neighbour of the kind gets a score", `${shortName(NB2.node)} is scored the same way: ${fmt(NB2.scores[HEAD])}.`],
+    [L.softmax, "Faces · head 1", "Softmax turns scores into attention", `Positive, and adding up to 1: here ${shortName(NB1.node)} gets ${Math.round(NB1.attention[HEAD] * 100)}% of this head's attention.`],
+    [L.values, "Faces · head 1", "The weighted values are added", `W_l·x_j is also what each neighbour sends. Weighted by attention and added, it makes head 1's ${head} numbers.`],
+    [L.heads, "Faces · all heads", `${heads} heads, joined`, `Each head has its own W_l, W_r and a, so each can look for something different. ${heads} × ${head} numbers make the ${EMB.hidden}-number message.`],
+    [L.types, "Every edge type", "Each edge type sends its own message", "Belongs to, faces, part of and matches: the same steps, each with its own weights. The messages are added."],
+    [L.relu, "After the messages", "ReLU", "Negative numbers become 0."],
+    [L.resid, "After the messages", "The card's own vector is added back", "A residual connection: the layer only has to learn what to change."],
+    [L.norm, "After the messages", "LayerNorm", `It rescales the ${EMB.hidden} numbers to a steady spread, so every layer starts from the same range.`],
+    [L.dock, "Layer 1 done", `The card's new ${EMB.hidden} numbers`, "Every node does this at once, each from its own neighbours."],
+    [L.reach, "Four layers", "Four layers, each with its own weights", maxHop <= 2
+      ? `After layer 1 the card has heard from its neighbours; after layer 2, from theirs, which on this small board is everything. Layers 3 and 4 keep mixing.`
+      : "Each layer reaches one edge further."],
+  ];
 }
 
 // ------------------------------------------------------------------ captions
@@ -572,7 +928,7 @@ function beats() {
     [T.pull, "Its neighbours", "Who this node is joined to", `${n} neighbours, joined by ${types} kinds of edge.`],
   ];
   EDGE_ORDER.forEach((type, k) => b.push([T.edges + k * T.edgeStep, "Its neighbours · " + EDGE_TEXT[type][0], EDGE_TEXT[type][0], EDGE_TEXT[type][1]]));
-  b.push([T.edgesEnd, "Next", "Every node starts like this", "Then the GNN's layers pass messages along these edges, so each node learns about its neighbours."]);
+  b.push(...layerBeats());
   return b;
 }
 let BEATS = [], shownBeat = -1;
@@ -628,6 +984,7 @@ async function init() {
   buildGraph();
   buildTable();
   buildColumn();
+  buildLayer();
   BEATS = beats();
   $("scrub").max = DURATION;
   $("play").addEventListener("click", toggle);

@@ -12,7 +12,13 @@ overlay). The page shows the board, lays the graph over it, zooms into one card'
 card into its 24 input features in two steps (read them off the card, then scale them) as a
 greyscale column like the client's EmbeddingGlyph, embeds them with the trained model (--model:
 the card encoder, then the projection to the hidden size; src/model/gnn.py), and then brings in the
-node's neighbours, edge type by edge type. Everything is a function of the time t, so it can be scrubbed and rendered
+node's neighbours, edge type by edge type.
+
+Part 2 is one GNN layer for that node, like the schematic in the client's layer inspector: the
+neighbours fan out round it, and for one edge type and one attention head it shows W_l and W_r,
+LeakyReLU and the dot product with a that score each neighbour, the softmax, the weighted sum, the
+heads joined, every edge type's message added, then ReLU, the residual and LayerNorm; then the four
+layers and how far each reaches. The numbers are src/server/graph_view.layer_view's, in full. Everything is a function of the time t, so it can be scrubbed and rendered
 frame by frame like the card generation visualiser.
 """
 import argparse
@@ -33,7 +39,7 @@ from src.game.terms import ASPECT_NAMES, KEYWORD_NAMES, KEYWORDS, keyword_text  
 from src.graph.encode import (CARD_DYNAMIC_DIM, CARD_DYNAMIC_FEATURES, CARD_STATIC_DIM,  # noqa: E402
                               CARD_STATIC_FEATURES, KEYWORD_SCALE, observe)
 from src.model.registry import load_model  # noqa: E402
-from src.server.graph_view import ability_label, graph_view  # noqa: E402
+from src.server.graph_view import ability_label, graph_view, layer_view  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("gnn_visualiser.html")
 OUT = Path(__file__).parent / "build"
@@ -131,6 +137,25 @@ def embedding(net, e, i: int) -> dict:
             "encoded": vector(encoded), "projected": vector(projected)}
 
 
+def layers(net, game: Game, e, i: int, edges: list[dict]) -> dict:
+    """Layer 1 for the focus node step by step, its vector after every layer, and how many edges away
+    each node is (what the layers can reach)."""
+    batch = net.collate([e])
+    with torch.no_grad():
+        states = [x["card"][i] for x in net.node_states(batch)]
+    near = {}
+    for edge in edges:  # the layers pass messages both ways along every edge
+        near.setdefault(edge["src"], set()).add(edge["dst"])
+        near.setdefault(edge["dst"], set()).add(edge["src"])
+    hops, frontier, depth = {i: 0}, {i}, 0
+    while frontier:
+        depth += 1
+        frontier = {b for a in frontier for b in near.get(a, ()) if b not in hops}
+        hops |= dict.fromkeys(frontier, depth)
+    return {"detail": layer_view(game, 0, i, 1, net, detail=net.hparams["hidden"]),
+            "states": [[round(float(v), 3) for v in x] for x in states], "hops": hops}
+
+
 def graph_data(model: Path = MODEL) -> dict:
     game, uids = position()
     obs = observe(game, 0)
@@ -161,7 +186,8 @@ def graph_data(model: Path = MODEL) -> dict:
     focus = obs.card_uids.index(uids[YOURS[0]])
     return {"nodes": nodes, "edges": view["edges"], "focus": focus,
             "features": features(game, uids[YOURS[0]], inputs["card"][focus]),
-            "embedding": embedding(load_model(model), e, focus),
+            "embedding": embedding(net := load_model(model), e, focus),
+            "layers": layers(net, game, e, focus, view["edges"]),
             "heroes": [{"owner": p, "name": "You" if p == 0 else "Opponent", "health": HEALTH[p]} for p in (0, 1)]}
 
 

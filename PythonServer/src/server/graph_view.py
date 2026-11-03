@@ -192,7 +192,7 @@ def node_view(game: Game, player: int, node: int, net=None) -> dict:
     return view
 
 
-def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
+def layer_view(game: Game, player: int, node: int, layer: int, net, detail: int = DETAIL_DIM) -> dict:
     """One GNN layer (1-based) for one node, step by step.
 
     Per edge type r into the node, GATv2 with H heads of C numbers, each head's numbers sent in
@@ -200,7 +200,8 @@ def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
     softmax over the neighbours to attention; each neighbour's weighted value attention·W_l·x_j and
     their sum per head; the message is those sums, heads joined end to end, plus a bias. The messages of every edge type are added,
     then the layer's output is LayerNorm(x_i + ReLU(sum)). Recomputed here from the model's own
-    weights, step by step (the tests check it matches the forward pass).
+    weights, step by step (the tests check it matches the forward pass). Vectors are averaged down to
+    `detail` numbers (the hidden size gives them whole), and each edge type sends its attention vector a.
     """
     if net is None or getattr(net, "arch", None) != "gnn":
         raise ValueError("no GNN model on the server")
@@ -234,7 +235,7 @@ def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
             heads = weighted.sum(0)
             message = heads.reshape(-1) + gat.bias
             total += message
-            neighbours = [{"node": first[src] + int(j), "embedding": squash(x[src][j].numpy(), DETAIL_DIM),
+            neighbours = [{"node": first[src] + int(j), "embedding": squash(x[src][j].numpy(), detail),
                            "value": per_head(values[k]),
                            "scores": [round(float(v), 3) for v in scores[k]],
                            "attention": [round(float(v), 3) for v in attention[k]],
@@ -243,15 +244,15 @@ def layer_view(game: Game, player: int, node: int, layer: int, net) -> dict:
             neighbours.sort(key=lambda n: -sum(n["attention"]))
             edge_types.append({"type": rel, "shown_as": SHOWN_AS.get(rel, rel), "source": src,
                                "query": per_head(query), "neighbours": neighbours, "heads": per_head(heads),
-                               "bias": round(float(gat.bias.norm()), 3),
-                               "message": squash(message.numpy(), DETAIL_DIM),
+                               "bias": round(float(gat.bias.norm()), 3), "att": per_head(gat.att[0]),
+                               "message": squash(message.numpy(), detail),
                                "message_size": round(float(message.norm()), 3)})
         relu = F.relu(total)
         residual = x_i + relu
         output = norm(residual)
 
     def step(t: torch.Tensor) -> dict:
-        return {"vector": squash(t.numpy(), DETAIL_DIM), "size": round(float(t.norm()), 3)}
+        return {"vector": squash(t.numpy(), detail), "size": round(float(t.norm()), 3)}
 
     gat = next(iter(conv.convs.values()))
     return {"node": node, "type": node_type, "layer": layer, "layers": len(net.convs), "hidden": x_i.numel(),
