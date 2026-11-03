@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
+<style>
+/* The Lantern look (docs/client-design.md): night glass over the forest, a spore of light carried round the loop. */
+:root {
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209; --warn: #FF8A6B;
+}
+html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+  background: var(--night); font-family: Outfit, system-ui, sans-serif; }
+#bg { position: absolute; inset: -30px; background: center / cover no-repeat; filter: blur(7px) brightness(.32) saturate(.85); }
+#bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(11, 22, 18, .1) 0%, rgba(5, 12, 10, .75) 100%); }
+#ring { position: absolute; left: 0; top: 0; }
+.route { fill: none; stroke: rgba(126, 240, 216, .38); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 2 16; transition: stroke .4s; }
+.route.on { stroke: rgba(126, 240, 216, .95); }
+.flow { font: 500 21px Outfit; fill: var(--muted); paint-order: stroke; stroke: var(--shadow); stroke-width: 5px; }
+.title { position: absolute; left: 64px; top: 46px; font: 400 54px/1 "Marcellus SC", serif; color: var(--text); text-shadow: 0 3px 10px var(--shadow); }
+.title small { display: block; margin-top: 12px; font: 500 24px/1.3 Outfit; color: var(--muted); text-shadow: none; }
+.crumbs { font: 700 18px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+/* Where new and tuned cards meet: the set that goes into the next round of playtesting. */
+#set { position: absolute; left: 868px; top: 508px; width: 184px; height: 184px; box-sizing: border-box; border-radius: 50%;
+  display: grid; place-content: center; text-align: center; background: rgba(9, 19, 16, .88); border: 2px solid rgba(126, 240, 216, .4);
+  box-shadow: 0 14px 40px rgba(3, 8, 6, .55); transition: border-color .4s, box-shadow .4s; }
+#set.on { border-color: var(--lantern); box-shadow: 0 0 50px rgba(126, 240, 216, .45), 0 14px 40px rgba(3, 8, 6, .55); }
+#set .what { font: 400 32px/1.1 "Marcellus SC", serif; color: var(--text); }
+.panel { position: absolute; width: 600px; height: 380px; box-sizing: border-box; padding: 26px 30px; border-radius: 22px;
+  background: rgba(9, 19, 16, .8); border: 1.5px solid rgba(126, 240, 216, .22); backdrop-filter: blur(6px);
+  box-shadow: 0 14px 40px rgba(3, 8, 6, .55); transition: opacity .5s, border-color .5s, box-shadow .5s; opacity: .62; }
+.panel.on { opacity: 1; border-color: rgba(126, 240, 216, .8); box-shadow: 0 0 46px rgba(126, 240, 216, .28), 0 14px 40px rgba(3, 8, 6, .55); }
+.panel .ptitle { margin-top: 6px; font: 400 33px/1.1 "Marcellus SC", serif; color: var(--text); white-space: nowrap; }
+.panel .body { position: absolute; left: 30px; right: 30px; top: 116px; bottom: 22px; }
+/* 1. Generate: a tree unfolding, then the cards dealt. */
+.fan .slot { position: absolute; top: 18px; transform-origin: 50% 120%; }
+.fan .pcard { --w: 128px; }
+/* 2. Playtest: the two heroes and the state graph between them. */
+.hero { position: absolute; width: 118px; }
+.games { position: absolute; left: 0; right: 0; bottom: -4px; text-align: center; font: 500 19px Outfit; color: var(--muted); }
+.games b { font: 800 24px Outfit; color: var(--gold); margin-left: 6px; font-variant-numeric: tabular-nums; }
+/* 3. Measure: each metric is checked, then gets a verdict. */
+.metric { position: relative; height: 58px; display: flex; align-items: center; gap: 16px; }
+.metric .name { flex: 1; font: 700 21px/1.15 Outfit; color: var(--text); }
+.metric .name small { display: block; font: 500 16px Outfit; color: var(--muted); }
+.metric .scan { width: 96px; height: 8px; border-radius: 4px; background: rgba(160, 235, 215, .12); overflow: hidden; }
+.metric .scan i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #2BA58C, var(--lantern)); }
+.chip { width: 124px; box-sizing: border-box; padding: 5px 10px; border-radius: 999px; text-align: center; white-space: nowrap;
+  font: 700 17px Outfit; border: 1.5px solid; transition: opacity .25s; }
+.chip.ok { color: var(--lantern); border-color: rgba(126, 240, 216, .55); background: rgba(126, 240, 216, .08); }
+.chip.warn { color: var(--warn); border-color: rgba(255, 138, 107, .6); background: rgba(255, 138, 107, .1); }
+/* 4. Tune: the changes made this round, and a card being re-costed. */
+.tuned { position: absolute; left: 0; top: -6px; }
+.tuned .pcard { --w: 160px; }
+.fixes { position: absolute; left: 190px; right: 0; top: -4px; }
+.fix { height: 52px; margin-bottom: 8px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px;
+  border: 1.5px solid rgba(160, 235, 215, .14); opacity: .4; transition: opacity .3s, border-color .3s, background .3s; }
+.fix.on { opacity: 1; border-color: rgba(126, 240, 216, .65); background: rgba(126, 240, 216, .07); }
+.fix .name { font: 700 20px Outfit; color: var(--text); }
+.fix .detail { margin-left: auto; font: 500 17px Outfit; color: var(--gold); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <svg id="ring" width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="tip" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7EF0D8"/></marker></defs>
+    <path class="route" id="gm" d="M750,420 C830,420 870,480 895,535" marker-end="url(#tip)"/>
+    <path class="route" id="tm" d="M750,780 C830,780 870,720 895,665" marker-end="url(#tip)"/>
+    <path class="route" id="mp" d="M1025,535 C1050,480 1090,420 1170,420" marker-end="url(#tip)"/>
+    <path class="route" id="pe" d="M1470,550 V650" marker-end="url(#tip)"/>
+    <path class="route" id="et" d="M1170,900 H750" marker-end="url(#tip)"/>
+    <path class="route" id="tg" d="M450,650 V550" marker-end="url(#tip)"/>
+    <text class="flow" x="772" y="400">new cards</text>
+    <text class="flow" x="772" y="822">tuned cards</text>
+    <text class="flow" x="1496" y="607">game records</text>
+    <text class="flow" x="960" y="884" text-anchor="middle">what to fix</text>
+    <text class="flow" x="424" y="607" text-anchor="end">new cards needed</text>
+    <g id="spore"></g>
+  </svg>
+  <div class="title">The design loop<small>Cards are data: the same agent plays every new version of the set.</small></div>
+  <div id="set"><div class="what">All cards</div></div>
+
+  <section class="panel" id="generate" style="left: 150px; top: 170px">
+    <div class="crumbs">1 · Generate</div><div class="ptitle">Sample cards from a grammar</div>
+    <div class="body"><svg id="tree" width="220" height="240"></svg><div class="fan" id="fan"></div></div>
+  </section>
+  <section class="panel" id="playtest" style="left: 1170px; top: 170px">
+    <div class="crumbs">2 · Playtest</div><div class="ptitle">A GNN agent plays itself</div>
+    <div class="body"><img class="hero" id="hero-you" style="left: 0; top: 20px" alt="">
+      <svg id="net" width="300" height="200" style="position: absolute; left: 120px; top: 4px"></svg>
+      <img class="hero" id="hero-opp" style="right: 0; top: 20px" alt="">
+      <div class="games">self-play games<b id="games">0</b></div></div>
+  </section>
+  <section class="panel" id="measure" style="left: 1170px; top: 650px">
+    <div class="crumbs">3 · Measure</div><div class="ptitle">Key design metrics</div>
+    <div class="body" id="metrics" style="top: 104px"></div>
+  </section>
+  <section class="panel" id="tune" style="left: 150px; top: 650px">
+    <div class="crumbs">4 · Tune</div><div class="ptitle">Tune cards based on game dynamics</div>
+    <div class="body"><div class="tuned" id="tuned"></div><div class="fixes" id="fixes"></div></div>
+  </section>
+</div>
+
+<!--CARD_KIT-->
+<!--PAINTED_CARD-->
+<!--CARD_ART-->
+<!--LAB_DATA-->
+<script>
+const W = 1920, H = 1080, D = window.LAB_DATA;
+const DWELL = 2.8, SPEED = 520;  // seconds at each panel; the spore's speed along a route, in px a second
+const NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => x * x * (3 - 2 * x);
+const span = (p, a, b) => clamp((p - a) / (b - a));
+
+function svg(tag, attrs, parent) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return parent.appendChild(el);
+}
+
+// ------------------------------------------------------------------ what each round finds and fixes (illustrative)
+// Two kinds of round, alternating: one the tuning can fix in place, and one that needs new cards from the grammar.
+const ROUNDS = [
+  { metrics: [["warn", "5 off"], ["ok", "✓ plenty"], ["warn", "1 loop"], ["ok", "✓ varied"]],
+    fixes: ["cost", "numbers", "combos"], replace: false },
+  { metrics: [["warn", "12 off"], ["warn", "too few"], ["ok", "✓ none"], ["warn", "3 alike"]],
+    fixes: ["cost", "replace"], replace: true },
+];
+const METRICS = [["Pricing", "is each card worth its cost?"], ["Synergy", "do cards work together?"],
+  ["Combos", "any infinite loops?"], ["Variety", "are any two cards too alike?"]];
+const FIXES = [["cost", "Re-cost", null], ["numbers", "Change numbers", "deal 3 → 2"],
+  ["combos", "Break a combo", "cut the loop"], ["replace", "Replace cards", "new ones →"]];
+
+// ------------------------------------------------------------------ the schedule: the spore's walk round the loop
+// Generate → set → Playtest → Measure → Tune, then back to the set (tuned) or through Generate (new cards).
+function schedule(rounds) {
+  const events = [];
+  let t = 0, round = 0;
+  const dwell = (station) => { events.push({ station, round, t0: t, t1: t + DWELL }); t += DWELL; };
+  const move = (...ids) => {
+    const paths = ids.map((id) => $(id)), length = paths.reduce((s, p) => s + p.getTotalLength(), 0);
+    const dur = Math.max(0.8, length / SPEED);
+    events.push({ paths, length, round, t0: t, t1: t + dur });
+    t += dur;
+  };
+  dwell("generate");
+  for (; round < rounds; round++) {
+    if (round) { if (ROUNDS[(round - 1) % 2].replace) { move("tg"); dwell("generate"); move("gm", "mp"); } else move("tm", "mp"); }
+    else move("gm", "mp");
+    dwell("playtest"); move("pe"); dwell("measure"); move("et"); dwell("tune");
+  }
+  return { events, total: t };
+}
+
+// ------------------------------------------------------------------ 1. Generate
+// A derivation like trace.py's: at each level a few options, one taken (gold), the next level hanging off it.
+const TREE = [{ at: [22, 122] }, { at: [92, 122], options: [[92, 46], [92, 122], [92, 198]] },
+  { at: [158, 70], options: [[158, 70], [158, 132], [158, 186]] }, { at: [208, 34], options: [[208, 34], [208, 100]] }];
+const tree = { edges: [], nodes: [] };
+function buildGenerate() {
+  const root = $("tree");
+  for (let level = 1; level < TREE.length; level++) {
+    const from = TREE[level - 1].at;
+    for (const o of TREE[level].options) {
+      const chosen = o[0] === TREE[level].at[0] && o[1] === TREE[level].at[1];
+      tree.edges.push({ level, chosen, el: svg("line", { x1: from[0], y1: from[1], x2: o[0], y2: o[1], "stroke-width": chosen ? 3.5 : 2 }, root) });
+      tree.nodes.push({ level, chosen, el: svg("circle", { cx: o[0], cy: o[1], r: chosen ? 10 : 7, "stroke-width": 2 }, root) });
+    }
+  }
+  tree.nodes.push({ level: 0, chosen: true, el: svg("circle", { cx: TREE[0].at[0], cy: TREE[0].at[1], r: 11, "stroke-width": 2 }, root) });
+  D.fan.forEach((c, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.style.left = `${238 + i * 78}px`;
+    slot.innerHTML = paintedCard({ ...c.card, art: true }, c.kind, c.art);
+    $("fan").appendChild(slot);
+    fitPainted(slot);
+  });
+}
+
+function drawGenerate(p) {
+  const lit = (level) => p >= 0.06 + level * 0.12;  // each decision, one after another
+  for (const e of tree.edges) {
+    e.el.setAttribute("stroke", e.chosen && lit(e.level) ? "#F4C76B" : "rgba(169, 201, 188, .55)");
+    e.el.style.opacity = lit(e.level - 1) ? 1 : 0;
+  }
+  for (const n of tree.nodes) {
+    const gold = n.chosen && lit(n.level);
+    n.el.setAttribute("fill", gold ? "#F4C76B" : "#0B1612");
+    n.el.setAttribute("stroke", gold ? "#06100D" : "rgba(169, 201, 188, .8)");
+    n.el.style.opacity = n.level === 0 || lit(n.level - 1) ? 1 : 0;
+  }
+  [...$("fan").children].forEach((slot, i) => {
+    const k = ease(span(p, 0.5 + i * 0.12, 0.68 + i * 0.12));
+    slot.style.opacity = k;
+    slot.style.transform = `translateY(${(1 - k) * 40}px) rotate(${(i - 1) * 9 * k}deg)`;
+  });
+}
+
+// ------------------------------------------------------------------ 2. Playtest
+// A small state graph in the client's GNN colours (GraphOverlay.cs): players, cards, abilities and the global node.
+const NODE_COLOURS = { card: "#3D7CF0", ability: "#B675FF", player: "#FFC93C", global: "#E9EEF8" };
+const NET_NODES = { you: ["player", 24, 168], opp: ["player", 276, 32], g: ["global", 150, 100],
+  c1: ["card", 74, 110], c2: ["card", 112, 170], c3: ["card", 196, 40], c4: ["card", 232, 100],
+  a1: ["ability", 40, 52], a2: ["ability", 210, 168] };
+const NET_EDGES = [["c1", "you", "#8FB3FF"], ["c2", "you", "#8FB3FF"], ["c3", "opp", "#8FB3FF"], ["c4", "opp", "#8FB3FF"],
+  ["c1", "c3", "#FF4D5E"], ["c2", "c4", "#FF4D5E"], ["c1", "c4", "#FF8A3C"], ["a1", "c1", "#B675FF"], ["a2", "c4", "#B675FF"],
+  ["you", "g", "#E9EEF8"], ["opp", "g", "#E9EEF8"], ["c2", "g", "#E9EEF8"], ["c3", "g", "#E9EEF8"]];
+const net = { pulses: [] };
+function buildPlaytest() {
+  const root = $("net");
+  const lines = svg("g", {}, root), pulses = svg("g", {}, root), nodes = svg("g", {}, root);
+  NET_EDGES.forEach(([a, b, colour], i) => {
+    const [, x1, y1] = NET_NODES[a], [, x2, y2] = NET_NODES[b];
+    svg("line", { x1, y1, x2, y2, stroke: colour, "stroke-width": 2, "stroke-opacity": 0.55 }, lines);
+    net.pulses.push({ x1, y1, x2, y2, offset: (i * 0.37) % 1, el: svg("circle", { r: 4.5, fill: colour }, pulses) });
+  });
+  for (const [type, x, y] of Object.values(NET_NODES)) {
+    const r = type === "global" ? 15 : type === "ability" ? 10 : 13;
+    svg("circle", { cx: x, cy: y, r, fill: NODE_COLOURS[type], stroke: "#06100D", "stroke-width": 1.5 }, nodes);
+    svg("circle", { cx: x, cy: y, r: r - 4.5, fill: "#0B1612" }, nodes);
+  }
+}
+
+function drawPlaytest(p, active, round) {
+  for (const q of net.pulses) {  // messages along every edge, both ways, while the agent is playing
+    const k = (p * 2.2 + q.offset) % 1, there = k < 0.5, f = there ? k * 2 : 2 - k * 2;
+    q.el.setAttribute("cx", q.x1 + (q.x2 - q.x1) * f);
+    q.el.setAttribute("cy", q.y1 + (q.y2 - q.y1) * f);
+    q.el.style.opacity = active ? 0.95 * Math.sin(Math.PI * (there ? f : 1 - f)) + 0.05 : 0;
+  }
+  $("games").textContent = Math.floor((round + (active ? p : 1)) * 2000).toLocaleString("en-GB");
+}
+
+// ------------------------------------------------------------------ 3. Measure
+function buildMeasure() {
+  $("metrics").innerHTML = METRICS.map(([name, question]) => `<div class="metric">
+    <div class="name">${name}<small>${question}</small></div><div class="scan"><i></i></div><div class="chip"></div></div>`).join("");
+}
+
+function drawMeasure(p, round) {
+  const verdicts = ROUNDS[round % 2].metrics;
+  [...$("metrics").children].forEach((row, i) => {
+    const a = 0.04 + i * 0.2, k = span(p, a, a + 0.16), [kind, text] = verdicts[i];
+    row.querySelector(".scan i").style.width = `${k * 100}%`;
+    const chip = row.querySelector(".chip");
+    chip.className = `chip ${kind}`;
+    chip.textContent = text;
+    chip.style.opacity = k >= 1 ? 1 : 0;
+  });
+}
+
+// ------------------------------------------------------------------ 4. Tune
+const OLD_COST = D.tuned.card.cost, NEW_COST = OLD_COST + 1;  // illustrative: the card got more expensive
+function buildTune() {
+  $("tuned").innerHTML = paintedCard({ ...D.tuned.card, art: true }, D.tuned.kind, D.tuned.art);
+  fitPainted($("tuned"));
+  $("fixes").innerHTML = FIXES.map(([key, name, detail]) => `<div class="fix" data-fix="${key}"><span class="name">${name}</span>
+    <span class="detail">${detail ?? `${OLD_COST} → ${NEW_COST}`}</span></div>`).join("");
+}
+
+function drawTune(p, round) {
+  const taken = ROUNDS[round % 2].fixes;
+  let costAt = Infinity;
+  [...$("fixes").children].forEach((row) => {  // this round's fixes light one after another
+    const n = taken.indexOf(row.dataset.fix), at = 0.1 + n * 0.22;
+    row.classList.toggle("on", n >= 0 && p >= at);
+    if (row.dataset.fix === "cost") costAt = at;
+  });
+  const changed = p >= costAt, glow = changed ? clamp(1 - (p - costAt) / 0.35) : 0;
+  const cost = $("tuned").querySelector(".cost");
+  cost.textContent = changed ? NEW_COST : OLD_COST;
+  cost.style.color = changed ? "#F4C76B" : "";
+  $("tuned").style.filter = glow ? `drop-shadow(0 0 ${30 * glow}px rgba(244, 199, 107, ${0.9 * glow}))` : "none";
+}
+
+// ------------------------------------------------------------------ the spore and the loop
+const spore = { trail: [] };
+function buildSpore() {
+  const root = $("spore");
+  for (let i = 0; i < 8; i++) spore.trail.push(svg("circle", { r: 9 - i, fill: i ? "#7EF0D8" : "#F4FFFB" }, root));
+  root.setAttribute("filter", "drop-shadow(0 0 10px rgba(126, 240, 216, .9))");
+}
+
+function sporeAt(e, t) {
+  // A point along the event's routes, one after another; the set's disc hides the hop between two of them.
+  let s = ease(clamp((t - e.t0) / (e.t1 - e.t0))) * e.length;
+  for (const path of e.paths) {
+    const l = path.getTotalLength();
+    if (s <= l) return path.getPointAtLength(s);
+    s -= l;
+  }
+  return null;
+}
+
+function drawSpore(e, t) {
+  spore.trail.forEach((dot, i) => {
+    const tt = t - i * 0.035, p = e.paths && tt >= e.t0 ? sporeAt(e, tt) : null;
+    dot.style.opacity = p ? 1 - i / 8 : 0;
+    if (p) { dot.setAttribute("cx", p.x); dot.setAttribute("cy", p.y); }
+  });
+}
+
+let plan;
+function draw(t) {
+  t %= plan.total;
+  const now = plan.events.find((e) => t < e.t1) || plan.events.at(-1);
+  const last = {};  // each panel shows its latest visit, finished, unless it's the one being visited
+  for (const e of plan.events) { if (e.t0 > t) break; if (e.station) last[e.station] = e; }
+  const p = (station) => (now.station === station ? clamp((t - now.t0) / (DWELL * 0.85)) : 1);
+  const round = (station) => (last[station] || now).round;
+  for (const id of ["generate", "playtest", "measure", "tune"]) $(id).classList.toggle("on", now.station === id);
+  drawGenerate(last.generate ? p("generate") : 1);
+  drawPlaytest(p("playtest"), now.station === "playtest", round("playtest"));
+  drawMeasure(p("measure"), round("measure"));
+  drawTune(p("tune"), round("tune"));
+  for (const route of document.querySelectorAll(".route")) route.classList.toggle("on", !!now.paths && now.paths.includes(route));
+  $("set").classList.toggle("on", !!now.paths && now.paths.some((path) => path.id === "mp"));
+  drawSpore(now, t);
+  for (const route of document.querySelectorAll(".route")) route.setAttribute("stroke-dashoffset", -t * 36);
+}
+
+function fitTitles() {
+  // One line each: a long title shrinks until it fits the panel.
+  for (const title of document.querySelectorAll(".ptitle")) {
+    for (let size = 33; size > 20 && title.scrollWidth > title.clientWidth + 1; size -= 0.5) title.style.fontSize = `${size}px`;
+  }
+}
+
+function fitStage() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  $("stage").style.transform = `translate(${(innerWidth - W * s) / 2}px, ${(innerHeight - H * s) / 2}px) scale(${s})`;
+}
+
+$("bg").style.backgroundImage = `url(${window.CARD_ART.background})`;
+$("hero-you").src = window.CARD_ART.hero_you;
+$("hero-opp").src = window.CARD_ART.hero_opponent;
+buildGenerate(); buildPlaytest(); buildMeasure(); buildTune(); buildSpore();
+plan = schedule(40);
+fitStage();
+addEventListener("resize", fitStage);
+document.fonts.ready.then(fitTitles);
+window.seek = (t) => { still = true; draw(t); };  // for checking a moment by hand; stops the animation
+let still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (still) {
+  draw(plan.events.find((e) => e.station === "tune").t1 - 0.01);  // one round done, everything shown
+} else {
+  const start = performance.now();
+  (function frame(now) { if (!still) draw(Math.max(0, now - start) / 1000); requestAnimationFrame(frame); })(start);
+}
+</script>
+</body>
+</html>

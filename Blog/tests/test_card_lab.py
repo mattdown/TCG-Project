@@ -53,3 +53,14 @@ def test_gnn_visualiser_reads_the_encoder():
     assert all(r["value"] in (0.0, 1.0) for r in data["features"] if r["rule"] == "1 if yes")
     types = {e["type"] for e in data["edges"] if data["focus"] in (e["src"], e["dst"])}
     assert types == {"belongs_to", "faces", "part_of", "matches"}
+
+
+def test_design_loop_shows_cards_with_art():
+    """The loop's cards are the saved set's, so each one has its painted art baked in."""
+    from card_lab import ART
+    from design_loop import loop_data
+    data = loop_data()
+    cards = [*data["fan"], data["tuned"]]
+    assert all(c["card"]["text"] or c["kind"] in ("vanilla", "keywords") for c in cards)
+    assert all((ART / "cards" / f"{c['art']}.webp").exists() for c in cards)
+    assert data["tuned"]["card"]["type"] == "unit"

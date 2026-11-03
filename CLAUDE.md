@@ -69,7 +69,8 @@ TCGClient/      Unity 6000.3.10f1, URP 2D template
 docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
 Blog/           everything that isn't the game or training: the card lab (card_lab.py,
                 card_kit.html), card_generation_visualiser (one card's path through the grammar, animated),
-                gnn_visualiser (how the GNN reads the board, one layer, and the policy and value heads, animated), painted_card.html (the client's card, shared), tests/;
+                gnn_visualiser (how the GNN reads the board, one layer, and the policy and value heads, animated), design_loop (the
+                series' generate-playtest-measure-tune loop as one animated panel), painted_card.html (the client's card, shared), tests/;
                 uses PythonServer's environment, writes to Blog/build/ (gitignored)
 ```
 
@@ -90,6 +91,7 @@ Blog tools, from the repository root:
 uv run --project PythonServer python Blog/card_lab.py     # card lab web page: a batch and what was thrown away (--text, --export)
 uv run --project PythonServer python Blog/card_generation_visualiser.py   # --card N (first card of set_200), --count N, --render for an MP4, --refresh-art (with pillow)
 uv run --project PythonServer python Blog/gnn_visualiser.py               # also _1 to _3.html, one per part, for the blog; --render for MP4s
+uv run --project PythonServer python Blog/design_loop.py                  # the design loop panel for the blog
 uv run --project PythonServer pytest Blog/tests
 ```
 
