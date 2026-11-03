@@ -55,7 +55,8 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
   border-radius: 999px; padding: 5px 16px; cursor: pointer; }
 #controls #new { min-width: 112px; }  /* the same width as "Skip" and "New card" */
 #controls button:active { background: rgba(126, 240, 216, .18); transform: scale(.95); }
-#controls input { flex: 1; accent-color: var(--lantern); }
+#controls input { flex: 1; min-width: 0; accent-color: var(--lantern); }  /* a range input won't shrink below ~130 px otherwise */
+@media (max-width: 480px) { #controls { gap: 8px; padding: 0 10px; } #controls button { padding: 5px 11px; } #controls #new { min-width: 0; } #controls .seed { width: auto; } }
 #controls .seed { width: 64px; color: var(--muted); }
 body.render #controls { display: none; }
 </style>

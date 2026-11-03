@@ -124,6 +124,13 @@ pre { background: rgba(6, 16, 13, .9); border: 1.5px solid var(--rim); border-ra
   .drawer .hero .pcard { --w: 240px; }
   .row { grid-template-columns: 1fr; gap: 6px; }
 }
+@media (max-width: 420px) {  /* a phone, or the blog's frame on one: always two cards a row */
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 8px; }
+  .slot .pcard { --w: 136px; }
+}
+@media (max-width: 340px) {
+  .slot .pcard { --w: 118px; }
+}
 </style>
 </head>
 <body>
