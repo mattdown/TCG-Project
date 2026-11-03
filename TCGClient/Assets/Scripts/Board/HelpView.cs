@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Tcg.Protocol;
 using Tcg.View;
 using TMPro;
@@ -50,10 +51,11 @@ namespace Tcg.Board
             view._card.Group.blocksRaycasts = false;
             var rt = view._card.Rect;
             rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
-            rt.anchoredPosition = new Vector2(300, -250);  // a 300x420 card with its top-left at (150, 40)
+            rt.anchoredPosition = new Vector2(300, -230);  // a 300x420 card with its top-left at (150, 20)
             rt.localScale = Vector3.one * CardScale;
 
-            view._notes = Ui.Text(Ui.Box("Notes", view._cardArea, 120, 478, 360, 80), "", Ui.Theme.Body, 13,
+            // Below the card and the job's label.
+            view._notes = Ui.Text(Ui.Box("Notes", view._cardArea, 100, 506, 400, 60), "", Ui.Theme.Body, 13,
                 Palette.SubtleText, TextAlignmentOptions.Top);
             view._notes.textWrappingMode = TextWrappingModes.Normal;
             view._notes.lineSpacing = 10f;
@@ -130,46 +132,83 @@ namespace Tcg.Board
 
         // --- the callouts: each label's line ends on the card part it describes
 
+        enum Side { Left, Right, Below }
+
+        const float LabelWidth = 126f, LabelHeight = 60f, LabelGap = 6f;
+
         void Callouts()
         {
             // Points in the callout layer: x right, y down from its top-left (as in the mockup).
-            Vector2 At(RectTransform part, float u, float v)
+            Vector2 Local(Transform part, Vector3 point)
             {
-                var r = part.rect;
-                var world = part.TransformPoint(new Vector3(r.xMin + r.width * u, r.yMin + r.height * (1f - v)));
-                var local = (Vector2)_callouts.InverseTransformPoint(world);
+                var local = (Vector2)_callouts.InverseTransformPoint(part.TransformPoint(point));
                 return new Vector2(local.x, -local.y);
             }
 
-            var cost = At(_card.CostGem, 0.75f, 0.5f);
-            var name = At(_card.NameText.rectTransform, 0.08f, 0.5f);
-            var rules = At(_card.BodyText.rectTransform, 0.94f, 0.1f);  // its top corner, clear of the shield
-            var disc = At(_card.PowerIcon, 0.36f, 0.63f);    // the gold disc, not the sword
-            var shield = At(_card.HealthIcon, 0.66f, 0.47f);
-            var job = At(_card.TraitTag, 0.86f, 0.54f);      // the parchment
+            // A point on the text as drawn (u, v across its bounds, v down), not on its box, so a
+            // pointer lands on the number or word whatever the alignment and auto-size did.
+            Vector2 OnText(TMP_Text text, float u, float v)
+            {
+                text.ForceMeshUpdate();
+                var b = text.textBounds;
+                return Local(text.transform, new Vector3(b.min.x + b.size.x * u, b.max.y - b.size.y * v));
+            }
 
-            // Each label sits on the side of the part it describes: cost, name and attack down the
-            // left; the rules text, health and job down the right, stacked so none overlap.
-            Label(UiText.HelpCost, UiText.HelpCostText, cost, left: true, labelTop: cost.y - 22);
-            Label(UiText.HelpName, UiText.HelpNameText, name, left: true, labelTop: name.y - 10);
-            Label(UiText.HelpAttack, UiText.HelpAttackText, disc, left: true, labelTop: disc.y - 18);
-            Label(UiText.HelpRules, UiText.HelpRulesText, rules, left: false, labelTop: rules.y - 50);
-            Label(UiText.HelpHealth, UiText.HelpHealthText, shield, left: false, labelTop: shield.y - 12);
-            Label(UiText.HelpJob, UiText.HelpJobText, job, left: false, labelTop: job.y - 6);
+            // The end of the rules text's first line: the keywords.
+            Vector2 FirstLineEnd(TMP_Text text)
+            {
+                text.ForceMeshUpdate();
+                if (text.textInfo.lineCount == 0) return OnText(text, 1f, 0.5f);
+                var line = text.textInfo.lineInfo[0];
+                return Local(text.transform, new Vector3(line.lineExtents.max.x + 3f, (line.ascender + line.descender) / 2f));
+            }
+
+            Stack(Side.Left,
+                (UiText.HelpCost, UiText.HelpCostText, OnText(_card.CostText, 0.5f, 0.5f)),
+                (UiText.HelpName, UiText.HelpNameText, OnText(_card.NameText, 0f, 0.5f) - new Vector2(5f, 0f)),
+                (UiText.HelpAttack, UiText.HelpAttackText, OnText(_card.PowerText, 0.5f, 0.5f)));
+            Stack(Side.Right,
+                (UiText.HelpRules, UiText.HelpRulesText, FirstLineEnd(_card.BodyText)),
+                (UiText.HelpHealth, UiText.HelpHealthText, OnText(_card.HealthText, 0.5f, 0.5f)));
+            // The job banner sits between the attack disc and the shield, so its label goes below the card.
+            var job = OnText(_card.TraitText, 0.5f, 1f) + new Vector2(0f, 3f);
+            Label(UiText.HelpJob, UiText.HelpJobText, job, Side.Below, job.y + 12f);
         }
 
-        void Label(string title, string text, Vector2 target, bool left, float labelTop)
+        /// <summary>One side's labels, each level with its target where it can be, pushed down so none overlap.</summary>
+        void Stack(Side side, params (string title, string text, Vector2 target)[] labels)
         {
-            const float width = 126f;
-            float x = left ? 0f : 474f;
-            var box = Ui.Box(title, _callouts, x, labelTop, width, 60);
-            var align = left ? TextAlignmentOptions.TopRight : TextAlignmentOptions.TopLeft;
-            var t = Ui.Text(Ui.Box("Title", box, 0, 0, width, 22), title, Ui.Theme.Display, 17, Callout, align);
+            float next = float.MinValue;
+            foreach (var l in labels.OrderBy(l => l.target.y))
+            {
+                float top = Mathf.Max(l.target.y - 18f, next);
+                Label(l.title, l.text, l.target, side, top);
+                next = top + LabelHeight + LabelGap;
+            }
+        }
+
+        void Label(string title, string text, Vector2 target, Side side, float top)
+        {
+            float width = side == Side.Below ? 2 * LabelWidth : LabelWidth;
+            float x = side switch { Side.Left => 0f, Side.Right => 474f, _ => target.x - width / 2f };
+            var box = Ui.Box(title, _callouts, x, top, width, LabelHeight);
+            var align = side switch
+            {
+                Side.Left => TextAlignmentOptions.TopRight,
+                Side.Right => TextAlignmentOptions.TopLeft,
+                _ => TextAlignmentOptions.Top,
+            };
+            Ui.Text(Ui.Box("Title", box, 0, 0, width, 22), title, Ui.Theme.Display, 17, Callout, align);
             var b = Ui.Text(Ui.Box("Text", box, 0, 20, width, 40), text, Ui.Theme.Body, 13, Palette.TraitText, align);
             b.textWrappingMode = TextWrappingModes.Normal;
             _built.Add(box.gameObject);
 
-            var from = new Vector2(left ? x + width + 2f : x - 4f, labelTop + 18f);
+            var from = side switch
+            {
+                Side.Left => new Vector2(x + width + 2f, top + 18f),
+                Side.Right => new Vector2(x - 4f, top + 18f),
+                _ => new Vector2(target.x, top + 2f),
+            };
             Line(from, target);
         }
 
