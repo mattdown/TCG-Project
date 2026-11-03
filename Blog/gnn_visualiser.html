@@ -170,7 +170,14 @@ const HD = {
   scoreFly: hat(9.8), others: hat(10.8), softmax: hat(13.0), value: hat(15.5), vjoin: hat(17.6), vmlp: hat(19.0),
   verdict: hat(21.2), end: hat(25.0),
 };
-const DURATION = window.DURATION = HD.end;
+// The blog embeds it as three pages (data.part): the inputs, one layer, the heads. Each runs its own stretch.
+const PARTS = { 1: [0, L0], 2: [L0, H0], 3: [H0, HD.end] };
+const [START, END] = PARTS[D.part] ?? [0, HD.end];
+const TITLES = {
+  2: ["One layer of the network", "How a node gathers from its neighbours"],
+  3: ["From the board to a decision", "The policy and value heads"],
+};
+const DURATION = window.DURATION = END - START;
 
 // ------------------------------------------------------------------ layout, in world pixels
 const CARD_W = 200, CARD_U = CARD_W / 151.24, CARD_H = 210 * CARD_U;
@@ -1104,9 +1111,9 @@ function beats() {
 }
 let BEATS = [], shownBeat = -1;
 function caption(t) {
-  const k = BEATS.findLastIndex((b) => t >= b[0]);
-  const into = t - BEATS[k][0], out = (BEATS[k + 1]?.[0] ?? Infinity) - t;
-  $("caption").style.opacity = Math.min(clamp(into / 0.35), clamp(out / 0.25), k === 0 ? clamp(t / 0.5) : 1);
+  const k = BEATS.findLastIndex((b) => Math.min(t, END - 1e-3) >= b[0]);  // the next part's first beat isn't this one's
+  const next = BEATS[k + 1]?.[0] ?? Infinity, into = t - BEATS[k][0], out = next < END ? next - t : Infinity;
+  $("caption").style.opacity = Math.min(clamp(into / 0.35), clamp(out / 0.25), clamp((t - START) / 0.5));
   if (k === shownBeat) return;
   shownBeat = k;
   const [, crumbs, what, how] = BEATS[k];
@@ -1124,7 +1131,7 @@ function fitStage() {
 let now = 0, playing = false, last = 0;
 function seek(t) {
   now = Math.max(0, Math.min(DURATION, t));
-  draw(now);
+  draw(START + now);
   $("scrub").value = now;
   $("play").textContent = playing ? "Pause" : "Play";
 }
@@ -1149,6 +1156,7 @@ function toggle() {
 async function init() {
   if (new URLSearchParams(location.search).has("render")) document.body.classList.add("render");
   await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);
+  if (TITLES[D.part]) document.querySelector(".title").innerHTML = `${TITLES[D.part][0]}<small>${TITLES[D.part][1]}</small>`;
   $("arena").style.backgroundImage = `url(${CARD_ART.background})`;
   layout();
   buildBoard();

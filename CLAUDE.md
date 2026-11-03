@@ -89,7 +89,7 @@ Blog tools, from the repository root:
 ```
 uv run --project PythonServer python Blog/card_lab.py     # card lab web page: a batch and what was thrown away (--text, --export)
 uv run --project PythonServer python Blog/card_generation_visualiser.py   # --card N (first card of set_200), --count N, --render for an MP4, --refresh-art (with pillow)
-uv run --project PythonServer python Blog/gnn_visualiser.py               # --render for an MP4
+uv run --project PythonServer python Blog/gnn_visualiser.py               # also _1 to _3.html, one per part, for the blog; --render for MP4s
 uv run --project PythonServer pytest Blog/tests
 ```
 

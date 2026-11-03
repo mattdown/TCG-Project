@@ -1,7 +1,10 @@
 """GNN visualiser: how the network reads the board, animated for the blog (part 1: one node's inputs).
 
     uv run --project PythonServer python Blog/gnn_visualiser.py                 # Blog/build/gnn_visualiser.html, opened
-    uv run --project PythonServer --with playwright python Blog/gnn_visualiser.py --render   # also the .mp4
+    uv run --project PythonServer --with playwright python Blog/gnn_visualiser.py --render   # also the .mp4s
+
+It also writes the three parts as their own pages for the blog, gnn_visualiser_1.html to _3.html
+(the inputs, up to the neighbours fanning out; one layer; the heads), each with its own timeline.
 
 Run from the repository root; it uses PythonServer's environment. The art comes from Blog/art
 (card_generation_visualiser.py --refresh-art makes it).
@@ -254,10 +257,13 @@ def main():
     data = graph_data(args.model)
     keys = {n["card"]["art_key"] for n in data["nodes"] if n["type"] == "card"}
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(bake(TEMPLATE, data, keys))
-    print(f"Wrote {args.out} ({args.out.stat().st_size / 1e6:.1f} MB)")
+    pages = {args.out: data} | {args.out.with_stem(f"{args.out.stem}_{n}"): data | {"part": n} for n in (1, 2, 3)}
+    for out, part in pages.items():
+        out.write_text(bake(TEMPLATE, part, keys))
+        print(f"Wrote {out} ({out.stat().st_size / 1e6:.1f} MB)")
     if args.render:
-        render(args.out, args.out.with_suffix(".mp4"), args.fps)
+        for out in pages:
+            render(out, out.with_suffix(".mp4"), args.fps)
     elif not args.no_browser:
         webbrowser.open(args.out.resolve().as_uri())
 
