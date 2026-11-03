@@ -18,7 +18,12 @@ Part 2 is one GNN layer for that node, like the schematic in the client's layer 
 neighbours fan out round it, and for one edge type and one attention head it shows W_l and W_r,
 LeakyReLU and the dot product with a that score each neighbour, the softmax, the weighted sum, the
 heads joined, every edge type's message added, then ReLU, the residual and LayerNorm; then the four
-layers and how far each reaches. The numbers are src/server/graph_view.layer_view's, in full. Everything is a function of the time t, so it can be scrubbed and rendered
+layers and how far each reaches. The numbers are src/server/graph_view.layer_view's, in full.
+
+Part 3 is the two heads (GNNNet.forward): the policy head joins six 128-number slots per legal action
+(its type's embedding, actor, target, context, option, the game node; unused slots get a learned
+empty vector) and scores the 768 numbers with an MLP, then a softmax over the actions; the value
+head joins the game node and both player nodes and turns the 384 numbers into a value from -1 to 1. Everything is a function of the time t, so it can be scrubbed and rendered
 frame by frame like the card generation visualiser.
 """
 import argparse
@@ -27,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from card_generation_visualiser import SET_SIZE, bake, render  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import render as card_text  # noqa: E402
@@ -40,6 +46,8 @@ from src.graph.encode import (CARD_DYNAMIC_DIM, CARD_DYNAMIC_FEATURES, CARD_STAT
                               CARD_STATIC_FEATURES, KEYWORD_SCALE, observe)
 from src.model.registry import load_model  # noqa: E402
 from src.server.graph_view import ability_label, graph_view, layer_view  # noqa: E402
+
+WALK_TARGET = 2  # the action worked through: the focus card attacking this card (Porcini Baker)
 
 TEMPLATE = Path(__file__).with_name("gnn_visualiser.html")
 OUT = Path(__file__).parent / "build"
@@ -156,6 +164,48 @@ def layers(net, game: Game, e, i: int, edges: list[dict]) -> dict:
             "states": [[round(float(v), 3) for v in x] for x in states], "hops": hops}
 
 
+def heads(net, game: Game, e, uids: dict[int, int], card_uids: list[int]) -> dict:
+    """What the policy and value heads read and make (GNNNet.forward, done step by step so each part can
+    be shown): the slots of every legal action, the policy MLP's hidden layer for the walked-through
+    action, every action's score and probability, and the value head's inputs, hidden layer and output."""
+    batch = net.collate([e])
+    view = graph_view(game, 0, net)
+    vector = lambda t: [round(float(v), 3) for v in t]
+    with torch.no_grad():
+        x = net.node_states(batch)[-1]
+        logits, _, value = net(batch)
+        first, last = net.policy_head[0], net.policy_head[2]  # Linear, ReLU, Linear
+        first_id = {"ability": e.num_cards + 3, "global": e.num_cards + 2, "player": e.num_cards, "card": 0}
+
+        def final(node: int) -> torch.Tensor:  # a graph_view node id → its vector after the last layer
+            t = next(t for t, i in first_id.items() if node >= i)
+            return x[t][node - first_id[t]]
+
+        actions = []
+        for a, logit in zip(view["actions"], logits):
+            slots = [net.action_type_emb.weight[int(e.action_type[a["index"]])]]
+            for k, key in enumerate(("actor", "target", "context", "option")):
+                slots.append(final(a[key]) if a[key] is not None else net.empty_slot[k])
+            slots.append(x["global"][0])
+            joined = torch.cat(slots)
+            hidden = F.relu(first(joined))
+            assert abs(float(last(hidden)) - float(logit)) < 1e-4  # the same as the forward pass
+            actions.append({"text": a["text"], "type": a["type"], "actor": a["actor"], "target": a["target"],
+                            "context": a["context"], "option": a["option"], "global": a["global"],
+                            "logit": round(float(logit), 3), "probability": round(float(logits.softmax(-1)[a["index"]]), 4),
+                            "slots": [vector(v) for v in slots], "hidden": vector(hidden)})
+        v_in = torch.cat([x["global"][0], x["player"][0], x["player"][1]])
+        v_hidden = F.relu(net.value_head[0](v_in))
+        raw = net.value_head[2](v_hidden)
+        assert abs(float(torch.tanh(raw)) - float(value[0])) < 1e-4
+    actor, target = card_uids.index(uids[YOURS[0]]), card_uids.index(uids[WALK_TARGET])
+    walk = next(i for i, a in enumerate(actions) if a["actor"] == actor and a["target"] == target)
+    return {"actions": actions, "walk": walk,
+            "value": {"nodes": view["value"]["nodes"], "inputs": [vector(x["global"][0]), vector(x["player"][0]),
+                      vector(x["player"][1])], "hidden": vector(v_hidden), "raw": round(float(raw), 3),
+                      "value": round(float(value[0]), 3)}}
+
+
 def graph_data(model: Path = MODEL) -> dict:
     game, uids = position()
     obs = observe(game, 0)
@@ -188,6 +238,7 @@ def graph_data(model: Path = MODEL) -> dict:
             "features": features(game, uids[YOURS[0]], inputs["card"][focus]),
             "embedding": embedding(net := load_model(model), e, focus),
             "layers": layers(net, game, e, focus, view["edges"]),
+            "heads": heads(net, game, e, uids, obs.card_uids),
             "heroes": [{"owner": p, "name": "You" if p == 0 else "Opponent", "health": HEALTH[p]} for p in (0, 1)]}
 
 

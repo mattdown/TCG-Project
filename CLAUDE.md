@@ -69,7 +69,7 @@ TCGClient/      Unity 6000.3.10f1, URP 2D template
 docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
 Blog/           everything that isn't the game or training: the card lab (card_lab.py,
                 card_kit.html), card_generation_visualiser (one card's path through the grammar, animated),
-                gnn_visualiser (how the GNN reads the board and what one layer does, animated), painted_card.html (the client's card, shared), tests/;
+                gnn_visualiser (how the GNN reads the board, one layer, and the policy and value heads, animated), painted_card.html (the client's card, shared), tests/;
                 uses PythonServer's environment, writes to Blog/build/ (gitignored)
 ```
 

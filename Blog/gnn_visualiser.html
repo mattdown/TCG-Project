@@ -16,9 +16,9 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
   background: var(--night); font-family: Outfit, system-ui, sans-serif; }
 #world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
-#arena { position: absolute; left: -400px; top: -300px; width: 2720px; height: 1680px; background: center / cover no-repeat;
+#arena { position: absolute; left: -1400px; top: -900px; width: 4720px; height: 2880px; background: center / cover no-repeat;
   filter: brightness(.55) saturate(.9); }
-#dim { position: absolute; left: -400px; top: -300px; width: 2720px; height: 1680px; background: #050C0A; pointer-events: none; }
+#dim { position: absolute; left: -1400px; top: -900px; width: 4720px; height: 2880px; background: #050C0A; pointer-events: none; }
 .slot { position: absolute; }
 .hero { position: absolute; width: 237px; height: 278px; }
 .hero img { width: 100%; height: 100%; }
@@ -51,7 +51,7 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 .row .rule { left: 350px; width: 150px; color: var(--muted); }
 .row .rule b { color: var(--gold); font-weight: 800; }
 .row .val { left: 510px; width: 80px; text-align: right; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
-#links, #column, #layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+#links, #column, #layer, #heads { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
 
 /* The edge types lit so far, bottom right. */
 #legend { position: absolute; right: 64px; bottom: 56px; width: 330px; }
@@ -94,6 +94,7 @@ body.render #controls { display: none; }
   <div id="table"></div>
   <svg id="column" xmlns="http://www.w3.org/2000/svg"></svg>
   <svg id="layer" xmlns="http://www.w3.org/2000/svg"></svg>
+  <svg id="heads" xmlns="http://www.w3.org/2000/svg"></svg>
   <div id="chips"></div>
   <div class="caption" id="caption"><div class="crumbs" id="crumbs"></div><div class="what" id="what"></div><div class="how" id="how"></div></div>
   <div id="legend"></div>
@@ -161,8 +162,15 @@ const L = {
   heads: at(22.8), types: at(26.4), merge: at(29.4), relu: at(31.2), resid: at(33.2), norm: at(35.4),
   dock: at(37.4), dockEnd: at(38.8), reach: at(39.8), reachEnd: at(41.2), layer: at(41.4), layerStep: 2.2,
 };
-L.end = L.layer + 3 * L.layerStep + 3.2;
-const DURATION = window.DURATION = L.end;
+L.end = L.layer + 3 * L.layerStep + 2.0;
+// Part 3: the policy and value heads (seconds from its start).
+const H0 = L.end, hat = (x) => H0 + x;
+const HD = {
+  move: hat(0), moveEnd: hat(1.4), list: hat(1.4), slots: hat(3.2), join: hat(6.0), mlp: hat(7.6),
+  scoreFly: hat(9.8), others: hat(10.8), softmax: hat(13.0), value: hat(15.5), vjoin: hat(17.6), vmlp: hat(19.0),
+  verdict: hat(21.2), end: hat(25.0),
+};
+const DURATION = window.DURATION = HD.end;
 
 // ------------------------------------------------------------------ layout, in world pixels
 const CARD_W = 200, CARD_U = CARD_W / 151.24, CARD_H = 210 * CARD_U;
@@ -432,6 +440,7 @@ function blendRect(a, b, x) { return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x
 // ------------------------------------------------------------------ the camera
 const card = () => NODES[FOCUS];
 function overview() { return { x: 960, y: 540, z: 1, sx: 960, sy: 540 }; }
+function aside() { return { x: 960, y: 520, z: 0.62, sx: 560, sy: 470 }; }
 function onCard() { return { x: pos[FOCUS].x, y: pos[FOCUS].y, z: 2.0, sx: 540, sy: 510 }; }
 function neighbourhood() {
   const ids = [FOCUS, ...Object.keys(firstLit).map(Number)];
@@ -451,6 +460,7 @@ function camera(t) {
   if (t >= T.zoom) c = blend(c, onCard(), span(t, T.zoom, T.zoomEnd));
   if (t >= T.pull) c = blend(onCard(), neighbourhood(), span(t, T.pull, T.pullEnd));
   if (t >= L.reach) c = blend(neighbourhood(), overview(), span(t, L.reach, L.reachEnd));  // back to the board
+  if (t >= HD.move) c = blend(overview(), aside(), span(t, HD.move, HD.moveEnd));  // the board on the left, the heads on the right
   $("world").style.transform = `translate(${c.sx - c.x * c.z}px, ${c.sy - c.y * c.z}px) scale(${c.z})`;
   return c;
 }
@@ -524,6 +534,7 @@ function draw(t) {
   column(t, c);
   legend(t);
   layerScene(t, c);
+  headScene(t, c);
   caption(t);
   $("shade-bottom").style.opacity = 1;
 }
@@ -739,12 +750,12 @@ function buildLayer() {
   $("chips").innerHTML = [1, 2, 3, 4].map((k) => `<div>Layer ${k}</div>`).join("");
 }
 
-function band(from, to, opacity) {
+function band(from, to, opacity, parent = P2.bands) {
   if (opacity <= 0) return;
   const mx = (from.x + to.x) / 2;
   svg("path", { d: `M${from.x} ${from.y0} C${mx} ${from.y0} ${mx} ${to.y0} ${to.x} ${to.y0} L${to.x} ${to.y1}
     C${mx} ${to.y1} ${mx} ${from.y1} ${from.x} ${from.y1} Z`, fill: "rgba(126,240,216,.06)", stroke: "rgba(126,240,216,.2)",
-    "stroke-width": 1, opacity }, P2.bands);
+    "stroke-width": 1, opacity }, parent);
 }
 const rectOf = (b) => ({ x: b.x, y: b.y, w: b.w, h: b.h });
 
@@ -752,7 +763,7 @@ function layerScene(t, c) {
   const on = span(t, L.fan, L.fan + 0.8) * (1 - span(t, L.reach, L.reach + 0.8));
   $("layer").style.opacity = on;
   $("world").style.opacity = 1 - span(t, L.fan, L.fanEnd) + span(t, L.reach, L.reachEnd);
-  $("chips").style.opacity = span(t, L.reach + 0.6, L.reachEnd + 0.4);
+  $("chips").style.opacity = span(t, L.reach + 0.6, L.reachEnd + 0.4) * (1 - span(t, HD.move, HD.move + 0.6));
   [...$("chips").children].forEach((el, k) => el.classList.toggle("on", t >= L.layer + k * L.layerStep));
   P2.bands.replaceChildren();
   if (on <= 0) return;
@@ -912,6 +923,166 @@ function layerBeats() {
   ];
 }
 
+// ------------------------------------------------------------------ part 3: the policy and value heads
+// GNNNet.forward: each legal action's six slots joined and scored by the policy MLP, a softmax over the
+// actions; the game node and both player nodes joined and turned into a value by the value MLP and tanh.
+const HEADS = D.heads, ACTIONS = HEADS.actions, WALK = ACTIONS[HEADS.walk], VALUE = HEADS.value;
+const BEST = ACTIONS.reduce((b, a, i) => (a.probability > ACTIONS[b].probability ? i : b), 0);
+// The client's overlay colours for what each head reads (GraphOverlay.SlotColours, ValueSlotColours).
+const SLOTS = [["type", "#B7C4BE"], ["actor", "#FFE14D"], ["target", "#FF4D5E"], ["context", "#22BCC9"],
+  ["option", "#FF6FD8"], ["game", "#E9EEF8"]];
+const SLOT_KEYS = [null, "actor", "target", "context", "option", "global"];
+const VALUE_SLOTS = [["game", "#E9EEF8"], ["you", "#4ADE80"], ["opponent", "#FF9F43"]];
+const HCELL = 2.0, HTOP = 520, HH = 128 * HCELL;
+const P3 = {};
+
+function buildHeads() {
+  const root = $("heads");
+  P3.bands = svg("g", {}, root);
+  P3.lines = svg("g", {}, root);
+  // The legal actions: a row each, with its score and then its probability.
+  P3.panel = svg("rect", { x: 950, y: 140, width: 910, height: 56 + ACTIONS.length * 38, rx: 14, fill: "rgba(9,19,16,.88)",
+    stroke: "rgba(160,235,215,.3)", "stroke-width": 1.5 }, root);
+  P3.panelTitle = makeText(root, { "font-size": 17, fill: "#7EF0D8", "text-anchor": "start", "letter-spacing": "2" }, "LEGAL ACTIONS");
+  P3.panelHead = makeText(root, { "font-size": 15, fill: "#A9C9BC", "text-anchor": "end", "font-weight": 700 }, "score");
+  P3.rows = ACTIONS.map((a, i) => {
+    const g = svg("g", {}, root);
+    const hl = svg("rect", { x: 958, y: 0, width: 894, height: 34, rx: 8, fill: "rgba(126,240,216,.12)", stroke: "rgba(126,240,216,.6)" }, g);
+    const text = makeText(g, { "font-size": 20, "font-weight": 500, "text-anchor": "start" }, a.text.replace("Attack: ", "Attack "));
+    const score = makeText(g, { "font-size": 20, fill: "#F4C76B", "text-anchor": "end" }, fmt(a.logit));
+    const bar = svg("rect", { x: 1640, height: 14, rx: 3, fill: "#7EF0D8" }, g);
+    const pct = makeText(g, { "font-size": 18, "text-anchor": "end", fill: "#E6FBF4" }, `${(a.probability * 100).toFixed(a.probability < 0.01 ? 1 : 0)}%`);
+    return { g, hl, text, score, bar, pct };
+  });
+  // The walked-through action's six slots, joined, the MLP, the score.
+  P3.slots = WALK.slots.map((v, k) => makeCol(root, v, { label: SLOTS[k][0], labelColour: SLOTS[k][1], colour: SLOTS[k][1] }));
+  P3.slotNotes = WALK.slots.map((_, k) => makeText(root, { "font-size": 14, fill: "#A9C9BC", "font-weight": 500 },
+    k === 0 ? "learned" : WALK[SLOT_KEYS[k]] == null ? "empty" : ""));
+  P3.joined = makeCol(root, WALK.slots.flat(), { label: "joined" });
+  P3.mlp = makeBox(root, "Policy MLP", `${WALK.slots.flat().length} → ${WALK.hidden.length} → 1`);
+  P3.hidden = makeCol(root, WALK.hidden, { label: "ReLU" });
+  P3.score = makeText(root, { "font-size": 40, fill: "#F4C76B", "text-anchor": "start" }, fmt(WALK.logit));
+  P3.softmax = makeText(root, { "font-size": 17, fill: "#7EF0D8", "text-anchor": "end", "font-weight": 700 }, "softmax");
+  // The value head.
+  P3.vslots = VALUE.inputs.map((v, k) => makeCol(root, v, { label: VALUE_SLOTS[k][0], labelColour: VALUE_SLOTS[k][1], colour: VALUE_SLOTS[k][1] }));
+  P3.vjoined = makeCol(root, VALUE.inputs.flat(), { label: "joined" });
+  P3.vmlp = makeBox(root, "Value MLP", `${VALUE.inputs.flat().length} → ${VALUE.hidden.length} → 1`);
+  P3.vhidden = makeCol(root, VALUE.hidden, { label: "ReLU" });
+  P3.raw = makeText(root, { "font-size": 30, fill: "#E6FBF4", "text-anchor": "start" }, fmt(VALUE.raw));
+  P3.tanh = makeBox(root, "tanh");
+  P3.value = makeText(root, { "font-size": 52, fill: "#F4C76B", "text-anchor": "start" }, (VALUE.value >= 0 ? "+" : "") + fmt(VALUE.value));
+  P3.meter = svg("g", {}, root);
+  svg("rect", { x: 1000, y: 846, width: 820, height: 10, rx: 5, fill: "rgba(160,235,215,.18)" }, P3.meter);
+  svg("rect", { x: 1409, y: 838, width: 2, height: 26, fill: "rgba(160,235,215,.5)" }, P3.meter);
+  P3.marker = svg("circle", { cy: 851, r: 11, fill: "#F4C76B", stroke: "#06100D", "stroke-width": 2 }, P3.meter);
+  for (const [x, text, anchor] of [[1000, "−1 · a sure loss", "start"], [1820, "a sure win · +1", "end"]])
+    makeText(P3.meter, { "font-size": 16, fill: "#A9C9BC", "font-weight": 500, "text-anchor": anchor }).put(x, 892, 1, text);
+}
+
+function slotLine(c, node, to, colour, opacity) {
+  // From the node on the board (a ring round it) to the top of its column.
+  if (opacity <= 0) return;
+  const p = toScreen(c, pos[node]), r = SIZE[NODES[node].type] * c.z * 0.75;
+  svg("circle", { cx: p.x, cy: p.y, r, fill: "none", stroke: colour, "stroke-width": 3, opacity }, P3.lines);
+  svg("path", { d: `M${p.x} ${p.y - r} C${p.x} ${p.y - 120} ${to.x} ${to.y - 120} ${to.x} ${to.y}`, fill: "none", stroke: colour,
+    "stroke-width": 2.5, opacity: 0.85 * opacity, "stroke-linecap": "round" }, P3.lines);
+}
+
+function headScene(t, c) {
+  const on = span(t, HD.move, HD.move + 0.6);
+  $("heads").style.opacity = on;
+  P3.bands.replaceChildren(); P3.lines.replaceChildren();
+  if (on <= 0) return;
+  const policy = 1 - span(t, HD.value, HD.value + 0.6);
+
+  // The legal actions.
+  const list = span(t, HD.list, HD.list + 0.5) * policy;
+  P3.panel.style.opacity = list;
+  P3.panelTitle.put(976, 176, list);
+  P3.panelHead.put(1680, 176, list * span(t, HD.scoreFly + 0.6, HD.scoreFly + 0.9) * (1 - span(t, HD.softmax, HD.softmax + 0.4)));
+  P3.softmax.put(1840, 176, list * span(t, HD.softmax, HD.softmax + 0.4));
+  const soft = span(t, HD.softmax, HD.softmax + 1.0);
+  ACTIONS.forEach((a, i) => {
+    const r = P3.rows[i], y = 196 + i * 38;
+    r.g.style.opacity = span(t, HD.list + 0.15 * i, HD.list + 0.15 * i + 0.4) * policy;
+    r.hl.setAttribute("y", y);
+    r.hl.style.opacity = i === HEADS.walk ? span(t, HD.slots, HD.slots + 0.4) * (1 - soft) : i === BEST ? soft : 0;
+    r.text.put(976, y + 24, 1);
+    const scored = i === HEADS.walk ? span(t, HD.scoreFly + 0.7, HD.scoreFly + 0.9)
+      : span(t, HD.others + 0.25 * i, HD.others + 0.25 * i + 0.3);
+    r.score.put(1680, y + 24, scored * (1 - soft));
+    r.bar.setAttribute("y", y + 10); r.bar.setAttribute("width", 120 * a.probability * soft); r.bar.style.opacity = soft;
+    r.pct.put(1846, y + 24, soft);
+  });
+
+  // The six slots: lines from the nodes they come from; the learned ones appear on their own.
+  const slot = (k) => span(t, HD.slots + 0.3 + 0.35 * k, HD.slots + 0.8 + 0.35 * k);
+  const join = span(t, HD.join, HD.join + 1.2), mlp = span(t, HD.mlp, HD.mlp + 0.5);
+  const fly = span(t, HD.scoreFly, HD.scoreFly + 0.8), gone = 1 - span(t, HD.others, HD.others + 0.6);
+  WALK.slots.forEach((v, k) => {
+    const apart = { x: 960 + k * 76, y: HTOP, w: 22, h: HH }, together = { x: 1430, y: HTOP + k * HH / 6, w: 22, h: HH / 6 };
+    const b = blendRect(apart, together, join);
+    P3.slots[k].set(b.x, b.y, b.w, b.h / 128, slot(k) * (1 - span(t, HD.join + 1.0, HD.join + 1.2)) * policy);
+    P3.slots[k].label.style.opacity = 1 - join;
+    P3.slotNotes[k].put(apart.x + 11, HTOP + HH + 26, slot(k) * (1 - join) * policy);
+    const node = WALK[SLOT_KEYS[k]];
+    if (node != null) slotLine(c, node, { x: apart.x + 11, y: HTOP - 30 }, SLOTS[k][1], slot(k) * (1 - join) * policy);
+  });
+  P3.joined.set(1430, HTOP, 22, HH / (128 * 6), span(t, HD.join + 1.0, HD.join + 1.2) * gone);
+  P3.mlp.set(1480, HTOP + HH / 2 - 50, 160, 100, mlp * gone);
+  band({ x: 1452, y0: HTOP, y1: HTOP + HH }, { x: 1480, y0: HTOP + HH / 2 - 50, y1: HTOP + HH / 2 + 50 }, mlp * gone, P3.bands);
+  band({ x: 1640, y0: HTOP + HH / 2 - 50, y1: HTOP + HH / 2 + 50 }, { x: 1668, y0: HTOP, y1: HTOP + HH }, span(t, HD.mlp + 0.4, HD.mlp + 0.8) * gone, P3.bands);
+  P3.hidden.set(1668, HTOP, 22, HCELL, span(t, HD.mlp + 0.6, HD.mlp + 1.0) * gone);
+  // The score, then up into its row.
+  const row = { x: 1680, y: 196 + HEADS.walk * 38 + 24 };
+  P3.score.setAttribute("text-anchor", fly > 0 ? "end" : "start");
+  P3.score.put(lerp(1712, row.x, fly), lerp(HTOP + HH / 2 + 14, row.y, fly),
+    span(t, HD.mlp + 1.2, HD.mlp + 1.6) * (1 - span(t, HD.scoreFly + 0.7, HD.scoreFly + 0.9)));
+
+  // The value head: the game node and both players, joined, the MLP, tanh, and where that sits from -1 to +1.
+  const value = span(t, HD.value + 0.4, HD.value + 0.8), vjoin = span(t, HD.vjoin, HD.vjoin + 1.0);
+  const vmlp = span(t, HD.vmlp, HD.vmlp + 0.5), verdict = span(t, HD.verdict, HD.verdict + 0.8);
+  VALUE.inputs.forEach((v, k) => {
+    const shown = span(t, HD.value + 0.5 + 0.4 * k, HD.value + 1.0 + 0.4 * k);
+    const apart = { x: 1000 + k * 90, y: HTOP - 120, w: 22, h: HH }, together = { x: 1300, y: HTOP - 120 + k * HH / 3, w: 22, h: HH / 3 };
+    const b = blendRect(apart, together, vjoin);
+    P3.vslots[k].set(b.x, b.y, b.w, b.h / 128, shown * (1 - span(t, HD.vjoin + 0.8, HD.vjoin + 1.0)));
+    P3.vslots[k].label.style.opacity = 1 - vjoin;
+    slotLine(c, VALUE.nodes[k], { x: apart.x + 11, y: HTOP - 150 }, VALUE_SLOTS[k][1], shown * (1 - vjoin));
+  });
+  const vy = HTOP - 120;
+  P3.vjoined.set(1300, vy, 22, HH / (128 * 3), span(t, HD.vjoin + 0.8, HD.vjoin + 1.0));
+  P3.vmlp.set(1350, vy + HH / 2 - 50, 160, 100, vmlp);
+  band({ x: 1322, y0: vy, y1: vy + HH }, { x: 1350, y0: vy + HH / 2 - 50, y1: vy + HH / 2 + 50 }, vmlp, P3.bands);
+  band({ x: 1510, y0: vy + HH / 2 - 50, y1: vy + HH / 2 + 50 }, { x: 1538, y0: vy, y1: vy + HH }, span(t, HD.vmlp + 0.4, HD.vmlp + 0.8), P3.bands);
+  P3.vhidden.set(1538, vy, 22, HCELL, span(t, HD.vmlp + 0.6, HD.vmlp + 1.0));
+  P3.raw.put(1580, vy + HH / 2 + 11, span(t, HD.vmlp + 1.0, HD.vmlp + 1.4));
+  P3.tanh.set(1670, vy + HH / 2 - 30, 90, 60, span(t, HD.vmlp + 1.4, HD.vmlp + 1.8));
+  P3.value.put(1774, vy + HH / 2 + 18, span(t, HD.vmlp + 1.8, HD.vmlp + 2.2));
+  P3.value.setAttribute("text-anchor", "start");
+  P3.meter.style.opacity = verdict;
+  P3.marker.setAttribute("cx", 1410 + 410 * VALUE.value * verdict);
+}
+
+function headBeats() {
+  const n = ACTIONS.length, best = ACTIONS[BEST], target = WALK.target != null ? NODES[WALK.target].label : "the enemy hero";
+  return [
+    [HD.move, "Part 3 · The heads", "From embeddings to a decision", "Two small networks read the final embeddings: the policy head chooses a move, the value head judges the position."],
+    [HD.list, "The policy head", `One score for each legal move`, `There are ${n} moves here: attack with either unit, or end the turn.`],
+    [HD.slots, `The policy head · ${WALK.text.replace("Attack: ", "Attack ")}`, "Six slots for one move",
+      `The move's type (a learned vector), the card that acts, its target (${target}), the ability being decided and a choose-one option (unused here, so learned “empty” vectors), and the game node.`],
+    [HD.join, "The policy head", `Joined end to end: ${WALK.slots.flat().length} numbers`, "Every move is described the same way, whatever the cards."],
+    [HD.mlp, "The policy head", "An MLP turns them into one score", `${WALK.slots.flat().length} → ${WALK.hidden.length} (ReLU) → 1. The same weights score every move.`],
+    [HD.others, "The policy head", "Every legal move is scored the same way", "Higher means the network likes it more."],
+    [HD.softmax, "The policy head", "Softmax turns scores into probabilities",
+      `The AI plays from these. Here it's ${Math.round(best.probability * 100)}% on ${best.text.replace("Attack: ", "attack ").replace("→", "→")}.`],
+    [HD.value, "The value head", "Who's winning?", `It reads the game node and both player nodes: ${VALUE.inputs.length} × ${VALUE.inputs[0].length} = ${VALUE.inputs.flat().length} numbers.`],
+    [HD.vmlp, "The value head", "An MLP, then tanh", `${VALUE.inputs.flat().length} → ${VALUE.hidden.length} (ReLU) → 1, squashed by tanh to between −1 and +1.`],
+    [HD.verdict, "The value head", `${VALUE.value >= 0 ? "+" : ""}${fmt(VALUE.value)}: it thinks it's ${VALUE.value >= 0 ? "ahead" : "behind"}`,
+      "Self-play trains this towards each game's real result, and the policy towards the moves that win more."],
+  ];
+}
+
 // ------------------------------------------------------------------ captions
 const name = () => card().label;
 function beats() {
@@ -928,7 +1099,7 @@ function beats() {
     [T.pull, "Its neighbours", "Who this node is joined to", `${n} neighbours, joined by ${types} kinds of edge.`],
   ];
   EDGE_ORDER.forEach((type, k) => b.push([T.edges + k * T.edgeStep, "Its neighbours · " + EDGE_TEXT[type][0], EDGE_TEXT[type][0], EDGE_TEXT[type][1]]));
-  b.push(...layerBeats());
+  b.push(...layerBeats(), ...headBeats());
   return b;
 }
 let BEATS = [], shownBeat = -1;
@@ -985,6 +1156,7 @@ async function init() {
   buildTable();
   buildColumn();
   buildLayer();
+  buildHeads();
   BEATS = beats();
   $("scrub").max = DURATION;
   $("play").addEventListener("click", toggle);
