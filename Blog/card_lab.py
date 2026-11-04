@@ -164,6 +164,29 @@ def bake(template: Path, data: dict | None, keys: set[str] | None, inline: bool 
     return html.replace("<!--CARD_ART-->", card_art(keys, inline))
 
 
+def describe(html: str, title: str, summary: str) -> str:
+    """A page's title and a plain-text summary, so search engines, LLMs and readers without JavaScript can
+    tell what the page shows: the pages draw everything with script."""
+    text = summary.replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+    name = title.replace("&", "&amp;").replace("<", "&lt;")
+    head, rest = html.split("</title>", 1)
+    head = head[:head.index("<title>")] + f"<title>{name}"
+    body, tail = rest.rsplit("</body>", 1)
+    return (f'{head}</title>\n<meta name="description" content="{text}">{body}'
+            f'<noscript><p style="max-width: 40em; margin: 2em auto; font: 16px/1.5 sans-serif; color: #E6FBF4;">'
+            f"{text}</p></noscript>\n</body>{tail}")
+
+
+def lab_summary(data: dict) -> tuple[str, str]:
+    """The exported lab's title and summary."""
+    n = len(data["kept"])
+    return f"Card Lab: {n} generated cards", (
+        f"{n} cards of an original trading card game, generated from an ability grammar and costed by a basic "
+        f"balance pass with a self-play agent, out of {len(data['attempts']):,} draws. Each card shows its cost, "
+        "stats, keywords and ability text. The Thrown away view shows the draws that failed a test (grammar, "
+        "quality, card, duplicate or variety) and why.")
+
+
 def art_keys(data: dict) -> set[str]:
     return {a["card"]["art"] for a in data["attempts"] if a["card"]}
 
@@ -215,7 +238,7 @@ def main():
         print_text(run(**params), args.rejected)
     elif args.export:
         data = run(**params)
-        args.export.write_text(bake(PAGE, data, art_keys(data)))
+        args.export.write_text(describe(bake(PAGE, data, art_keys(data)), *lab_summary(data)))
         print(f"Wrote {args.export}")
     else:
         url = f"http://localhost:{args.port}/"

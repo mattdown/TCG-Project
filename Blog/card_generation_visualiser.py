@@ -26,11 +26,14 @@ import subprocess
 import webbrowser
 from pathlib import Path
 
-from card_lab import ART, DEFAULTS, _attempt_json, bake, make_generator  # next to this file; it puts PythonServer on the path
+from card_lab import ART, DEFAULTS, _attempt_json, bake, describe, make_generator  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import Renderer, render as card_text  # noqa: E402
 from src.cards.generate import Attempt  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("card_generation_visualiser.html")
+SUMMARY = ("One card of an original trading card game, generated step by step: each decision that grows its ability "
+           "tree from a small grammar (the trigger, targets and effects), the options at each step and the chance "
+           "of the one taken, then the finished card with its text, stats and cost. New card picks another.")
 OUT = Path(__file__).parent / "build"
 CLIENT = Path(__file__).parents[1] / "TCGClient"
 SET_SEED, SET_SIZE = 0, 200  # cardsets/set_200.json, the set the card art was painted for
@@ -159,7 +162,7 @@ def main():
     if args.refresh_art:
         refresh_art(keys)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(bake(TEMPLATE, data, keys))
+    args.out.write_text(describe(bake(TEMPLATE, data, keys), "Card generation visualiser", SUMMARY))
     print(f"Wrote {args.out} ({args.out.stat().st_size / 1e6:.1f} MB, {len(data['cards'])} cards)")
     if args.render:
         render(args.out, args.out.with_suffix(".mp4"), args.fps)

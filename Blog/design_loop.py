@@ -14,9 +14,12 @@ import webbrowser
 from pathlib import Path
 
 from card_generation_visualiser import OUT, set_cards  # next to this file; it puts PythonServer on the path
-from card_lab import _attempt_json, bake
+from card_lab import _attempt_json, bake, describe
 
 TEMPLATE = Path(__file__).with_name("design_loop.html")
+SUMMARY = ("The design loop for an AI-playtested trading card game, as an animated panel: generate cards from an "
+           "ability grammar, let a self-play agent (a graph neural network) play thousands of games with them, "
+           "measure the set against design metrics chosen by designers, tune the cards, and go round again.")
 FAN = (4, 2, 9)  # by number in set_200: Morel Scholar, Porcini Baker, Buttercup Colony
 TUNED = 16  # Oyster Postman, whose cost changes in the Tune panel
 
@@ -40,7 +43,7 @@ def main():
     data = loop_data()
     keys = {c["art"] for c in [*data["fan"], data["tuned"]]}
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(bake(TEMPLATE, data, keys))
+    args.out.write_text(describe(bake(TEMPLATE, data, keys), "The design loop", SUMMARY))
     print(f"Wrote {args.out} ({args.out.stat().st_size / 1e6:.1f} MB)")
     if not args.no_browser:
         webbrowser.open(args.out.resolve().as_uri())

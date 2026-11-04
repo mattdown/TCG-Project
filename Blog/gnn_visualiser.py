@@ -37,7 +37,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from card_generation_visualiser import SET_SIZE, bake, render  # next to this file; it puts PythonServer on the path
+from card_generation_visualiser import SET_SIZE, bake, describe, render  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import render as card_text  # noqa: E402
 from src.cards.art import art_key  # noqa: E402
 from src.cards.schema import load_card_set  # noqa: E402
@@ -53,6 +53,21 @@ from src.server.graph_view import ability_label, graph_view, layer_view  # noqa:
 WALK_TARGET = 2  # the action worked through: the focus card attacking this card (Porcini Baker)
 
 TEMPLATE = Path(__file__).with_name("gnn_visualiser.html")
+GAME = "a trading card game agent's graph neural network"
+PAGES = {  # by part: each page's title and summary (None is all three in one page)
+    None: ("GNN visualiser", f"How {GAME} reads the board and picks a move: the board as a state graph, one "
+           "GATv2 message-passing layer step by step, and the policy and value heads."),
+    1: ("GNN visualiser 1: the board as a graph", f"Part 1 of how {GAME} reads the board: the game becomes a "
+        "graph with a node for each card, player and the game, plus a small graph for each card's ability. One "
+        "card's features are scaled to 0-1 and embedded, then joined to its neighbours by typed edges."),
+    2: ("GNN visualiser 2: one GATv2 layer", f"Part 2 of how {GAME} reads the board: one GATv2 message-passing "
+        "layer, step by step. Two learned matrices, LeakyReLU and a dot product score each neighbour, softmax "
+        "turns the scores into attention, and the weighted messages from every edge type are added, followed by "
+        "ReLU, a residual connection and LayerNorm."),
+    3: ("GNN visualiser 3: the policy and value heads", f"Part 3 of how {GAME} picks a move: the policy head "
+        "describes every legal move the same way from the nodes it involves and scores it with an MLP, whatever "
+        "the cards, and the value head judges who is winning."),
+}
 OUT = Path(__file__).parent / "build"
 CARD_SET = Path(__file__).parents[1] / "PythonServer" / "cardsets" / f"set_{SET_SIZE}.json"
 MODEL = Path(__file__).parents[1] / "PythonServer" / "models" / "tcgnet.pt"  # the server's AI
@@ -259,7 +274,7 @@ def main():
     args.out.parent.mkdir(parents=True, exist_ok=True)
     pages = {args.out: data} | {args.out.with_stem(f"{args.out.stem}_{n}"): data | {"part": n} for n in (1, 2, 3)}
     for out, part in pages.items():
-        out.write_text(bake(TEMPLATE, part, keys))
+        out.write_text(describe(bake(TEMPLATE, part, keys), *PAGES[part.get("part")]))
         print(f"Wrote {out} ({out.stat().st_size / 1e6:.1f} MB)")
     if args.render:
         for out in pages:

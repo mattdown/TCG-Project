@@ -64,3 +64,13 @@ def test_design_loop_shows_cards_with_art():
     assert all(c["card"]["text"] or c["kind"] in ("vanilla", "keywords") for c in cards)
     assert all((ART / "cards" / f"{c['art']}.webp").exists() for c in cards)
     assert data["tuned"]["card"]["type"] == "unit"
+
+
+def test_describe_gives_a_page_a_summary():
+    """Pages draw everything with script, so each carries a plain-text summary for crawlers and no-JS readers."""
+    from card_lab import describe
+    html = describe("<html><head><title>Old</title></head><body><script>x()</script></body></html>",
+                    "Card Lab", 'Cards & "draws" <thrown away>')
+    assert "<title>Card Lab</title>" in html and "Old" not in html
+    assert '<meta name="description" content="Cards &amp; &quot;draws&quot; &lt;thrown away>">' in html
+    assert html.index("<noscript>") > html.index("<script>") and html.endswith("</noscript>\n</body></html>")
