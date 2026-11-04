@@ -491,8 +491,6 @@ it can settle on a "balance" that only its own agent believes in. Mitigations:
 ## 10. Open questions
 
 - The game's name, theme and final terms.
-- A patent check on mechanics before a public release (rare and narrow, but they exist in
-  this genre).
 - If an LLM is used as the generator, check that its cards don't copy existing cards from
   other games.
 - How much set structure to specify by hand (aspect identities, cost curve, rarity, number

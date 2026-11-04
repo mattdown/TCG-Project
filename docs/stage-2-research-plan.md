@@ -2,7 +2,7 @@
 
 Stage 1 showed the system works: an agent that reads cards it has never seen, a generator
 whose prices can be measured in play, and a loop where better prices made skill matter more
-(the trained agent went from 62% to 75% against the heuristic agent on unseen cards once actions
+(the trained agent went from 62% to about 70% against the heuristic agent on unseen cards once actions
 and abilities were priced from measurements, `ability-generation.md` log, 2026-10-23).
 
 Stage 2 is the research problem: pricing cards so that **no deck is broken**, not just so that
@@ -44,7 +44,7 @@ Stage 2 needs targets that are numbers, so methods can be compared:
 
 - **Engine:** fast, deterministic, hidden information handled, fuzz-tested.
 - **Agent:** reads ability trees as graphs, so it handles any generated card;
-  `tcgnet_v4` beats the heuristic agent 75% on unseen cards.
+  `tcgnet_v4` beats the heuristic agent 69% on unseen cards (275–125 over 400 games).
 - **Generator:** controls where synergy can come from (jobs, triggers such as "whenever you
   play another Baker", summons, buffs, "for each" counts), with derivation traces.
 - **Measurement harness:** `scripts/experiments.py` with paired seats, parallel workers, and

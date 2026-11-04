@@ -17,7 +17,7 @@ for the design.
 
 ## Status and planning
 
-The project dashboard is an Obsidian note: `~/Documents/Workspace/01-Projects/TCG Project/Overview.md`.
+The project dashboard is a private note outside the repository; `CLAUDE.local.md` (gitignored) says where.
 It has the status, next steps, open decisions, known limitations and a done log. Keep it up to
 date when work lands: tick items, add dated entries to "Done", and record decisions.
 
@@ -129,7 +129,7 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   fonts, layout, the card and its states) and the interaction model (drag targets driven by
   `legal_actions`, tap to inspect). It links the mockup canvas; read the canvas with the
   Artifact tool when you need exact markup.
-- **Reference implementation:** the PyTenTen project (`~/Documents/PyTenTen/PyTenTenClient`)
+- **Reference implementation:** the PyTenTen project (its path is in `CLAUDE.local.md`)
   already solves the plumbing.
   - `Assets/Scripts/NetworkClient.cs`: NetMQ REQ socket on a background thread, with a queue.
   - `Assets/Scripts/UnityMainThreadDispatcher.cs`: hands responses back to the main thread.
@@ -167,6 +167,6 @@ Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log
   docstring and docs/theme.md, "Generating card art". Scenes and art are keyed by name, subtitle
   and habitat (`src/cards/art.py`), never card ID: `card_set` sends each card's `art` key and
   `CardView` loads it, or a placeholder silhouette if there's no image. It uses its own key (`TCG_ART_GEMINI_KEY` or `~/.config/tcg-art.key`),
-  never `GEMINI_API_KEY`, which is a work key.
+  never `GEMINI_API_KEY`.
 - **NetMQ shutdown:** `NetMQConfig.Cleanup` can hang in Unity; it runs on the network thread,
   which is abandoned if slow. Never call it on the main thread (it froze the editor).
