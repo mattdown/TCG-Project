@@ -95,6 +95,7 @@ uv run --project PythonServer python Blog/card_generation_visualiser.py   # --ca
 uv run --project PythonServer python Blog/gnn_visualiser.py               # also _1 to _3.html, one per part, for the blog; --render for MP4s
 uv run --project PythonServer python Blog/design_loop.py                  # the design loop panel for the blog
 uv run --project PythonServer --with playwright python Blog/thumbnail.py  # part 1's thumbnail (cards + state graph), a 1200x630 JPEG
+uv run --project PythonServer --with playwright python Blog/teaser.py    # part 1's teaser video: a clip of each demo, spliced (--pages DIR)
 uv run --project PythonServer pytest Blog/tests
 ```
 
