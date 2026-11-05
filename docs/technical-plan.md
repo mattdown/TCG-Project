@@ -241,6 +241,11 @@ Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, keyword?, not_
 Duration   := this_turn | until_your_next_turn | until_their_next_turn | while_this_in_play | permanent
 ```
 
+This is the design space, not what is generated today. The generator covers part of it, the
+engine runs a little more, and `for_each`, `until_their_next_turn`, `permanent`, optional
+choices, `cost_cmp` and the keyword filter aren't built yet: see "What the generator
+can say" in [ability-generation.md](ability-generation.md).
+
 A `Name` can only refer to a choice made earlier in the same ability. That keeps every tree
 valid and every reference renderable as text.
 

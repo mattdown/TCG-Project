@@ -134,6 +134,71 @@ per-branch weights. The default is 4 in the card lab and 1 elsewhere. The covera
 has its own diversity: it picks for building-block coverage and never takes the same
 ability twice.
 
+## What the generator can say
+
+The grammar in technical-plan.md section 3 is the full design space. The generator covers only
+part of it, and the engine runs a little more than the generator makes. Counts are from
+`cardsets/set_200.json` (139 of its 200 cards have an ability).
+
+**Generated now:**
+
+- **Kinds:** triggered (8 triggers: when played, when it attacks, when it attacks the enemy hero,
+  when it's defeated, start and end of your turn, when you play another unit of a job, when an
+  enemy unit is defeated), static, and on-resolve for actions. One ability per card.
+- **Effects (14):** deal damage, remove damage, defeat, return to hand, freeze, a "this turn" stat
+  bonus or penalty, a **lasting buff** (+power and/or +health until the unit leaves play; 10 in
+  `set_200`), grant a keyword (Guard, Armor or Duelist, for a set duration), draw, discard, heal your
+  hero, damage a hero, gain a mana crystal, summon tokens (the most common effect, 42).
+- **Step patterns:** one effect, two effects, "deal damage; if it was defeated, …", "you may … if
+  you do …" (units only) and "choose one".
+- **"For each" amounts:** damage, draw and hero healing can scale with the number of units of a job
+  (yours or everyone's), up to a cap of 3–5, and so can a static "while attacking" bonus: "+1 power
+  for each other Miner you control". 16 in `set_200`.
+- **Conditions:** "if you have 2 or 3 other units of a job", "if your hero has less health", "if it
+  was defeated", and for statics "while attacking / defending / damaged".
+- **Statics:** a bonus while attacking or defending, +1 to your other units of a job, a keyword
+  while damaged or while you have other units of a job, cost −1 for a job, and −1 power for
+  damaged enemy units.
+- **Targets:** a chosen unit, all units matching a filter, this unit, you or your opponent.
+  Filters: whose, a job (your side only), damaged, cost at most 2–4.
+
+**The engine runs, but the generator doesn't make:** "else" branches, amounts equal to a
+unit's stat (`stat_of`: "deal damage equal to its power"; the graph encoder has no feature
+for it yet), "its owner" as a target (`owner_of`), "if it's still in play" and "if it's your
+turn" conditions, the "while this is in play" duration, choices the opponent makes
+(`chooser`), and zone filters beyond the two uses the generator makes of the hand (a chosen
+discard and a cost discount). Each is a small step: a sampler branch, its text,
+its price and a test.
+
+**In the grammar, but not built yet:** the `for_each` step (repeat steps for each matching
+unit: "for each damaged enemy unit, draw a card"), the durations "until their next turn" and
+"permanent", optional choices ("up to one"), cost comparisons other than "at most", and
+filters by keyword.
+
+**What's missing for a richer set** (part 2's grammar work, roughly in order of value):
+
+1. **Durations that fit the effect.** A "this turn" health bonus from a start-of-turn trigger
+   ends at the end of your turn, so it only helps in your own unit's one attack, not on the
+   opponent's turn when it's attacked. Health bonuses should last until your next turn, as
+   Guard and Armor grants already do.
+2. **More things to count.** Counts are units of one job. Missing: damaged units, units with
+   a keyword, cards in your hand, units defeated or cards played this turn, and the stat of a
+   chosen unit. Scaling also stops at three effects: buffs, summons and stat bonuses never scale.
+3. **More triggers.** Nothing reacts to damage taken, to drawing, to playing an action, to your
+   own units being defeated, to a unit surviving a fight, or to a token being summoned. Triggers
+   are where combos and synergy come from, so this matters most for part 2's synergy work.
+4. **Other zones.** Abilities only touch the board, the hand (discard) and the deck (draw).
+   Missing: bringing a unit back from the discard pile, searching the deck for a job, changing
+   the cost of cards in hand, copying or transforming a card.
+5. **Memory.** No counters and no "this turn" history, so there's no "if you played two cards
+   this turn" and no unit that grows each time something happens (a buff on this unit from a
+   repeating trigger is the closest).
+6. **More card kinds and keywords.** Only units and actions, and five keywords. Items (lasting
+   cards that aren't units), hidden traps that trigger on the opponent's turn, and keywords such
+   as healing your hero when this deals damage or defeating any unit this damages are the
+   obvious candidates, all with placeholder names.
+7. **More than one ability per card,** once single abilities are priced well.
+
 ## Where it stands
 
 Card lab, seed 1, 60 cards, 6 jobs, variety 4: 293 draws, 60 kept (rules v2).
@@ -317,3 +382,6 @@ for checking the engine and client. It uses the same pipeline.
   pattern for on-resolve abilities (a sampler test checks it). Units keep it. Generated sets
   change from here on; the committed card sets still have some may-actions until they are
   regenerated, and they still load (the engine and validator allow them).
+- **2026-11-05:** New section "What the generator can say": what is generated, what the engine
+  runs but isn't generated, what is in the grammar but not built, and what a richer set needs.
+  No code change.
