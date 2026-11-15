@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAP-Elites Visualiser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<style>
+/* The Lantern look (docs/client-design.md), as in the other explainers. */
+:root {
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209; --warn: #FF8A6B;
+}
+html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+  background: var(--night); font-family: Outfit, system-ui, sans-serif; }
+#bg { position: absolute; inset: -30px; background: center / cover no-repeat; filter: blur(7px) brightness(.26) saturate(.85); }
+.title { position: absolute; left: 64px; top: 50px; font: 400 54px/1 "Marcellus SC", serif; color: var(--text); text-shadow: 0 3px 10px var(--shadow); }
+.title small { display: block; margin-top: 14px; font: 500 24px/1.3 Outfit; color: var(--muted); text-shadow: none; }
+.caption { position: absolute; left: 64px; bottom: 56px; width: 960px; }
+.crumbs { font: 700 18px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.what { font: 400 44px/1.15 "Marcellus SC", serif; color: var(--text); margin: 6px 0 8px; text-shadow: 0 3px 10px var(--shadow); }
+.how { font: 500 23px/1.35 Outfit; color: var(--muted); }
+.what .katex { font-size: .9em; } .how .katex { font-size: 1.08em; color: var(--text); }
+
+/* The map, right: descriptor space, its cells and the decks in it. */
+#map { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.axis { font: 500 18px Outfit; fill: var(--muted); }
+.axis-name { font: 700 20px Outfit; fill: var(--text); }
+.tag { font: 800 20px Outfit; fill: var(--text); paint-order: stroke; stroke: var(--shadow); stroke-width: 6px; }
+#legend { position: absolute; left: 1110px; top: 150px; width: 700px; height: 30px; }
+#legend .bar { position: absolute; left: 120px; right: 120px; top: 6px; height: 12px; border-radius: 6px; }
+#legend span { position: absolute; top: 0; font: 700 17px Outfit; color: var(--muted); }
+
+/* Left-hand panels, one per part; draw() sets their opacity. */
+.panel { position: absolute; left: 64px; top: 200px; width: 940px; box-sizing: border-box; padding: 24px 30px; border-radius: 22px;
+  background: rgba(9, 19, 16, .82); border: 1.5px solid rgba(126, 240, 216, .3); box-shadow: 0 14px 40px rgba(3, 8, 6, .55); opacity: 0; }
+.panel h3 { margin: 0 0 6px; font: 400 32px/1.1 "Marcellus SC", serif; color: var(--text); }
+.panel .note { font: 500 20px/1.35 Outfit; color: var(--muted); }
+.big { font: 800 44px/1 Outfit; color: var(--gold); font-variant-numeric: tabular-nums; }
+.stat { display: inline-block; margin: 14px 46px 0 0; vertical-align: top; }
+.stat .label { font: 700 16px Outfit; color: var(--lantern); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+.stat .katex { font-size: 1.15em; color: var(--text); }
+.formula { margin-top: 18px; font-size: 24px; color: var(--text); }
+.ingredient { position: relative; padding: 4px 0 18px; }
+.ingredient + .ingredient { border-top: 1.5px solid rgba(160, 235, 215, .16); padding-top: 18px; }
+.ingredient .sym { font-size: 30px; color: var(--gold); margin-right: 14px; }
+.ingredient h3 { display: flex; align-items: baseline; }
+.mini { display: flex; gap: 40px; margin-top: 14px; }
+.mini > div { flex: 1; }
+.mini .label { font: 700 18px Outfit; color: var(--text); margin-bottom: 8px; }
+.split { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin-top: 36px; }
+.split div { display: grid; place-items: center; font: 800 16px Outfit; color: var(--shadow); white-space: nowrap; overflow: hidden; }
+
+/* The loop: its four steps, the parent deck, the swap, the games and the verdict. */
+#steps { display: flex; gap: 12px; margin-bottom: 18px; }
+#steps div { flex: 1; padding: 8px 0; border-radius: 999px; text-align: center; border: 1.5px solid rgba(126, 240, 216, .3);
+  font: 400 21px "Marcellus SC", serif; color: var(--muted); transition: none; }
+#steps div.on { border-color: var(--lantern); color: var(--text); background: rgba(126, 240, 216, .1); box-shadow: 0 0 14px rgba(126, 240, 216, .35); }
+#deck { display: flex; gap: 4px; height: 34px; }
+#deck div { flex: 1; border-radius: 6px; display: grid; place-items: center; font: 800 15px Outfit; color: var(--shadow); }
+.sub { font: 700 16px Outfit; color: var(--lantern); letter-spacing: .1em; text-transform: uppercase; margin: 14px 0 8px; }
+#swap { position: relative; height: 230px; }
+#swap .side { position: absolute; top: 0; display: flex; gap: 10px; }
+#swap .pcard { --w: 130px; }
+#swap .arrow { position: absolute; left: 430px; top: 70px; width: 80px; text-align: center; font: 800 44px Outfit; color: var(--gold); }
+#swap .k { position: absolute; left: 400px; top: 136px; width: 140px; text-align: center; font: 700 22px Outfit; color: var(--text); }
+#games { display: flex; gap: 10px; align-items: center; }
+#games i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(126, 240, 216, .5); box-sizing: border-box; }
+#games i.on { background: var(--lantern); box-shadow: 0 0 10px rgba(126, 240, 216, .7); }
+#games span { margin-left: 14px; font: 500 20px Outfit; color: var(--muted); }
+#scores { margin-top: 12px; font: 700 24px Outfit; color: var(--text); min-height: 34px; }
+#scores .katex { font-size: 1.05em; }
+#verdict { position: absolute; right: 30px; bottom: 22px; padding: 8px 20px; border-radius: 999px; border: 2px solid; font: 800 22px Outfit; }
+#verdict.keep { color: var(--lantern); border-color: var(--lantern); background: rgba(126, 240, 216, .1); }
+#verdict.drop { color: var(--warn); border-color: var(--warn); background: rgba(255, 138, 107, .1); }
+
+#controls { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; background: var(--glass); border-top: 1.5px solid rgba(160, 235, 215, .3);
+  display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--muted); font: 500 14px Outfit, system-ui; }
+#controls button { font: 400 15px "Marcellus SC", serif; background: var(--glass); color: var(--lantern); border: 1.5px solid var(--lantern);
+  border-radius: 999px; padding: 5px 16px; cursor: pointer; min-width: 84px; }
+#controls button:active { background: rgba(126, 240, 216, .18); transform: scale(.95); }
+#controls input { flex: 1; min-width: 0; accent-color: var(--lantern); }
+@media (max-width: 480px) { #controls { gap: 8px; padding: 0 10px; } #controls button { padding: 5px 11px; min-width: 0; } }
+body.render #controls { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div class="title">MAP-Elites<small>Finding the best deck of each kind</small></div>
+  <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="legend"><span style="left: 0">weaker</span><div class="bar"></div><span style="right: 0">stronger</span></div>
+
+  <section class="panel" id="p-plain">
+    <h3>A plain search: keep the fittest</h3>
+    <div class="note" id="plain-note"></div>
+    <div class="stat"><div class="label">Generation</div><div class="big" id="plain-gen">0</div></div>
+    <div class="stat"><div class="label">Best fitness</div><div class="big" id="plain-best">0</div></div>
+    <div class="stat"><div class="label">Spread of the decks</div><div class="big" id="plain-spread" style="font-size: 30px; line-height: 44px"></div></div>
+  </section>
+
+  <section class="panel" id="p-ingredients">
+    <div class="ingredient" id="ing-f">
+      <h3><span class="sym" id="sym-f"></span>Fitness: how good?</h3>
+      <div class="note" id="fit-note"></div>
+    </div>
+    <div class="ingredient" id="ing-b">
+      <h3><span class="sym" id="sym-b"></span>Behaviour: what kind?</h3>
+      <div class="mini">
+        <div><div class="label" id="b1-label"></div><svg id="hist" width="400" height="120"></svg></div>
+        <div><div class="label" id="b2-label"></div><div class="split" id="split"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-loop" style="height: 590px">
+    <div id="steps"><div>1 · Pick</div><div>2 · Mutate</div><div>3 · Play</div><div>4 · Place</div></div>
+    <div class="sub" id="deck-label">The parent: a random elite</div>
+    <div id="deck"></div>
+    <div class="sub">Swap cards</div>
+    <div id="swap"><div class="side" id="out" style="left: 0"></div><div class="arrow">→</div><div class="k" id="k"></div>
+      <div class="side" id="in" style="left: 520px"></div></div>
+    <div id="games"></div>
+    <div id="scores"></div>
+    <div id="verdict"></div>
+  </section>
+
+  <section class="panel" id="p-ff">
+    <h3>Round and round</h3>
+    <div class="stat"><div class="label">Evaluations</div><div class="big" id="ff-n">0</div></div>
+    <div class="stat"><div class="label">Cells filled</div><div class="big" id="ff-cells">0</div></div>
+    <div class="stat"><div class="label">Discarded</div><div class="big" id="ff-drop">0</div></div>
+  </section>
+
+  <section class="panel" id="p-result">
+    <h3>The illuminated map</h3>
+    <div class="note" id="result-note"></div>
+    <div class="stat"><div class="label">Coverage</div><div class="big" id="cov"></div><div class="formula" id="cov-tex"></div></div>
+    <div class="stat"><div class="label">QD-score</div><div class="big" id="qd"></div><div class="formula" id="qd-tex"></div></div>
+  </section>
+
+  <section class="panel" id="p-stones">
+    <h3>Stepping stones</h3>
+    <div class="note" id="stones-note"></div>
+  </section>
+
+  <section class="panel" id="p-slide">
+    <h3>Sliding boundaries</h3>
+    <div class="note" id="slide-note"></div>
+    <div class="stat"><div class="label" id="slide-label">Cells holding a deck</div><div class="big" id="slide-cells"></div></div>
+    <div class="stat"><div class="label">Grid</div><div class="big" id="slide-grid"></div></div>
+    <div class="stat"><div class="label">Decks seen</div><div class="big" id="slide-seen"></div></div>
+  </section>
+
+  <div class="caption" id="caption"><div class="crumbs" id="crumbs"></div><div class="what" id="what"></div><div class="how" id="how"></div></div>
+</div>
+<div id="controls">
+  <button id="back">Back</button>
+  <button id="play">Play</button>
+  <button id="next">Next</button>
+  <input id="scrub" type="range" min="0" step="0.001" value="0" aria-label="Time">
+</div>
+
+<!--CARD_KIT-->
+<!--PAINTED_CARD-->
+<!--CARD_ART-->
+<!--LAB_DATA-->
+<script>
+// Everything on screen is a function of the time t, so the page can be scrubbed and rendered frame by frame.
+// The numbers are a real run (map_elites_visualiser.py): every evaluation, in order, replayed here.
+const D = window.LAB_DATA, C = D.config, S = D.stats, E = D.evals, HERO = D.terms.hero, UNIT = D.terms.unit;
+const W = 1920, H = 1080, NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => x * x * (3 - 2 * x);
+const lerp = (a, b, x) => a + (b - a) * x;
+const span = (t, a, b) => ease(clamp((t - a) / (b - a)));
+const fmt = (x, d = 1) => (x < 0 ? "−" : "") + Math.abs(x).toFixed(d);
+const signed = (x, d = 1) => (x > 0 ? "+" : "") + fmt(x, d);
+const pct = (x) => `${Math.round(x * 100)}%`;
+const n = (x) => x.toLocaleString("en-GB");
+const tex = (src) => (window.katex ? katex.renderToString(src, { throwOnError: false }) : esc(src));
+const rich = (text) => text.split(/\$([^$]+)\$/).map((part, i) => (i % 2 ? tex(part) : esc(part))).join("");
+function svg(tag, attrs, parent) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return parent.appendChild(el);
+}
+
+// ------------------------------------------------------------------ the map's geometry
+const MAP = { x: 1110, y: 200, size: 680 };
+const [[X0, X1], [Y0, Y1]] = C.bounds, G = C.grid;
+const px = (b) => MAP.x + clamp((b - X0) / (X1 - X0)) * MAP.size;
+const py = (b) => MAP.y + MAP.size - clamp((b - Y0) / (Y1 - Y0)) * MAP.size;
+const CELL = MAP.size / G;
+const cellCentre = ([cx, cy]) => [MAP.x + (cx + 0.5) * CELL, MAP.y + MAP.size - (cy + 0.5) * CELL];
+
+// Fitness colour: dark moss for the weakest elite, through the lantern teal, to gold for the strongest.
+const STOPS = [[0x1F, 0x4A, 0x40], [0x2B, 0xA5, 0x8C], [0x7E, 0xF0, 0xD8], [0xF4, 0xC7, 0x6B]];
+let F_LO = Infinity, F_HI = -Infinity;
+function colour(f) {
+  const x = clamp((f - F_LO) / (F_HI - F_LO)) * (STOPS.length - 1), i = Math.min(STOPS.length - 2, Math.floor(x));
+  return "rgb(" + STOPS[i].map((v, j) => Math.round(lerp(v, STOPS[i + 1][j], x - i))).join(",") + ")";
+}
+
+// ------------------------------------------------------------------ the run, replayed
+function archiveAt(count) {
+  // The elite of each cell after `count` evaluations: the same rule as map_elites(), new or strictly better.
+  const elite = new Map();
+  for (let i = 0; i < count; i++) {
+    const key = E[i].c.join(","), old = elite.get(key);
+    if (old === undefined || E[i].f > E[old].f) elite.set(key, i);
+  }
+  return elite;
+}
+const FINAL = archiveAt(E.length);
+const DISCARDED = (count) => E.slice(0, count).filter((e) => e.o === "worse").length;
+const SHOW = D.showcase, LINEAGE = D.lineage, PLAIN = D.plain;
+
+// ------------------------------------------------------------------ the timeline (seconds)
+const T = { plain: 0, plainRun: 2.5, plainEnd: 10, want: 11.5,
+  ingredients: 16, fit: 16.5, beh: 20, dot: 24, gridIn: 28.5, gridEnd: 30.5, seed: 32, seedEnd: 36.5, loop: 38.5 };
+// The first worked example is slow, step by step; the others run the same steps faster.
+const ITER = SHOW.map((_, i) => (i === 0 ? 16 : 9));
+const STEP = (i) => (i === 0 ? [0, 2.5, 6.5, 9.5, 12] : [0, 1.5, 3.5, 5.2, 6.6]);  // pick, mutate, play, place, verdict
+const iterStart = (i) => T.loop + ITER.slice(0, i).reduce((a, b) => a + b, 0);
+T.ff = iterStart(SHOW.length); T.ffEnd = T.ff + 10;
+T.result = T.ffEnd + 1; T.qd = T.result + 5; T.stones = T.result + 12; T.stonesLine = T.stones + 1; T.stonesEnd = T.stones + 9;
+T.slide = T.stonesEnd + 1.5; T.slideMove = T.slide + 6; T.slideMoveEnd = T.slideMove + 3;
+T.grow = T.slideMoveEnd + 3; T.growEnd = T.grow + 14; T.end = T.growEnd + 3;
+const DURATION = window.DURATION = T.end;
+
+// ------------------------------------------------------------------ building the map
+const map = {};
+function buildMap() {
+  const root = $("map");
+  map.frame = svg("rect", { x: MAP.x, y: MAP.y, width: MAP.size, height: MAP.size, rx: 6, fill: "rgba(9, 19, 16, .78)",
+    stroke: "rgba(126, 240, 216, .45)", "stroke-width": 1.5 }, root);
+  map.cells = svg("g", {}, root);
+  map.cellRects = {};
+  for (let cx = 0; cx < G; cx++) for (let cy = 0; cy < G; cy++) {
+    map.cellRects[`${cx},${cy}`] = svg("rect", { x: MAP.x + cx * CELL + 1, y: MAP.y + MAP.size - (cy + 1) * CELL + 1,
+      width: CELL - 2, height: CELL - 2, rx: 3, fill: "transparent" }, map.cells);
+  }
+  map.grid = svg("g", { stroke: "rgba(169, 201, 188, .35)", "stroke-width": 1.2 }, root);
+  map.gridLines = [];
+  for (let k = 1; k < G; k++) {
+    map.gridLines.push(svg("line", { x1: MAP.x + k * CELL, x2: MAP.x + k * CELL, y1: MAP.y, y2: MAP.y + MAP.size }, map.grid));
+    map.gridLines.push(svg("line", { y1: MAP.y + k * CELL, y2: MAP.y + k * CELL, x1: MAP.x, x2: MAP.x + MAP.size }, map.grid));
+  }
+  // Sliding boundaries: 19 lines an axis, moved by draw().
+  map.slide = svg("g", { stroke: "rgba(244, 199, 107, .55)", "stroke-width": 1.2 }, root);
+  map.slideX = [], map.slideY = [];
+  for (let k = 0; k < C.slide_to - 1; k++) {
+    map.slideX.push(svg("line", { y1: MAP.y, y2: MAP.y + MAP.size }, map.slide));
+    map.slideY.push(svg("line", { x1: MAP.x, x2: MAP.x + MAP.size }, map.slide));
+  }
+  map.cloud = svg("g", {}, root);
+  map.cloudDots = E.map((e) => svg("circle", { cx: px(e.b[0]), cy: py(e.b[1]), r: 3.2, fill: "#7EF0D8", opacity: 0 }, map.cloud));
+  map.plain = svg("g", {}, root);
+  map.plainDots = PLAIN.map((gen) => gen.map((x) => svg("circle", { cx: px(x.b[0]), cy: py(x.b[1]), r: 7, fill: "#F4C76B",
+    stroke: "#06100D", "stroke-width": 1.5, opacity: 0 }, map.plain)));
+  map.lineage = svg("g", {}, root);
+  buildLineage();
+  map.mover = svg("circle", { r: 11, fill: "#F4FFFB", stroke: "#06100D", "stroke-width": 2, opacity: 0,
+    filter: "drop-shadow(0 0 10px rgba(126, 240, 216, .9))" }, root);
+  map.ring = svg("rect", { width: CELL + 8, height: CELL + 8, rx: 6, fill: "none", stroke: "#F4FFFB", "stroke-width": 3, opacity: 0 }, root);
+  map.ring2 = svg("rect", { width: CELL + 8, height: CELL + 8, rx: 6, fill: "none", stroke: "#F4C76B", "stroke-width": 3, opacity: 0 }, root);
+  map.tags = svg("g", {}, root);
+  map.tag = svg("text", { class: "tag", opacity: 0 }, map.tags);
+  map.tag2 = svg("text", { class: "tag", opacity: 0 }, map.tags);
+
+  // Axes: ticks under and left of the map, named in the game's terms.
+  const axes = svg("g", {}, root);
+  for (let v = Math.ceil(X0 * 2) / 2; v <= X1 + 1e-9; v += 0.5) {
+    svg("text", { class: "axis", x: px(v), y: MAP.y + MAP.size + 28, "text-anchor": "middle" }, axes).textContent = v.toFixed(1);
+  }
+  for (let v = Y0; v <= Y1 + 1e-9; v += 0.1) {
+    svg("text", { class: "axis", x: MAP.x - 14, y: py(v) + 6, "text-anchor": "end" }, axes).textContent = pct(v);
+  }
+  svg("text", { class: "axis-name", x: MAP.x + MAP.size / 2, y: MAP.y + MAP.size + 62, "text-anchor": "middle" }, axes)
+    .textContent = "b₁: average card cost →";
+  svg("text", { class: "axis-name", x: MAP.x - 66, y: MAP.y + MAP.size / 2, "text-anchor": "middle",
+    transform: `rotate(-90 ${MAP.x - 66} ${MAP.y + MAP.size / 2})` }, axes).textContent = `b₂: damage to the enemy ${HERO} →`;
+  map.axes = axes;
+}
+
+function buildLineage() {
+  // The stepping-stone chain: each deck at its own behaviour, an arrow from parent to child.
+  svg("defs", {}, map.lineage).innerHTML = `<marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5"
+    orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#F4FFFB"/></marker>`;
+  map.links = [], map.stones = [];
+  LINEAGE.forEach((i, k) => {
+    if (k) {
+      const a = E[LINEAGE[k - 1]], b = E[i], dx = px(b.b[0]) - px(a.b[0]), dy = py(b.b[1]) - py(a.b[1]), l = Math.hypot(dx, dy) || 1;
+      map.links.push(svg("line", { x1: px(a.b[0]), y1: py(a.b[1]), x2: px(b.b[0]) - dx / l * 12, y2: py(b.b[1]) - dy / l * 12,
+        stroke: "#F4FFFB", "stroke-width": 3, "marker-end": "url(#tip)", opacity: 0 }, map.lineage));
+    }
+  });
+  LINEAGE.forEach((i) => map.stones.push(svg("circle", { cx: px(E[i].b[0]), cy: py(E[i].b[1]), r: 10, stroke: "#06100D",
+    "stroke-width": 2, opacity: 0 }, map.lineage)));
+}
+
+// ------------------------------------------------------------------ building the panels
+function buildPanels() {
+  $("plain-note").innerHTML = rich(`${C.population} decks, each played ${C.games} games. Every generation, mutate the better half and keep the ${C.population} fittest.`);
+  $("sym-f").innerHTML = tex("f(x)");
+  $("sym-b").innerHTML = tex("b(x)");
+  $("fit-note").innerHTML = rich(`Play ${C.games} games against ${C.opponents} fixed decks, going first and second, with a simple rule-based agent in both seats. $f$ is the average health difference at the end: from −30 (lost every game without denting the other ${HERO}) to +30.`);
+  $("b1-label").innerHTML = rich("$b_1$ average card cost");
+  $("b2-label").innerHTML = rich(`$b_2$ share of damage to the enemy ${HERO}`);
+  // The first deck's cost curve, with its average.
+  const costs = D.first_deck.map((c) => D.costs[c]), counts = Array(11).fill(0);
+  costs.forEach((c) => counts[Math.min(10, c)]++);
+  const hist = $("hist"), top = Math.max(...counts);
+  counts.forEach((k, c) => {
+    svg("rect", { x: 10 + c * 35, y: 96 - k / top * 80, width: 28, height: k / top * 80, rx: 3, fill: "#2BA58C" }, hist);
+    svg("text", { class: "axis", x: 24 + c * 35, y: 116, "text-anchor": "middle", style: "font-size: 14px" }, hist).textContent = c;
+  });
+  const mean = E[0].b[0];
+  svg("line", { x1: 24 + mean * 35, x2: 24 + mean * 35, y1: 6, y2: 98, stroke: "#F4C76B", "stroke-width": 3 }, hist);
+  svg("text", { class: "tag", x: 32 + mean * 35, y: 22, style: "font-size: 17px" }, hist).textContent = `average ${mean.toFixed(2)}`;
+  const share = E[0].b[1];
+  $("split").innerHTML = `<div style="width: ${share * 100}%; background: #F4C76B">${HERO} ${pct(share)}</div>
+    <div style="flex: 1; background: #2BA58C">${UNIT}s ${pct(1 - share)}</div>`;
+  $("games").innerHTML = Array(C.games).fill("<i></i>").join("") + `<span>${C.games} games against ${C.opponents} fixed decks</span>`;
+  $("cov-tex").innerHTML = tex("\\frac{\\text{cells with an elite}}{\\text{all cells}}");
+  $("qd-tex").innerHTML = tex("\\sum_{\\text{cells}} \\big(f(\\text{elite}) + 30\\big)");
+  $("cov").textContent = `${FINAL.size} / ${G * G} = ${pct(S.coverage)}`;
+  $("qd").textContent = n(Math.round(S.qd_score));
+  const legend = STOPS.map((s) => `rgb(${s.join(",")})`).join(", ");
+  document.querySelector("#legend .bar").style.background = `linear-gradient(90deg, ${legend})`;
+  $("legend").querySelector("span").textContent = `f = ${fmt(F_LO)}`;
+  $("legend").querySelectorAll("span")[1].textContent = `f = ${signed(F_HI)}`;
+}
+
+// The loop's worked example i: its parent's deck (sorted by cost), the swap and the result.
+let shownExample = -1;
+function showExample(i) {
+  if (i === shownExample) return;
+  shownExample = i;
+  const ex = SHOW[i], deck = [...ex.parent_deck].sort((a, b) => D.costs[a] - D.costs[b] || a - b), out = [...ex.out];
+  $("deck").innerHTML = deck.map((c) => {
+    const k = out.indexOf(c), swapped = k >= 0;
+    if (swapped) out.splice(k, 1);
+    return `<div data-out="${swapped ? 1 : 0}" style="background: ${costColour(D.costs[c])}">${D.costs[c]}</div>`;
+  }).join("");
+  const paint = (ids) => ids.map((c) => `<div class="slot">${paintedCard({ ...D.cards[c], art: true }, D.cards[c].kind, D.cards[c].art)}</div>`).join("");
+  $("out").innerHTML = paint(ex.out);
+  $("in").innerHTML = paint(ex.in);
+  $("out").style.left = `${420 - ex.out.length * 140}px`;
+  for (const slot of document.querySelectorAll("#swap .slot")) fitPainted(slot);
+  $("k").innerHTML = rich(`$k = ${ex.out.length}$`);
+}
+const costColour = (c) => colourRamp(c / 8);
+function colourRamp(x) {  // cheap cards light, expensive ones gold, for the deck strip
+  const a = [0xA9, 0xC9, 0xBC], b = [0xF4, 0xC7, 0x6B];
+  return "rgb(" + a.map((v, j) => Math.round(lerp(v, b[j], clamp(x)))).join(",") + ")";
+}
+
+// ------------------------------------------------------------------ drawing
+function paintCells(archive, alpha = 1, highlight = null) {
+  for (const [key, rect] of Object.entries(map.cellRects)) {
+    const i = archive.get(key);
+    rect.setAttribute("fill", i === undefined ? "transparent" : colour(E[i].f));
+    rect.setAttribute("opacity", i === undefined ? 0 : alpha * (highlight && !highlight.has(key) ? 0.25 : 1));
+  }
+}
+
+function placeTag(el, x, y, text, opacity, anchor = "start") {
+  el.textContent = text;
+  el.setAttribute("x", x); el.setAttribute("y", y); el.setAttribute("text-anchor", anchor);
+  el.setAttribute("opacity", opacity);
+}
+function ringAt(el, cell, opacity) {
+  const [cx, cy] = cellCentre(cell);
+  el.setAttribute("x", cx - CELL / 2 - 4); el.setAttribute("y", cy - CELL / 2 - 4); el.setAttribute("opacity", opacity);
+}
+
+function panels(t) {
+  const fadeIn = (a, b) => Math.min(span(t, a, a + 0.6), 1 - span(t, b - 0.6, b));
+  const show = { "p-plain": fadeIn(T.plain, T.ingredients), "p-ingredients": fadeIn(T.ingredients, T.gridIn),
+    "p-loop": fadeIn(T.loop, T.ff), "p-ff": fadeIn(T.ff, T.result), "p-result": fadeIn(T.result, T.stones),
+    "p-stones": fadeIn(T.stones, T.slide), "p-slide": fadeIn(T.slide, T.end + 1) };
+  if (t < 0.3) show["p-plain"] = 1;
+  for (const [id, o] of Object.entries(show)) $(id).style.opacity = o;
+  $("ing-b").style.opacity = span(t, T.beh, T.beh + 0.6);
+}
+
+function draw(t) {
+  panels(t);
+  const hide = [map.tag, map.tag2, map.mover, map.ring, map.ring2];
+  hide.forEach((el) => el.setAttribute("opacity", 0));
+  $("legend").style.opacity = span(t, T.seed, T.seed + 0.6) * (1 - span(t, T.slide, T.slide + 1));
+  map.grid.style.opacity = t < T.slide ? span(t, T.gridIn, T.gridEnd) : 1 - span(t, T.slide, T.slide + 1);
+  map.gridLines.forEach((l, k) => { l.style.opacity = span(t, T.gridIn + k * 0.1, T.gridIn + k * 0.1 + 0.4); });
+  map.slide.style.opacity = span(t, T.slide + 0.5, T.slide + 1.5);
+  map.cloud.style.opacity = span(t, T.slide, T.slide + 1);
+  map.plain.style.opacity = 1 - span(t, T.ingredients, T.ingredients + 1);
+  map.lineage.style.opacity = t >= T.stones && t < T.slide ? 1 - span(t, T.slide - 0.8, T.slide) : 0;
+
+  drawPlain(t);
+  drawIngredients(t);
+  // The archive: the initial random decks, the worked examples, the fast-forward, then the final map.
+  let count = 0;
+  if (t >= T.seed) count = Math.round(lerp(0, C.initial, span(t, T.seed, T.seedEnd)));
+  if (t >= T.loop && t < T.ff) count = drawLoop(t);
+  if (t >= T.ff) count = Math.round(lerp(SHOW.at(-1).i + 1, E.length, clamp((t - T.ff) / (T.ffEnd - T.ff - 1))));
+  const archive = count === E.length ? FINAL : archiveAt(count);
+  if (t < T.loop || t >= T.ff) paintCells(archive, t >= T.stones ? 0.35 + 0.65 * (1 - span(t, T.stones, T.stones + 1)) : 1);
+  map.cells.style.opacity = t < T.slide ? 1 : 1 - span(t, T.slide, T.slide + 1);
+  if (t >= T.ff && t < T.result) drawFastForward(count, archive);
+  drawStones(t);
+  drawSlide(t);
+  caption(t);
+}
+
+function drawPlain(t) {
+  const g = Math.min(PLAIN.length - 1, Math.floor(lerp(0, PLAIN.length, clamp((t - T.plainRun) / (T.plainEnd - T.plainRun)))));
+  map.plainDots.forEach((dots, k) => dots.forEach((d) => d.setAttribute("opacity", k === g ? 1 : k < g ? Math.max(0, 0.22 - (g - k) * 0.03) : 0)));
+  const pop = PLAIN[g], cost = pop.map((x) => x.b[0]), hero = pop.map((x) => x.b[1]);
+  $("plain-gen").textContent = g;
+  $("plain-best").textContent = signed(Math.max(...pop.map((x) => x.f)));
+  $("plain-spread").textContent = `cost ${Math.min(...cost).toFixed(1)}–${Math.max(...cost).toFixed(1)}, ${HERO} ${pct(Math.min(...hero))}–${pct(Math.max(...hero))}`;
+}
+
+function drawIngredients(t) {
+  if (t < T.dot || t >= T.seed + 0.5) return;
+  const e = E[0], o = span(t, T.dot, T.dot + 0.6) * (1 - span(t, T.seed, T.seed + 0.5));
+  map.mover.setAttribute("cx", px(e.b[0])); map.mover.setAttribute("cy", py(e.b[1])); map.mover.setAttribute("opacity", o);
+  placeTag(map.tag, px(e.b[0]) + 18, py(e.b[1]) - 14, `f = ${signed(e.f)}`, o);
+}
+
+function drawLoop(t) {
+  // Which worked example, and how far into it: pick, mutate, play, place, verdict.
+  let i = 0;
+  while (i < SHOW.length - 1 && t >= iterStart(i + 1)) i++;
+  const ex = SHOW[i], e = E[ex.i], parent = E[ex.parent], local = t - iterStart(i), st = STEP(i);
+  showExample(i);
+  const phase = st.filter((s) => local >= s).length - 1;  // 0 pick … 4 verdict
+  [...$("steps").children].forEach((el, k) => el.classList.toggle("on", k === Math.min(phase, 3)));
+  const placed = phase >= 4 && e.o !== "worse";
+  const archive = archiveAt(ex.i + (placed ? 1 : 0));
+  paintCells(archive);
+
+  // 1. Pick: the parent's cell lights up.
+  ringAt(map.ring, parent.c, phase < 4 ? 1 : 0.4);
+  // 2. Mutate: the deck strip, the swapped cards fade and the new ones arrive.
+  $("deck").style.opacity = span(local, st[0] + 0.4, st[0] + 1);
+  const m = span(local, st[1], st[1] + (st[2] - st[1]) * 0.7);
+  for (const chip of $("deck").children) if (chip.dataset.out === "1") {
+    chip.style.opacity = phase >= 1 ? 1 - 0.75 * m : 1;
+    chip.style.outline = phase >= 1 ? "3px solid #F4FFFB" : "none";
+  }
+  $("swap").style.opacity = phase >= 1 ? 1 : 0;
+  $("out").style.opacity = 1 - 0.55 * m;
+  $("in").style.opacity = m;
+  $("in").style.transform = `translateX(${(1 - m) * 60}px)`;
+  // 3. Play: one pip per game, then f and b.
+  const played = phase >= 2 ? Math.floor(C.games * clamp((local - st[2]) / ((st[3] - st[2]) * 0.8))) : 0;
+  [...$("games").querySelectorAll("i")].forEach((pip, k) => pip.classList.toggle("on", k < played || phase >= 3));
+  $("games").style.opacity = phase >= 2 ? 1 : 0.35;
+  $("scores").innerHTML = phase >= 3 || played === C.games
+    ? rich(`$f = ${fmt(e.f).replace("−", "-")}$   ·   $b = (${e.b[0].toFixed(2)},\\ ${pct(e.b[1]).replace("%", "\\%")})$`) : "";
+  // 4. Place: a dot flies from the parent's cell to the child's, and the verdict.
+  if (phase >= 3) {
+    const [x0, y0] = cellCentre(parent.c), x1 = px(e.b[0]), y1 = py(e.b[1]), k = span(local, st[3], st[4] - 0.2);
+    const drop = e.o === "worse" ? span(local, st[4] + 0.4, st[4] + 2) : 0;
+    map.mover.setAttribute("cx", lerp(x0, x1, k)); map.mover.setAttribute("cy", lerp(y0, y1, k) + drop * 40);
+    map.mover.setAttribute("opacity", 1 - drop);
+    ringAt(map.ring2, e.c, k >= 1 ? 1 : 0);
+  }
+  const old = archiveAt(ex.i).get(e.c.join(","));
+  const verdict = $("verdict");
+  verdict.style.opacity = phase >= 4 ? span(local, st[4], st[4] + 0.4) : 0;
+  if (e.o === "new") { verdict.className = "keep"; verdict.textContent = "Empty cell: it's the elite"; }
+  else if (e.o === "better") { verdict.className = "keep"; verdict.textContent = `${signed(e.f)} beats ${signed(E[old].f)}: it takes the cell`; }
+  else { verdict.className = "drop"; verdict.textContent = `${signed(e.f)} loses to ${signed(E[old].f)}: discarded`; }
+  if (phase >= 4) {
+    const [cx, cy] = cellCentre(e.c);
+    placeTag(map.tag, cx + CELL / 2 + 10, cy + 7, e.o === "worse" ? "discarded" : e.o === "new" ? "new elite" : "new elite", span(local, st[4], st[4] + 0.4));
+  }
+  return ex.i + (placed ? 1 : 0);
+}
+
+function drawFastForward(count, archive) {
+  $("ff-n").textContent = n(count);
+  $("ff-cells").textContent = `${archive.size} / ${G * G}`;
+  $("ff-drop").textContent = n(DISCARDED(count));
+  const e = E[count - 1];
+  if (count < E.length && e) {
+    map.mover.setAttribute("cx", px(e.b[0])); map.mover.setAttribute("cy", py(e.b[1])); map.mover.setAttribute("opacity", 0.9);
+  }
+}
+
+function drawStones(t) {
+  if (!LINEAGE.length || t < T.stones || t >= T.slide) return;
+  const steps = LINEAGE.length - 1, each = (T.stonesEnd - T.stonesLine - 2) / Math.max(1, steps);
+  paintCells(FINAL, 0.35 + 0.65 * (1 - span(t, T.stones, T.stones + 1)), new Set(LINEAGE.map((i) => E[i].c.join(","))));
+  map.stones.forEach((s, k) => {
+    s.setAttribute("fill", colour(E[LINEAGE[k]].f));
+    s.setAttribute("opacity", span(t, T.stonesLine + (k - 0.5) * each, T.stonesLine + (k - 0.5) * each + 0.4) * (k === 0 ? 1 : 1));
+  });
+  map.stones[0].setAttribute("opacity", span(t, T.stonesLine - 0.5, T.stonesLine));
+  map.links.forEach((l, k) => l.setAttribute("opacity", span(t, T.stonesLine + k * each, T.stonesLine + k * each + 0.5)));
+  const a = E[LINEAGE[0]], b = E[LINEAGE[1]], z = E[LINEAGE.at(-1)];
+  placeTag(map.tag, px(a.b[0]) - 18, py(a.b[1]) + 34, `f = ${signed(a.f)}`, span(t, T.stonesLine - 0.5, T.stonesLine), "end");
+  placeTag(map.tag2, px(z.b[0]) + 18, py(z.b[1]) - 16, `f = ${signed(z.f)}`, span(t, T.stonesEnd - 2.5, T.stonesEnd - 2));
+}
+
+// Sliding boundaries: an even 20 × 20 grid over the same decks, the lines sliding to percentiles, then the
+// grid built up the way the method does it, every 100 evaluations.
+function cellsUsed(points, cutsX, cutsY) {
+  const idx = (cuts, v) => { let k = 0; while (k < cuts.length && v >= cuts[k]) k++; return k; };
+  return new Set(points.map((e) => idx(cutsX, e.b[0]) * 100 + idx(cutsY, e.b[1]))).size;
+}
+function drawSlide(t) {
+  if (t < T.slide) { map.slide.style.opacity = 0; return; }
+  const last = D.slides.at(-1), k = span(t, T.slideMove, T.slideMoveEnd);
+  let cutsX = D.even[0].map((v, j) => lerp(v, last.cuts[0][j], k)), cutsY = D.even[1].map((v, j) => lerp(v, last.cuts[1][j], k));
+  let seen = E.length, size = C.slide_to;
+  if (t >= T.grow) {
+    seen = Math.max(C.slide_every, Math.round(lerp(0, E.length, clamp((t - T.grow) / (T.growEnd - T.grow)))));
+    const s = D.slides[Math.min(D.slides.length - 1, Math.floor(seen / C.slide_every) - 1)];
+    cutsX = s.cuts[0]; cutsY = s.cuts[1]; size = s.size;
+  }
+  map.cloudDots.forEach((d, i) => d.setAttribute("opacity", i < seen ? 0.55 : 0));
+  map.slideX.forEach((l, j) => {
+    const on = j < cutsX.length, x = on ? px(cutsX[j]) : 0;
+    l.setAttribute("x1", x); l.setAttribute("x2", x); l.style.opacity = on ? 1 : 0;
+  });
+  map.slideY.forEach((l, j) => {
+    const on = j < cutsY.length, y = on ? py(cutsY[j]) : 0;
+    l.setAttribute("y1", y); l.setAttribute("y2", y); l.style.opacity = on ? 1 : 0;
+  });
+  $("slide-cells").textContent = `${cellsUsed(E.slice(0, seen), cutsX, cutsY)} / ${size * size}`;
+  $("slide-grid").textContent = `${size} × ${size}`;
+  $("slide-seen").textContent = n(seen);
+  $("slide-label").textContent = t < T.slideMove ? "Cells holding a deck (even)" : t < T.grow ? "Cells holding a deck (sliding)" : "Cells holding a deck";
+}
+
+// ------------------------------------------------------------------ captions
+function beats() {
+  const PN = PLAIN.at(-1), gens = PLAIN.length - 1;
+  const cost = PN.map((x) => x.b[0]), hero = PN.map((x) => x.b[1]), best = Math.max(...PN.map((x) => x.f));
+  const first = SHOW[0], seeded = archiveAt(C.initial).size, dropped = DISCARDED(E.length);
+  const a = E[LINEAGE[0]], b = E[LINEAGE[1]], z = E[LINEAGE.at(-1)];
+  const cellsApart = LINEAGE.length > 1 ? Math.max(Math.abs(a.c[0] - b.c[0]), Math.abs(a.c[1] - b.c[1])) : 0;
+  const b0 = [];
+  b0.push([T.plain, "The problem", "One best deck", `A normal optimiser keeps the fittest decks and breeds from them. Each dot is a deck: where it sits says what kind of deck it is.`]);
+  b0.push([T.plainEnd - 1.5, "The problem", "Every deck ends up the same kind",
+    `After ${gens} generations all ${C.population} decks cost ${Math.min(...cost).toFixed(1)}–${Math.max(...cost).toFixed(1)} on average and send ${pct(Math.min(...hero))}–${pct(Math.max(...hero))} of their damage at the ${HERO}. The best is strong (${signed(best)}), but it's one style.`]);
+  b0.push([T.want, "The idea", "We want the best deck of each kind",
+    "Quality-Diversity search keeps a whole map of decks, one for each style, and improves every one of them. MAP-Elites is the simplest."]);
+  b0.push([T.fit, "Two ingredients · 1", "Fitness $f(x)$: how good is it?", `Play it ${C.games} times against ${C.opponents} fixed decks and average the health difference at the end.`]);
+  b0.push([T.beh, "Two ingredients · 2", "Behaviour $b(x)$: what kind is it?",
+    `Two numbers chosen by a designer: the average card cost, and how much of its damage goes to the enemy ${HERO} rather than ${UNIT}s.`]);
+  b0.push([T.dot, "Two ingredients", "Each deck becomes one point", `This random deck sits at $b = (${E[0].b[0].toFixed(2)}, ${pct(E[0].b[1]).replace("%", "\\%")})$, with $f = ${fmt(E[0].f).replace("−", "-")}$.`]);
+  b0.push([T.gridIn, "The map", "Cut the space into cells", `${G} × ${G} cells. Each keeps one deck, its elite: the best deck of that style found so far.`]);
+  b0.push([T.seed, "The map", "Start with random decks", `${C.initial} random decks fill ${seeded} cells. The colour is the elite's fitness.`]);
+  SHOW.forEach((ex, i) => {
+    const s = iterStart(i), st = STEP(i), e = E[ex.i];
+    const verdict = e.o === "new" ? "No elite there yet, so it takes the empty cell."
+      : e.o === "better" ? "It beats the cell's elite, which is thrown away." : "It's worse than the cell's elite, so it's thrown away.";
+    if (i === 0) {
+      b0.push([s, `The loop · evaluation ${n(ex.i + 1)}`, "1 · Pick a random elite", "Any cell's elite can be a parent, whatever its fitness."]);
+      b0.push([s + st[1], `The loop · evaluation ${n(ex.i + 1)}`, "2 · Mutate it",
+        `Swap $k$ random cards for others from the set. $k$ is 1 half the time, 2 a quarter of the time, and so on: mostly small steps, sometimes a leap.`]);
+      b0.push([s + st[2], `The loop · evaluation ${n(ex.i + 1)}`, "3 · Play it", `${C.games} games give the child its fitness $f$ and its behaviour $b$.`]);
+      b0.push([s + st[3], `The loop · evaluation ${n(ex.i + 1)}`, "4 · Drop it into its cell", "Its behaviour says which cell. It may land far from its parent."]);
+      b0.push([s + st[4], `The loop · evaluation ${n(ex.i + 1)}`, e.o === "worse" ? "Worse: discarded" : "Better: kept", verdict]);
+    } else {
+      b0.push([s, `The loop · evaluation ${n(ex.i + 1)}`, `Again: pick, mutate (k = ${ex.out.length}), play, place`, "The same four steps, every time."]);
+      b0.push([s + st[4], `The loop · evaluation ${n(ex.i + 1)}`, e.o === "new" ? "A new cell: kept" : e.o === "better" ? "Better: kept" : "Worse: discarded", verdict]);
+    }
+  });
+  b0.push([T.ff, "The loop", `${n(E.length)} evaluations`, `${n(S.games)} games in all. Most children lose to an elite: ${n(dropped)} were discarded. The rest filled empty cells or replaced weaker elites.`]);
+  b0.push([T.result, "The result", "An illuminated map", `The best deck found for each style. Coverage is how much of the map has a deck.`]);
+  b0.push([T.qd, "The result", "One number for the whole map",
+    `The QD-score adds up every elite's fitness (+30, so none counts against). The best elite (${signed(S.best)}) is close to the plain search's ${signed(best)}, and there are ${FINAL.size - 1} other styles too.`]);
+  b0.push([T.stones, "Stepping stones", "Weak decks can lead somewhere",
+    `A deck with $f = ${fmt(a.f).replace("−", "-")}$ was the parent of one with $f = ${fmt(b.f).replace("−", "-")}$, ${cellsApart} cell${cellsApart === 1 ? "" : "s"} away, and its line went on to $f = ${fmt(z.f).replace("−", "-")}$, among the best on the map. A plain search would have thrown the parent out.`]);
+  b0.push([T.slide, "Sliding boundaries", "Decks bunch up", `Every deck the run tried, on an even ${C.slide_to} × ${C.slide_to} grid: most cells are empty, and a few are crowded.`]);
+  b0.push([T.slideMove, "Sliding boundaries", "Put the boundaries where the decks are",
+    "Cut each axis at percentiles of the decks seen so far, so each column and each row holds about as many decks. (Fontaine et al., GECCO 2019.)"]);
+  b0.push([T.grow, "Sliding boundaries", `Recomputed every ${C.slide_every} evaluations`,
+    `The map starts at ${C.slide_from} × ${C.slide_from} and grows to ${C.slide_to} × ${C.slide_to} as the search learns where decks can go. The same decks here, binned the method's way.`]);
+  return b0;
+}
+let BEATS = [], shownBeat = -1;
+function caption(t) {
+  const k = Math.max(0, BEATS.findLastIndex((b) => Math.min(t, DURATION - 1e-3) >= b[0]));
+  const next = BEATS[k + 1]?.[0] ?? Infinity, into = t - BEATS[k][0], out = next - t;
+  $("caption").style.opacity = k === 0 ? Math.min(1, clamp(out / 0.25)) : Math.min(clamp(into / 0.35), clamp(out / 0.25));
+  if (k === shownBeat) return;
+  shownBeat = k;
+  const [, crumbs, what, how] = BEATS[k];
+  $("crumbs").textContent = crumbs; $("what").innerHTML = rich(what); $("how").innerHTML = rich(how);
+}
+
+// The panels' running text, from the run's numbers.
+function notes() {
+  const a = E[LINEAGE[0]], b = E[LINEAGE[1]];
+  $("result-note").innerHTML = rich(`Each cell's colour is its elite's fitness. ${FINAL.size} styles of deck, each the best of ${n(E.length)} tries at that style.`);
+  $("stones-note").innerHTML = LINEAGE.length ? rich(`One family line from the run, oldest first. The first deck was a mediocre elite (rank ${rank(a)} of ${FINAL.size} if it were on the final map); its child landed in another cell and became one of the strongest decks there.`) : "";
+  $("slide-note").innerHTML = rich(`Every one of the run's ${n(E.length)} decks as a dot. With even cells most of the grid is empty; with sliding boundaries the same decks spread over most of it.`);
+}
+const rank = (e) => 1 + [...FINAL.values()].filter((i) => E[i].f > e.f).length;
+
+// ------------------------------------------------------------------ setup and playback
+function fitStage() {
+  const render = document.body.classList.contains("render");
+  const room = { w: innerWidth, h: innerHeight - (render ? 0 : 52) };
+  const s = render ? 1 : Math.min(room.w / W, room.h / H);
+  $("stage").style.transform = `translate(${(room.w - W * s) / 2}px, ${(room.h - H * s) / 2}px) scale(${s})`;
+}
+
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let now = 0, playing = false, last = 0;
+function seek(t) {
+  now = Math.max(0, Math.min(DURATION, t));
+  draw(now);
+  $("scrub").value = now;
+  $("play").textContent = playing ? "Pause" : REDUCED ? "Next" : "Play";
+}
+window.seek = seek;
+// A beat's settled moment: just before the next one starts (or the end), where each step's animation has finished.
+const settled = (k) => Math.min(DURATION, (BEATS[k + 1]?.[0] ?? DURATION + 0.01) - 0.01);
+const beatAt = (t) => Math.max(0, BEATS.findLastIndex((b) => t + 0.02 >= b[0]));
+function step(dir) {
+  playing = false;
+  const k = beatAt(now), into = now > BEATS[k][0] + 0.3 && !REDUCED;
+  const j = Math.max(0, Math.min(BEATS.length - 1, dir > 0 ? k + 1 : into ? k : k - 1));
+  seek(REDUCED ? settled(j) : BEATS[j][0]);
+}
+function tick(ms) {
+  if (!playing) return;
+  seek(now + (ms - last) / 1000);
+  last = ms;
+  if (now >= DURATION) { playing = false; seek(now); return; }
+  requestAnimationFrame(tick);
+}
+function toggle() {
+  if (REDUCED) { step(1); return; }  // no motion: Play steps to the next finished frame instead
+  playing = !playing;
+  if (playing) {
+    if (now >= DURATION) now = 0;
+    last = performance.now();
+    requestAnimationFrame(tick);
+  }
+  seek(now);
+}
+
+async function init() {
+  if (new URLSearchParams(location.search).has("render")) document.body.classList.add("render");
+  await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]);
+  for (const i of FINAL.values()) { F_LO = Math.min(F_LO, E[i].f); F_HI = Math.max(F_HI, E[i].f); }
+  $("bg").style.backgroundImage = `url(${CARD_ART.background})`;
+  buildMap();
+  buildPanels();
+  notes();
+  BEATS = beats();
+  $("scrub").max = DURATION;
+  $("play").addEventListener("click", toggle);
+  $("next").addEventListener("click", () => step(1));
+  $("back").addEventListener("click", () => step(-1));
+  $("scrub").addEventListener("input", (e) => { playing = false; seek(+e.target.value); });
+  addEventListener("keydown", (e) => {
+    if (e.code === "Space") { e.preventDefault(); toggle(); }
+    if (e.code === "ArrowRight") step(1);
+    if (e.code === "ArrowLeft") step(-1);
+  });
+  addEventListener("resize", fitStage);
+  fitStage();
+  seek(REDUCED ? settled(0) : 0);
+  window.ready = true;
+}
+init();
+</script>
+</body>
+</html>

@@ -75,7 +75,8 @@ docs/           technical plan, client protocol and design, theme, draw.io diagr
 Blog/           everything that isn't the game or training: the card lab (card_lab.py,
                 card_kit.html), card_generation_visualiser (one card's path through the grammar, animated),
                 gnn_visualiser (how the GNN reads the board, one layer, and the policy and value heads, animated), design_loop (the
-                series' generate-playtest-measure-tune loop as one animated panel), painted_card.html (the client's card, shared), tests/;
+                series' generate-playtest-measure-tune loop as one animated panel), map_elites_visualiser (part 2: how
+                MAP-Elites finds the best deck of each kind, from a small real run), painted_card.html (the client's card, shared), tests/;
                 uses PythonServer's environment, writes to Blog/build/ (gitignored)
 ```
 
@@ -97,6 +98,7 @@ uv run --project PythonServer python Blog/card_lab.py     # card lab web page: a
 uv run --project PythonServer python Blog/card_generation_visualiser.py   # --card N (first card of set_200), --count N, --render for an MP4, --refresh-art (with pillow)
 uv run --project PythonServer python Blog/gnn_visualiser.py               # also _1 to _3.html, one per part, for the blog; --render for MP4s
 uv run --project PythonServer python Blog/design_loop.py                  # the design loop panel for the blog
+uv run --project PythonServer python Blog/map_elites_visualiser.py        # part 2's MAP-Elites explainer; plays a real run first (~2 min, --budget N)
 uv run --project PythonServer --with playwright python Blog/thumbnail.py  # part 1's thumbnail (cards + state graph), a 1200x630 JPEG
 uv run --project PythonServer --with playwright python Blog/teaser.py    # part 1's teaser video: a clip of each demo, spliced (--pages DIR)
 uv run --project PythonServer pytest Blog/tests
