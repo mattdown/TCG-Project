@@ -36,7 +36,10 @@ Decisions already made (don't re-open without a reason):
   aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost). For now they are only colours:
   assigned at random, and decks draw from the whole set (`ONE_ASPECT = False` in
   `src/game/decks.py`). Later they become Hearthstone-style classes (a deck is one aspect plus
-  neutral cards), with an identity from clustering generated cards. Traits are jobs
+  neutral cards). Class identity is designed: each aspect gets its own generation vector (a
+  shared base grammar plus sparse per-class weight offsets, hard zeros and themes; one cost
+  model for all), [docs/stage-2-research-plan.md](docs/stage-2-research-plan.md) 4G. Emergent
+  classes (clustering, a synergy graph) are future work. Traits are jobs
   (tribes that cross aspects). Decks focus on two jobs (70% of their units, `FOCUS_JOBS` in
   `src/game/decks.py`), so abilities about your own jobs have something to work with; enemy-side
   job filters aren't generated.

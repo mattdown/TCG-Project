@@ -67,6 +67,25 @@ Search deck space for the strongest decks, with the agent playing them. Candidat
 A card's value is then measured in the decks that are good. Cost: thousands of games per
 generation, so it needs a cheap evaluator (D).
 
+**MAP-Elites in detail** (following Fontaine et al. 2019, section 8):
+- **Fitness:** the hero health difference summed over a deck's games against a fixed field, not
+  the win rate, so the margin counts and the signal is smoother.
+- **Behaviour descriptors:** the paper's are deck statistics known before any game (mean and
+  variance of cost). Keep mean cost for comparison, and add at least one measured from play
+  (share of damage to the hero rather than units, game length, board width), so the archive
+  maps play-styles, not mana curves.
+- **Sliding boundaries:** cell edges at percentiles of the decks seen so far, recomputed every
+  100 evaluations, because decks bunch up and an even grid wastes most cells.
+- **Which agent:** the GNN is the judge, but at 5–10 games a second the paper's budget (about
+  2 million games) would take days. Build and tune the loop with the heuristic agent, then
+  either batch the GNN's inference across games or search with the heuristic and re-score
+  only the archive with the GNN (about 400 elites × 200 games). Where the two agents disagree
+  about a deck is a result in itself.
+- **Bias:** the map depends on the agent. One fixed policy may play extreme decks badly, so
+  the map shows the agent's weak spots as well as the decks'. Check elites with a second agent.
+- **Later:** CMA-ME emitters instead of random card swaps once the search runs over continuous
+  parameters (G below).
+
 ### B. The metagame as a game
 
 Treat deck choice as a game between players and solve it:
@@ -106,6 +125,55 @@ Synergies only matter if the agent can play them. Candidates:
   should help.
 - **Longer training on more varied decks**, including decks from A, so the agent learns to play
   strong archetypes, not just random piles. Probably on a cloud GPU.
+- **Search in training (expert iteration):** use the same shallow search while training, so the
+  policy learns to imitate moves the search found and the value head learns from their
+  outcomes (AlphaZero-style), instead of PPO alone. Play-time search makes one agent stronger;
+  search in training makes the network itself stronger, which helps every measurement that runs
+  the raw network. Train on A's elite decks, so A and F feed each other: deck search finds real
+  archetypes, and a stronger agent makes deck search's verdicts trustworthy.
+
+### G. Class identity: generation vectors
+
+**Decided (2026-11-15): classes are designed**, top-down, with the emergent routes in H left for
+later (and for the blog as what could come next). Balancing pulls classes together, so tuning
+needs a term that keeps them apart.
+
+Aspects become classes by changing what the generator makes, not what cards cost:
+- **A shared base grammar plus a sparse offset per class** on the sampler's log-weights, keyed by
+  the choice labels the sampler already has (`t.weighted("Effect", …)` in `src/cards/abilities.py`).
+  Neutral cards use the base. **Hard zeros** (things a class never does) give more identity than
+  soft tilts.
+- **Themes:** bundles of offsets that go together (go-wide: make tokens, scale with unit count,
+  buff all). Each card samples a theme first. Independent per-choice weights can't express
+  choices that go together, and synergy lives in exactly those pairs.
+- **More than abilities:** stat ratios, keyword frequency and the cost curve are part of the
+  vector. **The cost model stays the same for every class**, so a style can't just mean cheaper.
+- **Set-level checks:** quotas (or over-generate and select) so each class hits its targets, and
+  enough enablers for every payoff. Measure the distribution that comes out (the derivation
+  traces), not the input weights: the validator's rejections skew it.
+
+### H. A play-style space
+
+Three spaces and two maps: **generation (G) → card statistics (C) → play-style (S)**.
+- **G → C** needs no play: generate a set and count. **C → S** needs self-play, so learn a
+  surrogate on decks (one set gives thousands of decks).
+- **S** starts from readable descriptors (game length, share of damage to the hero, board width,
+  hand size, mana efficiency, how often units trade), measured against a fixed field. Later, a
+  learned space from the GNN's state embeddings averaged over a deck's games, with the readable
+  descriptors as labelled directions in it.
+- **G → S:** nudge each generation weight and measure the change in style; an SVD of that
+  Jacobian shows the few generation directions that move play-style at all.
+  **S → G:** optimise toward a target style (CMA-ES on the surrogate, checked with real games),
+  preferring sparse vectors, since many vectors give the same style.
+
+**Letting styles emerge** instead of naming them up front (future work; for now classes are designed, G):
+- **Synergy graph:** for each card pair, how much more often decks with both win than decks
+  with either alone. Community detection gives archetypes; fit a class vector to each,
+  regenerate, replay and recluster (like EM). This is "identity from clustering" made concrete.
+- **Metagame check (B):** archetypes are real if they survive in the equilibrium mixture.
+- **Learned descriptors** (AURORA-style) in MAP-Elites, or **co-evolving K classes** with a
+  penalty for being too close.
+- Styles that show up with only one agent are the agent's, not the cards'.
 
 ## 5. A first experiment with ground truth: planted synergies
 
@@ -126,14 +194,19 @@ methods against. It's also a clear story for the blog.
 | Milestone | Work | Done when |
 |---|---|---|
 | **M0** | Planted-synergy benchmark (section 5); metrics from section 2 as code | Random-deck averaging is shown to miss the planted combos |
-| **M1** | Deck search (A): evolutionary first, MAP-Elites second | It finds the planted combos within a known budget of games |
+| **M1** | Deck search (A): evolutionary first, then MAP-Elites, starting by adapting Fontaine et al. 2019 to our engine (heuristic agent, health-difference fitness, sliding boundaries, one play-measured descriptor). Measure games a second for both agents, batched and not, first | It finds the planted combos within a known budget of games |
 | **M2** | Deck-level surrogate (D), trained on M1's games | It predicts held-out matchups well and flags planted synergies |
 | **M3** | Metagame loop (B) using M1 for best responses and M2 to screen | An equilibrium over decks with diversity numbers |
 | **M4** | Worst-case pricing (C) on flagged cards, then re-generate | The section 2 targets hold on a fresh set |
 | **M5** | Stronger player (F) and scale to 3,000 cards | Targets still hold with a stronger agent; cloud runs |
 
 F can start alongside any milestone: a stronger player makes every other measurement more
-trustworthy.
+trustworthy. Search in training fits best once M1 has elite decks to train on.
+
+Class identity (G and H) runs alongside M0–M1, since it only changes the generator: per-class
+vectors with themes and set-level checks first, then MAP-Elites over decks from a class-weighted
+set to see whether the classes land in different regions of the map. That is the first real
+test of the idea. The emergent route (synergy graph, then fitted class vectors) needs M1's games.
 
 ## 7. Open questions
 
@@ -144,8 +217,8 @@ trustworthy.
 - **Skill dependence:** prices measured with agent N can be wrong for agent N+1. Re-measure
   after every agent improvement, or price for a fixed reference agent?
 - **Aspects as classes:** turning on one aspect per deck (`ONE_ASPECT`) shrinks deck space a lot
-  and is how real games contain synergy. When should it come in: before deck search, or as one
-  of its results (clustering)?
+  and is how real games contain synergy. When should it come in: before deck search, or after
+  the class vectors (G) exist?
 - **Compute:** how much of this fits on the Mac, and what goes to a cloud GPU (training) or many
   CPUs (games)?
 - **Changing the generator vs re-pricing:** when a combination is broken, raise a price, change
@@ -155,13 +228,34 @@ trustworthy.
 
 From memory, to verify before relying on it:
 - Deck building by evolutionary search for Hearthstone (several papers around 2016–2019).
-- MAP-Elites applied to Hearthstone deck spaces (around 2019).
 - "Evolving the Hearthstone meta": balancing by simulating a metagame (around 2019).
+- Quality-diversity: Mouret & Clune, MAP-Elites (2015); Zhang, Fontaine et al., deep
+  surrogate assisted MAP-Elites (2022); Grillotti & Cully, AURORA, learned behaviour descriptors (2022).
+- Play-style: Holmgård et al., procedural personas (around 2014–15); Lin et al., playstyle
+  metrics (2021, and ICLR 2024).
+- Directions in a generator's latent space: InterFaceGAN and GANSpace (2020); Mario levels from a
+  GAN's latent space (Volz et al. 2018; Fontaine et al. 2021).
+- Summerville & Mateas, Mystical Tutor (2016): card text generation, no play in the loop.
+- As far as we know, generating the whole card pool conditioned on a play-style space measured
+  by self-play is new. Do a proper literature search before claiming it.
 - PSRO (policy-space response oracles, 2017) and double-oracle methods for population-based
   game solving.
 - Legends of Code and Magic: a research card game with competitions on drafting and playing.
 
 Read in full:
+- **Fontaine et al., "Mapping Hearthstone Deck Spaces through MAP-Elites with Sliding
+  Boundaries"** (GECCO 2019, arXiv 1904.10656). SabberStone simulator; basic and classic cards
+  (171 per class); a genome is a 30-card deck, mutated by replacing k random cards (k geometric,
+  k = 1 half the time), no crossover. Fitness is the hero health difference summed over 200
+  games against a field. Descriptors: the mean and variance of the deck's costs. Hunter,
+  paladin and warlock, each played by scripted aggro and control agents. 10,000 evaluations per
+  run on a 500-node cluster, the grid growing from 2×2 to 20×20. Aggro does best at low mean
+  cost, control across a range; a nerf-and-buff experiment changed how often cards appear in
+  elites, mostly as expected. Stated limitation: the results depend on the scripted agent.
+- **Fontaine et al., CMA-ME** (GECCO 2020, arXiv 1912.02400). CMA-ES "emitters" inside MAP-Elites,
+  rewarded for improving the archive. Its Hearthstone domain evolves the 109 weights of a small
+  state-scoring network (descriptors: mean hand size and number of turns), and roughly doubles
+  MAP-Elites' QD-score.
 - **AI Playtesting** (<https://aiplaytesting.github.io/>), a 14-week project: an AI playtester for
   Slay the Spire, with 32 reimplemented cards and fixed 12–13 card decks against one scripted
   boss. The rules run in Python with Unity as a front end (the same split as ours), plus a
@@ -182,4 +276,7 @@ Read in full:
 The frame: **average-case balance versus worst-case balance.** Stage 1 is the average case,
 and it worked (the hand-written cost table was off by about 2×, and self-play proved it).
 Then the planted-synergy experiment shows why that isn't enough, and the rest of the post is
-the search for the decks that break a set.
+the search for the decks that break a set. A MAP-Elites explainer (`Blog/map_elites_visualiser.py`)
+introduces the deck search, and classes with their own play-styles are the natural bridge to part 3.
+Close on how classes could emerge instead of being designed (H): archetypes found in self-play,
+then encoded as class vectors.

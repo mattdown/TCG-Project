@@ -104,8 +104,8 @@ at least 1 and at most 12.
   Baker – Up Before Dawn"). Actions get an event name: an aspect word plus a noun for the main
   effect ("Ember Volley"). See [theme.md](theme.md#card-names). Names are only reserved by kept
   cards, and every full name in a set is unique.
-- **Aspect:** random, or neutral 10% of the time. Aspects have no identity yet (it should
-  later come from clustering generated cards, technical plan section 2), so for now decks
+- **Aspect:** random, or neutral 10% of the time. Aspects have no identity yet (it will come
+  from a designed generation vector per aspect, stage-2 research plan 4G), so for now decks
   ignore them.
 - **Cost and stats:** from the ability's price in `src/cards/costing.py`: its rough value times
   a measured share (`PRICE_SCALE`: 0.4 for units, 0.2 for actions), the share at which a deck

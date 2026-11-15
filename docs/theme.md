@@ -32,9 +32,10 @@ ones in [client-design.md](client-design.md).
 | `aspect_6` | **Frost** | `#22BCC9` | snowcaps of the winter woods: ice, pine needles, frost |
 
 **Neutral cards** have no habitat (shown in grey, `#8A93AD`): any deck can use them. Vanilla and
-keyword-only units are neutral. What each habitat is *good at* isn't decided yet: it should come
-from clustering the generated cards (docs/technical-plan.md section 2), not from a hand-written
-list. For now ability cards get a habitat at random.
+keyword-only units are neutral. What each habitat is *good at* isn't decided yet. It will be
+designed as a generation vector per habitat: weights that tilt what the generator makes, with a
+few things a habitat never does (docs/stage-2-research-plan.md, 4G). Letting identities emerge
+from clustering the generated cards is left for later. For now ability cards get a habitat at random.
 
 ## Jobs (traits)
 

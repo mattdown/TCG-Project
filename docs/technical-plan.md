@@ -109,10 +109,11 @@ module (`src/game/terms.py`), so a rename is a single change.
 
 **Aspects and jobs.** Aspects are classes (deckbuilding and, later, a strategic identity);
 jobs are tribes that cross aspects (the synergies abilities refer to). Vanilla and keyword-only
-units are neutral. Aspect identity isn't designed by hand: once a big generated pool exists,
-clustering the cards by what they do (unsupervised) should suggest six groups to name after
-the habitats. Until then ability cards get a random aspect and the deck rule is off, so aspects
-are only colours.
+units are neutral. Aspect identity is designed (decided 2026-11-15): each aspect gets a
+generation vector, a shared base grammar plus sparse per-aspect weight offsets, so the
+generator makes different kinds of cards for each (stage-2 research plan, 4G). Clustering the
+cards by what they do, so identities emerge instead, is left for later. Until then ability cards
+get a random aspect and the deck rule is off, so aspects are only colours.
 
 **From v1, dropped:** ink and energy sources, scoring and VP, "only exhausted units can be
 challenged", sites, chants and Evolve, and the keywords Berserk, Inspire, Veiled, Fragile,
