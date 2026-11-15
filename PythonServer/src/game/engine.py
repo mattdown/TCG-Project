@@ -35,6 +35,12 @@ class GameConfig:
     max_board: int = 7
     max_hand: int = 10  # a card drawn into a full hand is discarded
     max_turns: int = 100  # safety cap: the game is a draw after this many turns
+    # Safety caps against loops within a turn, far above what a real turn uses: after this many actions
+    # the only choice left is ending the turn (a free card that returns itself to hand could otherwise
+    # be replayed forever), and abilities past this many in a turn fizzle (two abilities that trigger
+    # each other would otherwise never stop).
+    max_turn_actions: int = 50
+    max_turn_abilities: int = 100
 
 
 @dataclass
@@ -225,6 +231,8 @@ class Game:
                     + [Action(ActionType.KEEP_HAND)])
         if s.pending:
             return self._decision_actions()
+        if s.turn_actions >= self.config.max_turn_actions:
+            return [Action(ActionType.END_TURN)]
 
         actions = []
         board_full = len(ps.play) >= self.config.max_board
@@ -250,6 +258,8 @@ class Game:
         if validate and action not in self.legal_actions():
             raise ValueError(f"illegal action {action}")
         self._result = StepResult() if record else None
+        if action.type in (ActionType.PLAY, ActionType.ATTACK, ActionType.ATTACK_HERO, ActionType.SPARE_SPORE):
+            self.state.turn_actions += 1
         try:
             self._apply(action)
             self._resolve()
@@ -316,7 +326,7 @@ class Game:
             pending=[_copy_frame(f) if isinstance(f, Frame) else _shallow(f) for f in s.pending],
             queue=[_copy_frame(f) for f in s.queue],
             effects=[_shallow(e) for e in s.effects],
-            duel=s.duel)
+            duel=s.duel, turn_actions=s.turn_actions, turn_abilities=s.turn_abilities)
         return g
 
     # ------------------------------------------------------------------ turn structure
@@ -345,6 +355,7 @@ class Game:
         s.active_player = s.decision_player = p
         s.phase = Phase.MAIN
         s.turn += 1
+        s.turn_actions = s.turn_abilities = 0
         if s.turn > self.config.max_turns:
             self._end_game(None)
             return
@@ -441,9 +452,12 @@ class Game:
             node = ability.nodes[top.node]
             match node.kind:
                 case "entry":
-                    if not self._condition(ability.tree.get("condition"), top.controller, top.source, top.bindings):
+                    if (s.turn_abilities >= self.config.max_turn_abilities
+                            or not self._condition(ability.tree.get("condition"), top.controller, top.source,
+                                                   top.bindings)):
                         s.pending.pop()
                         continue
+                    s.turn_abilities += 1
                     if self._result:
                         self._result.abilities.append(top.source)
                     top.node = node.next

@@ -94,3 +94,5 @@ class GameState:
     queue: list[Frame] = field(default_factory=list)  # triggered, waiting to go on the stack
     effects: list[ActiveEffect] = field(default_factory=list)
     duel: tuple[int, int | None] | None = None  # (attacker, defender; None for the hero) while attack damage is worked out
+    turn_actions: int = 0  # plays, attacks and Spare Spores taken this turn (GameConfig.max_turn_actions)
+    turn_abilities: int = 0  # abilities that started resolving this turn (GameConfig.max_turn_abilities)

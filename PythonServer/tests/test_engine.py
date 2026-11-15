@@ -408,3 +408,29 @@ def test_choose_one_offers_only_options_with_something_to_choose():
 
     only_targets = action({"choose_one": [[ENEMY_UNIT, HIT_IT], [ENEMY_UNIT, HIT_IT]]}, name="Twin")
     assert game.unusable(put_in_hand(game, 0, only_targets))
+
+
+# --- safety caps against loops within a turn
+
+def test_after_max_turn_actions_only_ending_the_turn_is_legal():
+    game = started_game(config=GameConfig(max_turn_actions=2))
+    for _ in range(3):
+        put_in_hand(game, 0, unit(cost=0))
+    game.step(Action(ActionType.PLAY, game.state.players[0].hand[-1]))
+    game.step(Action(ActionType.PLAY, game.state.players[0].hand[-1]))
+    assert game.legal_actions() == [END]
+    game.step(END)
+    assert game.state.turn_actions == 0 and len(game.legal_actions()) > 1
+
+
+def test_abilities_past_max_turn_abilities_fizzle_until_next_turn():
+    ping = {"effect": "damage_hero", "amount": 1, "target": "opponent"}
+    game = started_game(config=GameConfig(max_turn_abilities=2))
+    give_mana(game, 0, 3)
+    for _ in range(3):
+        game.step(Action(ActionType.PLAY, put_in_hand(game, 0, action(ping, cost=1))))
+    assert game.state.players[1].health == 28  # the third one fizzled
+    game.step(END)
+    give_mana(game, 1, 1)
+    game.step(Action(ActionType.PLAY, put_in_hand(game, 1, action(ping, cost=1))))
+    assert game.state.players[0].health == 29  # a new turn, a new allowance
