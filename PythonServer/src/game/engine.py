@@ -11,7 +11,6 @@ stack (state.pending). Triggered abilities wait in state.queue until no ability 
 through resolving, then go on the stack. Whenever resolution reaches a choose, may or
 choose-one node, the engine stops and that choice becomes the next decision.
 """
-import copy
 import random
 from collections import Counter
 from dataclasses import dataclass, field
@@ -296,9 +295,29 @@ class Game:
         return uid
 
     def clone(self) -> "Game":
-        # Card definitions are immutable, so share them instead of copying.
-        memo = {id(c.card): c.card for c in self.state.cards}
-        return copy.deepcopy(self, memo)
+        """An independent copy to try moves on (previews, search).
+
+        Written out field by field rather than with deepcopy, which was most of the cost of the
+        action-outcome previews. Card definitions, the config and Continuation args are immutable,
+        so they're shared; everything a step can change is copied. A new field on the state
+        classes needs a line here (tests/test_engine.py checks the copy against deepcopy).
+        """
+        s = self.state
+        g = Game.__new__(Game)
+        g.config = self.config
+        g.rng = random.Random()
+        g.rng.setstate(self.rng.getstate())
+        g._result = None
+        g.state = GameState(
+            cards=[_shallow(c) for c in s.cards],
+            players=[_copy_player(p) for p in s.players],
+            first_player=s.first_player, active_player=s.active_player, decision_player=s.decision_player,
+            turn=s.turn, phase=s.phase, winner=s.winner,
+            pending=[_copy_frame(f) if isinstance(f, Frame) else _shallow(f) for f in s.pending],
+            queue=[_copy_frame(f) for f in s.queue],
+            effects=[_shallow(e) for e in s.effects],
+            duel=s.duel)
+        return g
 
     # ------------------------------------------------------------------ turn structure
 
@@ -782,3 +801,23 @@ def describe_action(game: Game, action: Action) -> str:
             _, node = game.pending_decision()
             option = node.data["options"][action.option]
             return Renderer(game.card(action.card).card.type).steps(option)
+
+
+def _shallow(obj):
+    """A copy of a dataclass instance whose fields are all immutable values."""
+    new = object.__new__(type(obj))
+    new.__dict__.update(obj.__dict__)
+    return new
+
+
+def _copy_player(p: PlayerState) -> PlayerState:
+    new = _shallow(p)
+    new.deck, new.hand, new.play, new.discard = p.deck[:], p.hand[:], p.play[:], p.discard[:]
+    new.mulligan_marked = p.mulligan_marked[:]
+    return new
+
+
+def _copy_frame(f: Frame) -> Frame:
+    new = _shallow(f)
+    new.bindings = {name: uids[:] for name, uids in f.bindings.items()}
+    return new

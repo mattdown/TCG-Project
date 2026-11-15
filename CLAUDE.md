@@ -86,7 +86,7 @@ Blog/           everything that isn't the game or training: the card lab (card_l
 uv sync
 uv run pytest
 uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
-uv run python -m scripts.train [--arch gnn --iterations 100 --device mps]
+uv run python -m scripts.train [--arch gnn --iterations 100]   # CPU by default: MPS is slower for these small graphs
 uv run python -m scripts.benchmark [--models a.pt b.pt]
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
 ```

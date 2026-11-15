@@ -3,6 +3,7 @@ import torch
 
 from src.game.actions import ActionType
 from src.graph.abilities import FEATURES
+from src.graph.encode import OUTCOME_FEATURES
 from src.model.gnn import GNNNet
 from src.model.transformer import EntityTransformerNet
 
@@ -34,7 +35,8 @@ def create_model(arch: str, **hparams) -> torch.nn.Module:
 
 def save_model(net: torch.nn.Module, path, extra: dict | None = None):
     torch.save({"arch": net.arch, "hparams": net.hparams, "state_dict": net.state_dict(),
-                "ability_features": list(FEATURES), "action_types": [t.name for t in ActionType], **(extra or {})},
+                "ability_features": list(FEATURES), "action_types": [t.name for t in ActionType],
+                "outcome_features": list(OUTCOME_FEATURES), **(extra or {})},
                path)
 
 
@@ -62,6 +64,15 @@ def load_model(path, device: str = "cpu") -> torch.nn.Module:
         state["ability_in.0.weight"] = _by_name(
             state["ability_in.0.weight"], checkpoint.get("ability_features", LEGACY_FEATURES),
             torch.zeros_like(weight), list(FEATURES), 1)
+    # Checkpoints from before outcome features get a zero projection, so they ignore them until trained;
+    # new outcome features get zero weights, as ability features do.
+    if "outcome_in.weight" not in state:
+        state["outcome_in.weight"] = torch.zeros_like(net.outcome_in.weight)
+        state["outcome_in.bias"] = torch.zeros_like(net.outcome_in.bias)
+    else:
+        state["outcome_in.weight"] = _by_name(
+            state["outcome_in.weight"], checkpoint.get("outcome_features", OUTCOME_FEATURES), torch.zeros_like(net.outcome_in.weight),
+            list(OUTCOME_FEATURES), 1)
     net.load_state_dict(state)
     net.eval()
     return net

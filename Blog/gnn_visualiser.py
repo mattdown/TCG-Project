@@ -201,7 +201,9 @@ def heads(net, game: Game, e, uids: dict[int, int], card_uids: list[int]) -> dic
 
         actions = []
         for a, logit in zip(view["actions"], logits):
-            slots = [net.action_type_emb.weight[int(e.action_type[a["index"]])]]
+            i = a["index"]
+            slots = [net.action_embedding(torch.from_numpy(e.action_type[i:i + 1]),
+                                          torch.from_numpy(e.action_outcome[i:i + 1]))[0]]
             for k, key in enumerate(("actor", "target", "context", "option")):
                 slots.append(final(a[key]) if a[key] is not None else net.empty_slot[k])
             slots.append(x["global"][0])

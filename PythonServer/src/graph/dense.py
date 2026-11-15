@@ -16,7 +16,7 @@ import torch
 
 from src.graph.abilities import NODE_DIM
 from src.graph.builder import ABILITY_EDGES, _ability_pairs
-from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, PLAYER_DIM, EncodedObs
+from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, OUTCOME_DIM, PLAYER_DIM, EncodedObs
 
 # rel[dst, src]: the edge from token src to token dst. Matches the GNN's edge types.
 RELATIONS = ("none", "self", "belongs_to", "has_card", "faces", "opposes", "in", "has",
@@ -46,6 +46,7 @@ class DenseBatch:
     action_target: torch.Tensor  # [B, A]
     action_context: torch.Tensor  # [B, A] ability node index, -1 if none
     action_option: torch.Tensor  # [B, A]
+    action_outcome: torch.Tensor  # [B, A, OUTCOME_DIM]
     action_mask: torch.Tensor  # [B, A] bool, False for padding
 
     def to(self, device) -> "DenseBatch":
@@ -94,6 +95,7 @@ def collate_dense(observations: list[EncodedObs]) -> DenseBatch:
     action_target = np.full((B, A), -1, dtype=np.int64)
     action_context = np.full((B, A), -1, dtype=np.int64)
     action_option = np.full((B, A), -1, dtype=np.int64)
+    action_outcome = np.zeros((B, A, OUTCOME_DIM), dtype=np.float32)
     action_mask = np.zeros((B, A), dtype=bool)
     for b, o in enumerate(observations):
         n, a = o.num_cards, o.num_actions
@@ -108,6 +110,7 @@ def collate_dense(observations: list[EncodedObs]) -> DenseBatch:
         action_target[b, :a] = o.action_target
         action_context[b, :a] = o.action_context
         action_option[b, :a] = o.action_option
+        action_outcome[b, :a] = o.action_outcome
         action_mask[b, :a] = True
     return DenseBatch(
         card_static=torch.from_numpy(card_static),
@@ -123,5 +126,6 @@ def collate_dense(observations: list[EncodedObs]) -> DenseBatch:
         action_target=torch.from_numpy(action_target),
         action_context=torch.from_numpy(action_context),
         action_option=torch.from_numpy(action_option),
+        action_outcome=torch.from_numpy(action_outcome),
         action_mask=torch.from_numpy(action_mask),
     )

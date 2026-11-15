@@ -14,11 +14,11 @@ from src.game.engine import Game
 from src.graph.abilities import FEATURES
 from src.graph.builder import collate_hetero, to_hetero_data
 from src.graph.dense import NUM_FIXED_TOKENS, REL, bucket, collate_dense, relation_matrix
-from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, observe
+from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, OUTCOME_FEATURES, action_outcome, observe
 from src.model.common import segment_entropy, segment_log_softmax
 from src.model.registry import (ARCHITECTURES, LEGACY_ACTIONS, LEGACY_FEATURES, create_model, load_model,
                                 save_model)
-from tests.helpers import put_in_play, started_game, unit
+from tests.helpers import filler_deck, put_in_hand, put_in_play, started_game, unit
 
 ARCHS = sorted(ARCHITECTURES)
 
@@ -73,6 +73,62 @@ def test_encoding_matches_state():
 def test_opponent_hand_is_hidden():
     game = started_game()
     assert observe(game, 0).encoded.num_cards == len(game.state.players[0].hand)
+
+
+def _outcome(game, action) -> dict:
+    return dict(zip(OUTCOME_FEATURES, action_outcome(game, game.state.decision_player, action)))
+
+
+def test_attack_outcome_counts_armor():
+    """The previewed fight already takes Armor off, so the network doesn't have to learn the sum."""
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=3, health=2))
+    plain = put_in_play(game, 1, unit(power=1, health=3))
+    armored = put_in_play(game, 1, unit(power=1, health=3, armor=1))
+    hit_plain = _outcome(game, Action(ActionType.ATTACK, attacker, plain))
+    hit_armored = _outcome(game, Action(ActionType.ATTACK, attacker, armored))
+    assert hit_plain["previewed"] == 1 and hit_plain["enemy_defeated"] > 0 and hit_plain["enemy_unit_damage"] == 0.3
+    assert hit_armored["enemy_defeated"] == 0 and hit_armored["enemy_unit_damage"] == 0.2
+    assert hit_armored["my_unit_damage"] == 0.1 and hit_armored["my_defeated"] == 0
+    assert game.state.cards[armored].damage == 0  # tried on a copy
+
+
+def test_lethal_and_unpreviewed_actions():
+    game = started_game()
+    attacker = put_in_play(game, 0, unit(power=5, health=1))
+    game.state.players[1].health = 5
+    lethal = _outcome(game, Action(ActionType.ATTACK_HERO, attacker))
+    assert lethal["win"] == 1 and lethal["enemy_hero_damage"] == 0.5 and not game.is_over
+    assert not any(_outcome(game, Action(ActionType.END_TURN)).values())
+
+
+def test_outcomes_never_depend_on_hidden_cards():
+    """The same position with the hidden cards dealt differently gives the same outcome features."""
+    draw = {"kind": "triggered", "trigger": {"event": "on_play"}, "condition": None,
+            "steps": [{"effect": "draw", "amount": 2, "target": "you"}]}
+    encodings = []
+    for seed in range(4):
+        rng = random.Random(seed)
+        decks = [filler_deck(), filler_deck()]
+        for deck in decks:
+            deck[:10] = [unit(cost=1, power=rng.randrange(1, 9), health=rng.randrange(1, 9), name=f"R{i}")
+                         for i in range(10)]
+            rng.shuffle(deck)
+        game = started_game(*decks)
+        put_in_hand(game, 0, unit(abilities=(draw,), name="Drawer"))
+        encodings.append(observe(game, 0).encoded.action_outcome)
+    assert all(np.array_equal(encodings[0], e) for e in encodings[1:])
+
+
+def test_outcomes_in_random_positions_are_finite_and_only_on_previewed_actions():
+    for o in random_positions(20, seed=3):
+        e = o.encoded
+        assert e.action_outcome.shape == (e.num_actions, len(OUTCOME_FEATURES)) and np.isfinite(e.action_outcome).all()
+        for a, row in zip(o.actions, e.action_outcome):
+            if a.type in (ActionType.END_TURN, ActionType.MULLIGAN, ActionType.KEEP_HAND, ActionType.SPARE_SPORE):
+                assert not row.any()
+            else:
+                assert row[0] == 1
 
 
 def test_hetero_data_edges():
@@ -196,6 +252,25 @@ def test_older_checkpoints_load_with_zero_weights_for_new_ability_features(arch,
     torch.save(checkpoint, tmp_path / "old.pt")
     weight = load_model(tmp_path / "old.pt").ability_in[0].weight
     assert torch.equal(weight[:, :-3], net.ability_in[0].weight[:, :-3]) and not weight[:, -3:].any()
+
+
+@pytest.mark.parametrize("arch", ARCHS)
+def test_checkpoints_from_before_outcomes_ignore_them(arch, tmp_path):
+    """An older checkpoint loads with a zero outcome projection, so its scores don't change."""
+    net = small(arch)
+    save_model(net, tmp_path / "model.pt")
+    checkpoint = torch.load(tmp_path / "model.pt")
+    del checkpoint["state_dict"]["outcome_in.weight"], checkpoint["state_dict"]["outcome_in.bias"]
+    del checkpoint["outcome_features"]
+    torch.save(checkpoint, tmp_path / "old.pt")
+    loaded = load_model(tmp_path / "old.pt")
+    observations = [o.encoded for o in random_positions(4, seed=5)]
+    with torch.no_grad():
+        logits, _, _ = loaded(loaded.collate(observations))
+        for o in observations:
+            o.action_outcome[:] = 0
+        blind, _, _ = loaded(loaded.collate(observations))
+    assert not loaded.outcome_in.weight.any() and torch.allclose(logits, blind)
 
 
 @pytest.mark.parametrize("arch", ARCHS)

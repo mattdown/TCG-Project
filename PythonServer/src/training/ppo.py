@@ -51,11 +51,12 @@ class PPOConfig:
     hidden: int = 128
     num_layers: int = 4
     seed: int = 0
-    device: str = "cpu"
+    device: str = "cpu"  # faster than MPS here: the graphs are small, so GPU overhead outweighs the compute (2026-11-15)
     league_share: float = 0.3  # share of games against a league opponent (0: pure self-play)
     snapshot_every: int = 10  # add a frozen copy of the network to the league this often
     pool_size: int = 8  # snapshots kept (the heuristic agent is always in the league)
     init: str = ""  # checkpoint to start from (its arch and size win over the fields above)
+    outcomes: bool = True  # False hides the action-outcome features in self-play (an ablation)
 
 
 @dataclass
@@ -92,10 +93,16 @@ def _sample(net: nn.Module, observations: list, device: str):
 
 def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games: int, rng: random.Random,
                   device: str, gamma: float = 1.0, gae_lambda: float = 0.95, league: list | None = None,
-                  league_share: float = 0.0):
+                  league_share: float = 0.0, outcomes: bool = True):
     """Plays num_games games, a league_share of them against league opponents (frozen networks or
     agents). Returns the training steps, the average game length in turns, and the learner's
-    results against the league as (wins, games)."""
+    results against the league as (wins, games). outcomes=False zeroes the action-outcome features."""
+    def look(game: Game):
+        obs = observe(game, game.state.decision_player)
+        if not outcomes:
+            obs.encoded.action_outcome[:] = 0
+        return obs
+
     card_sets = card_sets if isinstance(card_sets, list) else [card_sets]
     games, matchups = [], []
     for _ in range(num_games):
@@ -115,7 +122,7 @@ def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games:
             else:
                 learner.append(g)
         if learner:
-            observations = [observe(games[g], games[g].state.decision_player) for g in learner]
+            observations = [look(games[g]) for g in learner]
             for g, obs, (choice, log_prob, value) in zip(learner, observations, _sample(net, observations, device)):
                 game = games[g]
                 trajectories[g][game.state.decision_player].append(Step(obs.encoded, choice, log_prob, value))
@@ -123,7 +130,7 @@ def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games:
         for k, group in by_opponent.items():
             opponent = league[k]
             if isinstance(opponent, nn.Module):
-                observations = [observe(games[g], games[g].state.decision_player) for g in group]
+                observations = [look(games[g]) for g in group]
                 for g, obs, (choice, _, _) in zip(group, observations, _sample(opponent, observations, device)):
                     games[g].step(obs.actions[choice], validate=False)
             else:
@@ -231,7 +238,7 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
         league = [HeuristicAgent(), *snapshots]
         steps, avg_turns, (league_wins, league_games) = collect_games(
             net, card_sets, cfg.games_per_iteration, rng, cfg.device, cfg.gamma, cfg.gae_lambda,
-            league, cfg.league_share)
+            league, cfg.league_share, cfg.outcomes)
         t1 = time.time()
         metrics = ppo_update(net, optimizer, steps, cfg)
         t2 = time.time()

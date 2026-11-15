@@ -2,10 +2,11 @@
 
 1. Card encoder: static card features → card embedding.
 2. Message passing: GATv2 attention per edge type, with residuals and layer norm.
-3. Policy head: each legal action is [action type | actor | target | context | option | global]
-   embeddings concatenated into one vector and scored. Context is the ability node being
-   decided, option the first node of a choose-one option. Unused slots get a learned "empty"
-   vector.
+3. Policy head: each legal action is [action | actor | target | context | option | global]
+   embeddings concatenated into one vector and scored. The action slot is the action type's
+   embedding plus a projection of its outcome features (what it would do). Context is the ability
+   node being decided, option the first node of a choose-one option. Unused slots get a learned
+   "empty" vector.
 4. Value head: win probability for the observing player, in [-1, 1].
 """
 import torch
@@ -17,7 +18,7 @@ from torch_geometric.nn import GATv2Conv, HeteroConv
 from src.game.actions import ActionType
 from src.graph.abilities import NODE_DIM
 from src.graph.builder import EDGE_TYPES, NODE_TYPES, collate_hetero
-from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, PLAYER_DIM, EncodedObs
+from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, OUTCOME_DIM, PLAYER_DIM, EncodedObs
 from src.model.common import mlp
 
 
@@ -39,6 +40,7 @@ class GNNNet(nn.Module):
         self.norms = nn.ModuleList(nn.ModuleDict({nt: nn.LayerNorm(hidden) for nt in NODE_TYPES})
                                    for _ in range(num_layers))
         self.action_type_emb = nn.Embedding(len(ActionType), hidden)
+        self.outcome_in = nn.Linear(OUTCOME_DIM, hidden)
         self.empty_slot = nn.Parameter(torch.zeros(4, hidden))
         self.policy_head = mlp(6 * hidden, hidden, 1)
         self.value_head = mlp(3 * hidden, hidden, 1)
@@ -78,13 +80,18 @@ class GNNNet(nn.Module):
         slots = [self._slot(x["card"], actions.actor, offset, 0), self._slot(x["card"], actions.target, offset, 1),
                  self._slot(x["ability"], actions.context, node_offset, 2),
                  self._slot(x["ability"], actions.option, node_offset, 3)]
-        action_in = torch.cat([self.action_type_emb(actions.type), *slots, x["global"][actions.batch]], dim=-1)
+        action_in = torch.cat([self.action_embedding(actions.type, actions.outcome), *slots, x["global"][actions.batch]],
+                              dim=-1)
         logits = self.policy_head(action_in).squeeze(-1)
 
         hidden = x["player"].size(-1)
         players = x["player"].view(-1, 2, hidden)  # the observing player is always node 0
         value = torch.tanh(self.value_head(torch.cat([x["global"], players[:, 0], players[:, 1]], dim=-1)))
         return logits, actions.batch, value.squeeze(-1)
+
+    def action_embedding(self, action_type: torch.Tensor, outcome: torch.Tensor) -> torch.Tensor:
+        """The action slot: what kind of action, plus what it would do."""
+        return self.action_type_emb(action_type) + self.outcome_in(outcome)
 
     @staticmethod
     def _conv_messages(conv: HeteroConv, x: dict, batch: Batch, messages: list) -> dict[str, torch.Tensor]:

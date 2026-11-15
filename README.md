@@ -182,7 +182,7 @@ Needs [uv](https://docs.astral.sh/uv/). From `PythonServer/`:
 uv sync
 uv run pytest
 uv run python -m scripts.generate_cards --kind set --count 200   # cardsets/set_200.json
-uv run python -m scripts.train --iterations 100 --device mps      # models/tcgnet.pt
+uv run python -m scripts.train --iterations 100                   # models/tcgnet.pt (CPU: faster than MPS for this model)
 uv run python -m scripts.benchmark                                # round-robin win rates
 uv run python -m scripts.experiments abilities                    # the balance tests above
 uv run python -m scripts.server                                   # tcp://*:5555 for the Unity client

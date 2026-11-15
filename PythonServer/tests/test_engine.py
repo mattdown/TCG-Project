@@ -1,8 +1,10 @@
+import copy
 import random
 from dataclasses import replace
 
 import pytest
 
+from src.cards.generate import generate_card_set
 from src.cards.vanilla import generate_vanilla_set
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
@@ -211,6 +213,34 @@ def test_clone_is_independent_and_shares_card_definitions():
     copy.step(END)
     assert game.state.turn == 1 and copy.state.turn == 2
     assert copy.state.cards[0].card is game.state.cards[0].card
+
+
+@pytest.fixture(scope="module")
+def ability_set():
+    return generate_card_set(120, seed=4)
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_clone_matches_deepcopy_and_plays_on_identically(ability_set, seed):
+    """The hand-written clone must copy everything a step can change: checked against deepcopy at
+    every decision of random games with abilities, then by playing both copies on."""
+    rng = random.Random(seed)
+    game = Game(random_deck(ability_set, rng), random_deck(ability_set, rng), seed=seed)
+    while not game.is_over:
+        actions = game.legal_actions()
+        fast, slow = game.clone(), copy.deepcopy(game)
+        assert fast.state == slow.state and fast.rng.getstate() == game.rng.getstate()
+        if rng.random() < 0.2:  # play a few moves on both: same results, and the original untouched
+            before = copy.deepcopy(game.state)
+            move_rng = random.Random(seed)
+            for g in (fast, slow):
+                for _ in range(5):
+                    if g.is_over:
+                        break
+                    g.step(move_rng.choice(g.legal_actions()))
+                move_rng = random.Random(seed)
+            assert fast.state == slow.state and game.state == before
+        game.step(rng.choice(actions))
 
 
 @pytest.mark.parametrize("seed", range(20))

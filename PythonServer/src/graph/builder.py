@@ -6,7 +6,8 @@ Nodes:
   global  one node: turn, phase
   ability the steps of every visible card's abilities (src/graph/abilities.py)
   action  each legal option. Not part of message passing: it only stores which card and
-          ability nodes the option refers to, so the policy head can score it after message passing.
+          ability nodes the option refers to, and what it would do (its outcome features), so
+          the policy head can score it after message passing.
 """
 import numpy as np
 import torch
@@ -78,6 +79,7 @@ def to_hetero_data(obs: EncodedObs) -> HeteroData:
     data["action"].target = torch.from_numpy(obs.action_target)
     data["action"].context = torch.from_numpy(obs.action_context)
     data["action"].option = torch.from_numpy(obs.action_option)
+    data["action"].outcome = torch.from_numpy(obs.action_outcome)
     data["action"].num_nodes = obs.num_actions
     return data
 
@@ -144,6 +146,7 @@ def collate_hetero(observations: list[EncodedObs]) -> HeteroData:
     data["action"].target = torch.from_numpy(np.concatenate([o.action_target for o in observations]))
     data["action"].context = torch.from_numpy(np.concatenate([o.action_context for o in observations]))
     data["action"].option = torch.from_numpy(np.concatenate([o.action_option for o in observations]))
+    data["action"].outcome = torch.from_numpy(np.concatenate([o.action_outcome for o in observations]))
     data["action"].batch = torch.from_numpy(np.repeat(graphs, n_actions).astype(np.int64))
     data["action"].num_nodes = int(n_actions.sum())
     return data

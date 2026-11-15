@@ -199,6 +199,31 @@ filters by keyword.
    obvious candidates, all with placeholder names.
 7. **More than one ability per card,** once single abilities are priced well.
 
+Compared with the genre as a whole (mechanics many card games share, described generically,
+with placeholder names when built; never copied cards), also missing:
+
+8. **Interacting with abilities.** Removing a unit's text, transforming a unit into another,
+   taking control of an enemy unit, setting or swapping stats. Today an ability can only be
+   answered by removing the whole unit.
+9. **Making cards.** Adding a random card to hand, "pick one of three" generated options,
+   shuffling cards into a deck. Card advantage and variety in play, and a good fit for a
+   generated set.
+10. **Randomness.** Random targets, damage split at random among enemies.
+11. **Keyword staples.** Heal your hero when this deals damage; defeat any unit this damages;
+    ignore the first damage taken; attack twice a turn; can attack units but not the hero the
+    turn it's played; extra damage on your actions; a delayed cost (locks mana next turn).
+12. **Board position.** Nothing cares about neighbouring units.
+13. **Hero-level play.** No repeatable hero power, no hero weapon or hero attacks, no hero armor.
+    A hero power is a big structural change and a candidate for part 3.
+14. **Card kinds.** Weapons for the hero, besides items and traps (6).
+15. **Long-term goals.** Quest-like cards that reward completing a condition over several turns.
+16. **Conditions on hand or deck.** "If you're holding a Baker", conditions on what's in your deck.
+
+**Priority:** triggers, counting and memory (2, 3, 5) create synergy, so they give deck search
+something to find; interaction and making cards (8, 9) add the most depth. Hero-level play and
+new card kinds (13, 14) change the game itself and probably belong to part 3. Which items go in
+part 2's first batch is decided when that work starts (stage-2 research plan, step P2).
+
 ## Where it stands
 
 Card lab, seed 1, 60 cards, 6 jobs, variety 4: 293 draws, 60 kept (rules v2).
@@ -385,3 +410,6 @@ for checking the engine and client. It uses the same pipeline.
 - **2026-11-05:** New section "What the generator can say": what is generated, what the engine
   runs but isn't generated, what is in the grammar but not built, and what a richer set needs.
   No code change.
+- **2026-11-15:** "What's missing" extended with gaps compared with the genre (8–16: interacting
+  with abilities, making cards, randomness, keyword staples, board position, hero-level play,
+  card kinds, long-term goals, conditions on hand or deck) and a priority note. No code change.

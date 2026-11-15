@@ -118,11 +118,23 @@ and C at likely combinations, instead of waiting to find them by chance.
 
 ### F. A stronger player
 
-Synergies only matter if the agent can play them. Candidates:
-- **Search at play time:** determinized MCTS or IS-MCTS (guess the hidden cards, search each
-  guess) with the value head at the leaves. A turn's order of plays and attacks is the main
-  planning problem, and the engine is deterministic within a turn, so even shallow search
-  should help.
+Synergies only matter if the agent can play them. A known weakness: the agent doesn't use
+Armor well. Armor is one number on a card (`armor / 2` in `src/graph/encode.py`); using it means
+comparing my attack minus their armor with their health, a threshold over two units' features
+that rare Armor cards and a reward only at the end of the game make hard to learn. In order of cost:
+- **Action-outcome features (first):** the engine already works out every legal action's result
+  for the client's drag previews (damage dealt and taken, who is defeated, hero damage), but the
+  graph never reads it. Add it as features on each action: a one-step lookahead in the inputs.
+  Combat is deterministic, so nothing hidden leaks. Armor, Duelist and Guard trades become
+  visible instead of learned.
+- **Search within a turn, at play time:** your own turn is deterministic apart from draws, and
+  `Game.clone()` exists. A beam search over sequences of plays and attacks, scoring the
+  end-of-turn state with the value head, fixes ordering mistakes (attacking before buffing,
+  trading in the wrong order).
+- **Search past the end of the turn:** determinized MCTS or IS-MCTS (guess the hidden cards,
+  search each guess) with the value head at the leaves. Needs `determinize(player)`, not built yet.
+- **Measure each step** against the heuristic agent on held-out cards, including an Armor-heavy
+  set, so each one's gain is known.
 - **Longer training on more varied decks**, including decks from A, so the agent learns to play
   strong archetypes, not just random piles. Probably on a cloud GPU.
 - **Search in training (expert iteration):** use the same shallow search while training, so the
@@ -130,7 +142,26 @@ Synergies only matter if the agent can play them. Candidates:
   outcomes (AlphaZero-style), instead of PPO alone. Play-time search makes one agent stronger;
   search in training makes the network itself stronger, which helps every measurement that runs
   the raw network. Train on A's elite decks, so A and F feed each other: deck search finds real
-  archetypes, and a stronger agent makes deck search's verdicts trustworthy.
+  archetypes, and a stronger agent makes deck search's verdicts trustworthy. It multiplies the
+  cost of every training game, so it comes after the loop below is running.
+
+### F2. Agent, decks and cost model trained together
+
+The three are coupled: prices depend on how well the agent plays and which decks it plays, the
+agent learns only what its decks teach it, and good decks depend on prices. None can finish
+first, so alternate in short rounds:
+1. **Train** the agent on a mix, about half random decks and half elite decks. The random half
+   keeps it general and keeps the cost measurements average-case; the elite half teaches combos.
+2. **Price:** with that round's agent frozen, measure each card's effect on win rate, update the
+   cost model (card embedding → fair cost) and re-cost the set.
+3. **Search decks:** a short MAP-Elites run on the re-costed set gives the next round's elite
+   decks. It's cheap with the heuristic agent (the blog explainer's run: 16,000 games in 73 s),
+   so move `map_elites()` from `Blog/map_elites_visualiser.py` into `PythonServer` as the deck source.
+4. **Check** against a fixed benchmark (held-out cards, the heuristic agent, later the planted
+   combos), since with every part moving, progress is otherwise hard to see.
+
+The cost model prices single cards on average, which is what this loop needs. The deck model
+(D, M2) prices combinations; the loop's games are its training data, but the loop doesn't need it.
 
 ### G. Class identity: generation vectors
 
@@ -190,6 +221,18 @@ This gives stage 2 what the ±1 mis-costed vanilla cards gave stage 1: a known a
 methods against. It's also a clear story for the blog.
 
 ## 6. Proposed order
+
+**Part 2 starts with the cost model and a stronger agent** (decided 2026-11-15), before M0:
+
+| Step | Work | Done when |
+|---|---|---|
+| **P1** | Action-outcome features (F), then search within a turn at play time | Measured gain against the heuristic agent, including on an Armor-heavy set |
+| **P2** | A first batch of grammar work, alongside P1 (`ability-generation.md`, "What's missing"; which items is decided when it starts) | New sets generate, pass the tests and are priced roughly |
+| **P3** | The joint loop (F2): agent, decks and cost model | The cost model is stable across rounds, rediscovers the vanilla formula and finds the mis-costed cards |
+| **P4** | Search in training (F), once P3 runs | The raw network beats the P3 agent |
+
+P2 comes before P3 so the expensive training runs happen on the richer grammar and aren't
+repeated when it changes.
 
 | Milestone | Work | Done when |
 |---|---|---|

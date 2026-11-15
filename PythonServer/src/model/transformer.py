@@ -14,7 +14,7 @@ from torch import nn
 from src.game.actions import ActionType
 from src.graph.dense import GLOBAL_TOKEN, NUM_FIXED_TOKENS, RELATIONS, DenseBatch, collate_dense
 from src.graph.abilities import NODE_DIM
-from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, PLAYER_DIM, EncodedObs
+from src.graph.encode import CARD_DYNAMIC_DIM, CARD_STATIC_DIM, GLOBAL_DIM, OUTCOME_DIM, PLAYER_DIM, EncodedObs
 from src.model.common import mlp
 
 
@@ -55,6 +55,7 @@ class EntityTransformerNet(nn.Module):
         self.layers = nn.ModuleList(RelationalAttentionLayer(hidden, heads) for _ in range(num_layers))
         self.final_norm = nn.LayerNorm(hidden)
         self.action_type_emb = nn.Embedding(len(ActionType), hidden)
+        self.outcome_in = nn.Linear(OUTCOME_DIM, hidden)
         self.empty_slot = nn.Parameter(torch.zeros(4, hidden))
         self.policy_head = mlp(6 * hidden, hidden, 1)
         self.value_head = mlp(3 * hidden, hidden, 1)
@@ -78,7 +79,8 @@ class EntityTransformerNet(nn.Module):
         slots = [self._slot(card_h, batch.action_actor, 0), self._slot(card_h, batch.action_target, 1),
                  self._slot(node_h, batch.action_context, 2), self._slot(node_h, batch.action_option, 3)]
         A = batch.action_type.size(1)
-        action_in = torch.cat([self.action_type_emb(batch.action_type), *slots, g[:, None].expand(-1, A, -1)], dim=-1)
+        action = self.action_type_emb(batch.action_type) + self.outcome_in(batch.action_outcome)
+        action_in = torch.cat([action, *slots, g[:, None].expand(-1, A, -1)], dim=-1)
         logits = self.policy_head(action_in).squeeze(-1)  # [B, A]
 
         value = torch.tanh(self.value_head(torch.cat([g, x[:, 1], x[:, 2]], dim=-1))).squeeze(-1)

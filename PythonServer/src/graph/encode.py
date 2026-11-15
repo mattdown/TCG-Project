@@ -30,10 +30,20 @@ CARD_DYNAMIC_FEATURES = ("in_hand", "in_play", "mine", "attacked", "fresh", "dam
 PLAYER_FEATURES = ("health", "mana", "crystals", "hand", "deck", "discard", "units", "can_attack", "power_in_play",
                    "spare_spore", "active", "mulligan_done", "fatigue", *ASPECTS)
 GLOBAL_FEATURES = ("turn", "mulligan", "main", "my_decision")
+# What an action would do, from the deciding player's side: the action tried on a copy of the game, as
+# the client's drag previews are. "previewed" says the rest are real (0 for actions that aren't tried).
+OUTCOME_FEATURES = ("previewed", "enemy_unit_damage", "my_unit_damage", "enemy_defeated", "my_defeated",
+                    "enemy_hero_damage", "my_hero_damage", "my_hero_healed", "my_units_healed",
+                    "enemy_stat_change", "my_stat_change", "my_summoned", "enemy_summoned", "win", "loss")
+# Ending the turn, the mulligan and Spare Spore aren't tried: ending the turn would run into the opponent's
+# draw, and the mulligan into a shuffle.
+PREVIEWED = frozenset({ActionType.PLAY, ActionType.ATTACK, ActionType.ATTACK_HERO, ActionType.CHOOSE_TARGET,
+                       ActionType.CHOOSE_OPTION, ActionType.ACCEPT, ActionType.DECLINE})
 CARD_STATIC_DIM = len(CARD_STATIC_FEATURES)
 CARD_DYNAMIC_DIM = len(CARD_DYNAMIC_FEATURES)
 PLAYER_DIM = len(PLAYER_FEATURES)
 GLOBAL_DIM = len(GLOBAL_FEATURES)
+OUTCOME_DIM = len(OUTCOME_FEATURES)
 
 
 @dataclass
@@ -56,6 +66,7 @@ class EncodedObs:
     node_bound: np.ndarray = None  # node → card
     action_context: np.ndarray = None  # [A] int64: the ability node being decided, -1 if none
     action_option: np.ndarray = None  # [A] int64: for choose one, the first node of the option, else -1
+    action_outcome: np.ndarray = None  # [A, OUTCOME_DIM] float32: what each action would do
 
     def __post_init__(self):
         empty = np.zeros((2, 0), dtype=np.int64)
@@ -68,6 +79,8 @@ class EncodedObs:
         for name in ("action_context", "action_option"):
             if getattr(self, name) is None:
                 setattr(self, name, np.full(len(self.action_type), -1, dtype=np.int64))
+        if self.action_outcome is None:
+            self.action_outcome = np.zeros((len(self.action_type), OUTCOME_DIM), dtype=np.float32)
 
     @property
     def num_cards(self) -> int:
@@ -95,6 +108,41 @@ def card_static_features(card: Card) -> np.ndarray:
     return np.array([card.cost / 10, card.power / 10, card.health / 10,
                      *(card.keyword(k) / scale for k, scale in KEYWORD_SCALE.items()),
                      *(float(a in card.aspects) for a in ASPECTS)], dtype=np.float32)
+
+
+def action_outcome(game: Game, player: int, action: Action) -> np.ndarray:
+    """What the action would do, up to the first choice an ability asks for (OUTCOME_FEATURES).
+
+    A one-step lookahead in the inputs, so the network doesn't have to learn the combat sums (Armor,
+    Duelist) from end-of-game rewards. The copy holds the hidden cards too, so only what happens on
+    the board and to the heroes is kept: never which card a draw or a random discard would move.
+    """
+    out = np.zeros(OUTCOME_DIM, dtype=np.float32)
+    if action.type not in PREVIEWED:
+        return out
+    trial = game.clone()
+    r = trial.step(action, validate=False, record=True)
+    mine = lambda uid: trial.card(uid).owner == player
+    stat = [0, 0]  # enemy, mine
+    for e in r.effects:
+        if e.kind == "stat":
+            stat[mine(e.uid)] += e.value
+    won = trial.is_over and trial.state.winner == player
+    lost = trial.is_over and trial.state.winner == 1 - player
+    out[:] = (1,
+              sum(n for uid, n in r.damage.items() if not mine(uid)) / 10,
+              sum(n for uid, n in r.damage.items() if mine(uid)) / 10,
+              sum(not mine(uid) for uid in r.defeated) / 3,
+              sum(mine(uid) for uid in r.defeated) / 3,
+              r.hero_damage.get(1 - player, 0) / 10,
+              r.hero_damage.get(player, 0) / 10,
+              r.hero_healed.get(player, 0) / 10,
+              sum(n for uid, n in r.healed.items() if mine(uid)) / 10,
+              stat[0] / 10, stat[1] / 10,
+              sum(mine(uid) for uid in r.summoned) / 3,
+              sum(not mine(uid) for uid in r.summoned) / 3,
+              won, lost)
+    return out
 
 
 def observe(game: Game, player: int) -> Observation:
@@ -155,5 +203,7 @@ def observe(game: Game, player: int) -> Observation:
         node_bound=nodes.bound_to,
         action_context=context,
         action_option=option,
+        action_outcome=np.array([action_outcome(game, player, a) for a in actions], dtype=np.float32).reshape(
+            -1, OUTCOME_DIM),
     )
     return Observation(encoded, actions, card_uids)
