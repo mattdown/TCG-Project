@@ -87,6 +87,8 @@ uv sync
 uv run pytest
 uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
 uv run python -m scripts.train [--arch gnn --iterations 100]   # CPU by default: MPS is slower for these small graphs
+uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/armor_heavy.json --wandb tcg-selfplay
+                                            # held-out evals pick the best checkpoint; logs to W&B
 uv run python -m scripts.benchmark [--models a.pt b.pt]
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
 ```
@@ -104,7 +106,8 @@ uv run --project PythonServer --with playwright python Blog/teaser.py    # part 
 uv run --project PythonServer pytest Blog/tests
 ```
 
-Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log. The
+Training prints are buffered when piped. Use `PYTHONUNBUFFERED=1` to watch a log. For long runs, wrap
+the command in `caffeinate -ims` (and `nohup ... &`) so the Mac doesn't sleep. The
 `torch.jit.script` FutureWarning comes from PyG and is harmless.
 
 ## Conventions

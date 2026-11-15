@@ -8,6 +8,7 @@ dependencies = [
     "pyzmq>=27.1.0",
     "torch>=2.8.0",
     "torch-geometric>=2.6.1",
+    "wandb>=0.31.0",
 ]
 
 [dependency-groups]

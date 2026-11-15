@@ -1,6 +1,7 @@
 """PPO self-play training with a league. Writes models/tcgnet.pt (latest) and models/tcgnet_best.pt.
 
---cards takes one or more card sets: each game picks one, and evaluation uses the first."""
+--cards takes one or more card sets: each game picks one, and evaluation uses the first. --eval-cards adds
+held-out sets, evaluated vs the heuristic (they pick the best checkpoint). --wandb PROJECT logs to W&B."""
 import argparse
 from dataclasses import fields
 from pathlib import Path
@@ -13,6 +14,7 @@ from src.training.ppo import PPOConfig, train
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cards", type=Path, nargs="+", default=[CARDSET_PATH])
+    parser.add_argument("--eval-cards", type=Path, nargs="*", default=[])
     parser.add_argument("--out", type=Path, default=MODEL_PATH)
     for f in fields(PPOConfig):
         parser.add_argument(f"--{f.name.replace('_', '-')}", type=type(f.default), default=f.default)
@@ -21,7 +23,8 @@ def main():
     cfg = PPOConfig(**{f.name: getattr(args, f.name) for f in fields(PPOConfig)})
     args.out.parent.mkdir(parents=True, exist_ok=True)
     print(cfg)
-    train(cfg, [load_card_set(path) for path in args.cards], args.out)
+    train(cfg, [load_card_set(path) for path in args.cards], args.out,
+          eval_sets={path.stem: load_card_set(path) for path in args.eval_cards})
 
 
 if __name__ == "__main__":

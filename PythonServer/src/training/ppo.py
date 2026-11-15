@@ -15,6 +15,7 @@ import copy
 import random
 import time
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import torch
 from torch import nn
@@ -57,6 +58,7 @@ class PPOConfig:
     pool_size: int = 8  # snapshots kept (the heuristic agent is always in the league)
     init: str = ""  # checkpoint to start from (its arch and size win over the fields above)
     outcomes: bool = True  # False hides the action-outcome features in self-play (an ablation)
+    wandb: str = ""  # Weights & Biases project to log to ("" = off; `wandb login` once, or WANDB_MODE=offline)
 
 
 @dataclass
@@ -222,9 +224,17 @@ def evaluate(net: nn.Module, card_set: CardSet, num_games: int, seed: int, devic
     }
 
 
-def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=print) -> nn.Module:
-    """Trains on games from the card sets (each game picks one); evaluates on the first."""
+def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=print,
+          eval_sets: dict[str, CardSet] | None = None) -> nn.Module:
+    """Trains on games from the card sets (each game picks one); evaluates on the first, and vs the
+    heuristic on each of eval_sets (cards it doesn't train on). The best checkpoint is picked on the
+    eval sets' average when there are any: the training cards flatter the agent."""
     card_sets = card_sets if isinstance(card_sets, list) else [card_sets]
+    eval_sets = eval_sets or {}
+    run = None
+    if cfg.wandb:
+        import wandb
+        run = wandb.init(project=cfg.wandb, name=Path(out_path).stem, config=asdict(cfg))
     torch.manual_seed(cfg.seed)
     rng = random.Random(cfg.seed)
     net = (load_model(cfg.init, cfg.device) if cfg.init
@@ -243,6 +253,9 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
         metrics = ppo_update(net, optimizer, steps, cfg)
         t2 = time.time()
         league_text = f" | league {league_wins}/{league_games}" if league_games else ""
+        if run:
+            run.log({"steps": len(steps), "turns_per_game": avg_turns, **metrics, "play_s": t1 - t0, "learn_s": t2 - t1,
+                     **({"league_win_rate": league_wins / league_games} if league_games else {})}, step=it)
         log(f"it {it:4d} | {len(steps):6d} steps | {avg_turns:5.1f} turns/game | "
             f"pi {metrics['policy_loss']:+.3f} v {metrics['value_loss']:.3f} ent {metrics['entropy']:.3f} "
             f"kl {metrics['approx_kl']:+.4f} clip {metrics['clip_frac']:.2f} ep {metrics['epochs']} | "
@@ -254,10 +267,20 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
             snapshots = (snapshots + [snapshot])[-cfg.pool_size:]
         if it % cfg.eval_every == 0 or it == cfg.iterations:
             result = evaluate(net, card_sets[0], cfg.eval_games, seed=it, device=cfg.device)
-            log(f"     eval: {result['vs_random']:.1%} vs random, {result['vs_heuristic']:.1%} vs heuristic")
+            agent = NeuralAgent(net, device=cfg.device, greedy=True)
+            for name, cs in eval_sets.items():
+                result[f"{name}_vs_heuristic"] = play_match(agent, HeuristicAgent(), cs, cfg.eval_games, it)["win_rate"]
+            held_out = [result[f"{name}_vs_heuristic"] for name in eval_sets]
+            score = sum(held_out) / len(held_out) if held_out else result["vs_heuristic"]
+            log(f"     eval: {result['vs_random']:.1%} vs random, {result['vs_heuristic']:.1%} vs heuristic"
+                + "".join(f", {name} {result[f'{name}_vs_heuristic']:.1%}" for name in eval_sets))
+            if run:
+                run.log({f"eval/{k}": v for k, v in result.items()} | {"eval/score": score}, step=it)
             save_model(net, out_path, {"config": asdict(cfg), "iteration": it, "eval": result})
-            if result["vs_heuristic"] > best:
-                best = result["vs_heuristic"]
+            if score > best:
+                best = score
                 save_model(net, str(out_path).replace(".pt", "_best.pt"),
                            {"config": asdict(cfg), "iteration": it, "eval": result})
+    if run:
+        run.finish()
     return net
