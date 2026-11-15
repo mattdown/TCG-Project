@@ -34,6 +34,7 @@ html, body { margin: 0; height: 100%; background: #050C0A; overflow: hidden; }
 #legend { position: absolute; left: 1110px; top: 150px; width: 700px; height: 30px; }
 #legend .bar { position: absolute; left: 120px; right: 120px; top: 6px; height: 12px; border-radius: 6px; }
 #legend span { position: absolute; top: 0; font: 700 17px Outfit; color: var(--muted); }
+#legend .title { position: absolute; left: 0; right: 0; top: 22px; text-align: center; font: 700 16px Outfit; color: var(--text); }
 
 /* Left-hand panels, one per part; draw() sets their opacity. */
 .panel { position: absolute; left: 64px; top: 200px; width: 940px; box-sizing: border-box; padding: 24px 30px; border-radius: 22px;
@@ -93,7 +94,7 @@ body.render #controls { display: none; }
   <div id="bg"></div>
   <div class="title">MAP-Elites<small>Finding the best deck of each kind</small></div>
   <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
-  <div id="legend"><span style="left: 0">weaker</span><div class="bar"></div><span style="right: 0">stronger</span></div>
+  <div id="legend"><span style="left: 0">weaker</span><div class="bar"></div><span style="right: 0">stronger</span><div class="title">f: measured deck strength (average health difference)</div></div>
 
   <section class="panel" id="p-plain">
     <h3>A plain search: keep the fittest</h3>
@@ -285,7 +286,7 @@ function buildMap() {
   svg("text", { class: "axis-name", x: MAP.x + MAP.size / 2, y: MAP.y + MAP.size + 62, "text-anchor": "middle" }, axes)
     .textContent = "b₁: average card cost →";
   svg("text", { class: "axis-name", x: MAP.x - 66, y: MAP.y + MAP.size / 2, "text-anchor": "middle",
-    transform: `rotate(-90 ${MAP.x - 66} ${MAP.y + MAP.size / 2})` }, axes).textContent = `b₂: damage to the enemy ${HERO} →`;
+    transform: `rotate(-90 ${MAP.x - 66} ${MAP.y + MAP.size / 2})` }, axes).textContent = `b₂: damage to enemy ${HERO} vs ${UNIT}s →`;
   map.axes = axes;
 }
 
