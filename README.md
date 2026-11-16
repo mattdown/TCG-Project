@@ -169,7 +169,7 @@ PythonServer/     game engine, agents and training (Python 3.12, uv)
   scripts/        generate_cards, train, benchmark, experiments, server
   cardsets/       generated card sets (JSON, one card per line, with Markdown checklists)
   tests/          pytest
-TCGClient/        Unity 6 client (6000.3.10f1): a thin view, the server owns every rule
+TCGClient/        Unity 6 client (6000.3.28f1): a thin view, the server owns every rule
 Blog/             the blog's interactive pages and their tests
 docs/             technical plan, ability generation log, client protocol and design, theme, diagrams
 ```
@@ -205,7 +205,7 @@ uv run --project PythonServer pytest Blog/tests
 
 ### Playing in Unity
 
-Start the server, open `TCGClient/` in Unity 6000.3.10f1 and press Play in `Scenes/Main.unity`. The client
+Start the server, open `TCGClient/` in Unity 6000.3.28f1 and press Play in `Scenes/Main.unity`. The client
 talks JSON over ZeroMQ ([docs/client-protocol.md](docs/client-protocol.md)); its drop zones, previews and
 animations all come from the server. The GNN button overlays the state graph on the board.
 

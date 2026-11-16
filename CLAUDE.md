@@ -70,7 +70,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   cardsets/     generated card sets (JSON, one card per line)
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
-TCGClient/      Unity 6000.3.10f1, URP 2D template
+TCGClient/      Unity 6000.3.28f1, URP 2D template
 docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
 Blog/           everything that isn't the game or training: the card lab (card_lab.py,
                 card_kit.html), card_generation_visualiser (one card's path through the grammar, animated),
