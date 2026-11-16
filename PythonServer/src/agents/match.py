@@ -12,14 +12,18 @@ def play_game(agents: tuple[Agent, Agent], game: Game) -> Game:
     return game
 
 
-def play_match(agent_a: Agent, agent_b: Agent, card_set: CardSet, num_games: int, seed: int = 0) -> dict:
-    """agent_a vs agent_b on random decks. Each deck pair is played twice with the seats swapped."""
+def play_match(agent_a: Agent, agent_b: Agent, card_set: CardSet, num_games: int, seed: int = 0,
+               mirror: bool = False) -> dict:
+    """agent_a vs agent_b on random decks. Each deck pair is played twice with the seats swapped, so
+    who goes first and which deck is stronger cancel out. With `mirror` both players get the same
+    deck, so the result says how they play, not what they drew (each still shuffles its own copy)."""
     rng = random.Random(seed)
     wins = [0, 0]
     draws = turns = 0
     for i in range(num_games):
         if i % 2 == 0:
-            decks = (random_deck(card_set, rng), random_deck(card_set, rng))
+            deck = random_deck(card_set, rng)
+            decks = (deck, list(deck)) if mirror else (deck, random_deck(card_set, rng))
             game_seed = rng.randrange(2**31)
         seats = (agent_a, agent_b) if i % 2 == 0 else (agent_b, agent_a)
         game = play_game(seats, Game(*decks, seed=game_seed, first_player=0))

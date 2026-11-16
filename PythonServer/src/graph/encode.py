@@ -102,6 +102,14 @@ class Observation:
     card_uids: list[int] = None  # the card behind each card node, in order
 
 
+def hide_aspects(encoded: EncodedObs) -> None:
+    """Zeroes the aspect features of every card and both players, in place: an ablation, to see
+    whether a network leans on aspects while they're only random colours."""
+    n = len(ASPECTS)
+    encoded.card_static[:, CARD_STATIC_DIM - n:] = 0
+    encoded.player[:, PLAYER_DIM - n:] = 0
+
+
 @lru_cache(maxsize=None)
 def card_static_features(card: Card) -> np.ndarray:
     """What the card is. The card encoder turns these into the card embedding."""

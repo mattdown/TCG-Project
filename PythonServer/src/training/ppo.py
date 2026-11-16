@@ -48,6 +48,7 @@ class PPOConfig:
     target_kl: float = 0.03
     eval_every: int = 10
     eval_games: int = 100
+    eval_seed: int = 1000  # the same deck pairs at every eval, so checkpoints differ by play, not by the deal
     arch: str = "gnn"  # "gnn" or "transformer"
     hidden: int = 128
     num_layers: int = 4
@@ -57,6 +58,7 @@ class PPOConfig:
     snapshot_every: int = 10  # add a frozen copy of the network to the league this often
     pool_size: int = 8  # snapshots kept (the heuristic agent is always in the league)
     init: str = ""  # checkpoint to start from (its arch and size win over the fields above)
+    mirror_share: float = 0.0  # share of games with the same deck on both sides: the result is down to play, not deck luck
     outcomes: bool = True  # False hides the action-outcome features in self-play (an ablation)
     wandb: str = ""  # Weights & Biases project to log to ("" = off; `wandb login` once, or WANDB_MODE=offline)
 
@@ -95,9 +97,9 @@ def _sample(net: nn.Module, observations: list, device: str):
 
 def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games: int, rng: random.Random,
                   device: str, gamma: float = 1.0, gae_lambda: float = 0.95, league: list | None = None,
-                  league_share: float = 0.0, outcomes: bool = True):
+                  league_share: float = 0.0, outcomes: bool = True, mirror_share: float = 0.0):
     """Plays num_games games, a league_share of them against league opponents (frozen networks or
-    agents). Returns the training steps, the average game length in turns, and the learner's
+    agents) and a mirror_share with the same deck on both sides. Returns the training steps, the average game length in turns, and the learner's
     results against the league as (wins, games). outcomes=False zeroes the action-outcome features."""
     def look(game: Game):
         obs = observe(game, game.state.decision_player)
@@ -109,7 +111,9 @@ def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games:
     games, matchups = [], []
     for _ in range(num_games):
         cs = rng.choice(card_sets)
-        games.append(Game(random_deck(cs, rng), random_deck(cs, rng), seed=rng.randrange(2**31)))
+        deck = random_deck(cs, rng)
+        other = list(deck) if rng.random() < mirror_share else random_deck(cs, rng)
+        games.append(Game(deck, other, seed=rng.randrange(2**31)))
         matchups.append(LeagueGame(rng.randrange(2), rng.randrange(len(league)))
                         if league and rng.random() < league_share else None)
     trajectories = [([], []) for _ in games]  # per game, per player: the learner's decisions only
@@ -248,7 +252,7 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
         league = [HeuristicAgent(), *snapshots]
         steps, avg_turns, (league_wins, league_games) = collect_games(
             net, card_sets, cfg.games_per_iteration, rng, cfg.device, cfg.gamma, cfg.gae_lambda,
-            league, cfg.league_share, cfg.outcomes)
+            league, cfg.league_share, cfg.outcomes, cfg.mirror_share)
         t1 = time.time()
         metrics = ppo_update(net, optimizer, steps, cfg)
         t2 = time.time()
@@ -266,10 +270,10 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
                 p.requires_grad_(False)
             snapshots = (snapshots + [snapshot])[-cfg.pool_size:]
         if it % cfg.eval_every == 0 or it == cfg.iterations:
-            result = evaluate(net, card_sets[0], cfg.eval_games, seed=it, device=cfg.device)
+            result = evaluate(net, card_sets[0], cfg.eval_games, seed=cfg.eval_seed, device=cfg.device)
             agent = NeuralAgent(net, device=cfg.device, greedy=True)
             for name, cs in eval_sets.items():
-                result[f"{name}_vs_heuristic"] = play_match(agent, HeuristicAgent(), cs, cfg.eval_games, it)["win_rate"]
+                result[f"{name}_vs_heuristic"] = play_match(agent, HeuristicAgent(), cs, cfg.eval_games, cfg.eval_seed)["win_rate"]
             held_out = [result[f"{name}_vs_heuristic"] for name in eval_sets]
             score = sum(held_out) / len(held_out) if held_out else result["vs_heuristic"]
             log(f"     eval: {result['vs_random']:.1%} vs random, {result['vs_heuristic']:.1%} vs heuristic"

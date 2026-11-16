@@ -80,3 +80,44 @@ def test_train_can_start_from_a_checkpoint(tmp_path):
     cfg = PPOConfig(iterations=1, games_per_iteration=2, eval_every=1, eval_games=2, init=str(tmp_path / "first.pt"))
     train(cfg, [generate_vanilla_set(seed=1)], tmp_path / "second.pt", log=lambda _: None)
     assert load_model(tmp_path / "second.pt").hparams["hidden"] == 32  # the checkpoint's size, not the default
+
+
+def test_mirror_games_give_both_players_the_same_deck(monkeypatch):
+    import src.training.ppo as ppo
+    decks = []
+    real_game = ppo.Game
+
+    def spy(deck_a, deck_b, **kw):
+        decks.append((sorted(c.id for c in deck_a), sorted(c.id for c in deck_b)))
+        return real_game(deck_a, deck_b, **kw)
+
+    monkeypatch.setattr(ppo, "Game", spy)
+    net = create_model("gnn", hidden=16, num_layers=1)
+    collect_games(net, generate_vanilla_set(), 3, random.Random(0), "cpu", mirror_share=1.0)
+    assert len(decks) == 3 and all(a == b for a, b in decks)
+
+
+def test_paired_matches_are_mirrored_and_repeatable():
+    from src.agents.heuristic_agent import HeuristicAgent
+    from src.agents.match import play_match
+    from src.agents.random_agent import RandomAgent
+    cards = generate_vanilla_set()
+    runs = [play_match(RandomAgent(1), HeuristicAgent(), cards, 4, seed=5, mirror=True) for _ in range(2)]
+    assert runs[0] == runs[1]
+
+
+def test_hiding_aspects_zeroes_only_the_aspect_features():
+    from src.game.decks import random_deck
+    from src.game.engine import Game
+    from src.game.terms import ASPECTS
+    from src.graph.encode import hide_aspects, observe
+    rng = random.Random(0)
+    cards = generate_vanilla_set()
+    game = Game(random_deck(cards, rng), random_deck(cards, rng), seed=1)
+    enc = observe(game, 0).encoded
+    before = copy.deepcopy(enc)
+    hide_aspects(enc)
+    n = len(ASPECTS)
+    assert before.card_static[:, -n:].any() and not enc.card_static[:, -n:].any() and not enc.player[:, -n:].any()
+    assert (enc.card_static[:, :-n] == before.card_static[:, :-n]).all()
+    assert (enc.player[:, :-n] == before.player[:, :-n]).all()

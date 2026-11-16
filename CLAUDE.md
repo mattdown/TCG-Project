@@ -89,7 +89,8 @@ uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|covera
 uv run python -m scripts.train [--arch gnn --iterations 100]   # CPU by default: MPS is slower for these small graphs
 uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/armor_heavy.json --wandb tcg-selfplay
                                             # held-out evals pick the best checkpoint; logs to W&B
-uv run python -m scripts.benchmark [--models a.pt b.pt]
+uv run python -m scripts.benchmark [--models a.pt b.pt]   # --cards several sets, --mirror (same deck both sides),
+                                            # --hide-aspects (also play each model with aspects zeroed)
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
 ```
 
