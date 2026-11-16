@@ -106,7 +106,7 @@ def test_paired_matches_are_mirrored_and_repeatable():
     assert runs[0] == runs[1]
 
 
-def test_hiding_aspects_zeroes_only_the_aspect_features():
+def test_hiding_aspects_zeroes_only_the_players_aspect_features():
     from src.game.decks import random_deck
     from src.game.engine import Game
     from src.game.terms import ASPECTS
@@ -118,6 +118,5 @@ def test_hiding_aspects_zeroes_only_the_aspect_features():
     before = copy.deepcopy(enc)
     hide_aspects(enc)
     n = len(ASPECTS)
-    assert before.card_static[:, -n:].any() and not enc.card_static[:, -n:].any() and not enc.player[:, -n:].any()
-    assert (enc.card_static[:, :-n] == before.card_static[:, :-n]).all()
-    assert (enc.player[:, :-n] == before.player[:, :-n]).all()
+    assert before.player[:, -n:].any() and not enc.player[:, -n:].any()
+    assert (enc.player[:, :-n] == before.player[:, :-n]).all() and (enc.card_static == before.card_static).all()

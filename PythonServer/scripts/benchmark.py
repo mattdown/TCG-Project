@@ -4,7 +4,7 @@ Every match is paired: each deck pair is played twice with the seats swapped, an
 gives every match the same deck pairs, so agents are compared on the same deals. --mirror gives
 both players the same deck, which takes deck luck out entirely: the gap between a normal and a
 mirror run says how much of a result is the deal. --hide-aspects adds a copy of each model with
-the aspect features zeroed, to see whether it leans on them."""
+the players' aspect features zeroed, to see whether it leans on them."""
 import argparse
 import itertools
 from pathlib import Path

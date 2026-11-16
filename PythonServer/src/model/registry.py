@@ -3,7 +3,8 @@ import torch
 
 from src.game.actions import ActionType
 from src.graph.abilities import FEATURES
-from src.graph.encode import OUTCOME_FEATURES
+from src.graph.encode import CARD_STATIC_FEATURES, OUTCOME_FEATURES
+from src.game.terms import ASPECTS
 from src.model.gnn import GNNNet
 from src.model.transformer import EntityTransformerNet
 
@@ -24,6 +25,8 @@ def _with(names: list[str], removed: dict[str, list[str]]) -> list[str]:
 LEGACY_FEATURES = _with(list(FEATURES), {
     "ability:triggered": ["ability:activated"], "cond:defending": ["cond:exhausted"],
     "op:gain_crystal": ["op:exhaust", "op:ready"], "filter:damaged": ["filter:exhausted", "filter:ready"]})
+# Card features before their names were stored: each aspect followed the keywords (dropped 2026-11-16).
+LEGACY_CARD_FEATURES = [*CARD_STATIC_FEATURES, *ASPECTS]
 LEGACY_ACTIONS = _with([t.name for t in ActionType], {"SPARE_SPORE": ["ACTIVATE"]})
 
 
@@ -36,7 +39,8 @@ def create_model(arch: str, **hparams) -> torch.nn.Module:
 def save_model(net: torch.nn.Module, path, extra: dict | None = None):
     torch.save({"arch": net.arch, "hparams": net.hparams, "state_dict": net.state_dict(),
                 "ability_features": list(FEATURES), "action_types": [t.name for t in ActionType],
-                "outcome_features": list(OUTCOME_FEATURES), **(extra or {})},
+                "outcome_features": list(OUTCOME_FEATURES), "card_features": list(CARD_STATIC_FEATURES),
+                **(extra or {})},
                path)
 
 
@@ -64,6 +68,11 @@ def load_model(path, device: str = "cpu") -> torch.nn.Module:
         state["ability_in.0.weight"] = _by_name(
             state["ability_in.0.weight"], checkpoint.get("ability_features", LEGACY_FEATURES),
             torch.zeros_like(weight), list(FEATURES), 1)
+    # Card features matched by name: removed ones (the aspects) are dropped, which is the same as zeroing
+    # them; new ones get zero weights.
+    state["card_encoder.0.weight"] = _by_name(
+        state["card_encoder.0.weight"], checkpoint.get("card_features", LEGACY_CARD_FEATURES),
+        torch.zeros_like(net.card_encoder[0].weight), list(CARD_STATIC_FEATURES), 1)
     # Checkpoints from before outcome features get a zero projection, so they ignore them until trained;
     # new outcome features get zero weights, as ability features do.
     if "outcome_in.weight" not in state:

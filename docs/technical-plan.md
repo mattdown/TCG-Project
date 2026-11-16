@@ -391,9 +391,9 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 
 | Node type | Features |
 |---|---|
-| `card` (each card instance that is visible) | card embedding from the card encoder + zone, attacked, damage, fresh, hidden (Elusive), frozen, owner (relative: you / opponent) |
+| `card` (each card instance that is visible) | card embedding from the card encoder (cost, power, health, keywords; no aspect, since aspects are only colours for now) + zone, attacked, damage, fresh, hidden (Elusive), frozen, owner (relative: you / opponent) |
 | `ability` (`src/graph/abilities.py`): one per step of each visible card's abilities: `entry`, `choose`, `may`, `choose_one`, `if`, `effect`, `end`, and one `modifier` per static modifier | node kind + ability kind + trigger event + condition + parameters (op, amount, scaling, stat and delta, buff power and health, token power and health, keyword, duration, target kind, count, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved. 90 features; new ones are appended, so older checkpoints load with zero weights for them |
-| `player` (you, opponent): the heroes | health, mana, crystals, hand size, deck size, units and how many can attack, Spare Spore, fatigue |
+| `player` (you, opponent): the heroes | health, mana, crystals, hand size, deck size, units and how many can attack, Spare Spore, fatigue, aspect (the class, once aspects are classes) |
 | `global` | turn number, phase, whose turn |
 | `active_effect` (not yet built) | effect type + parameters + turns until it expires |
 

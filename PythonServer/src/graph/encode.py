@@ -24,7 +24,9 @@ from src.graph.abilities import NODE_DIM, ability_nodes
 
 KEYWORD_SCALE = {"guard": 1, "elusive": 1, "charge": 1, "duelist": 3, "armor": 2}
 # Feature names, in the order the encoder writes them below (for the client's GNN overlay).
-CARD_STATIC_FEATURES = ("cost", "power", "health", *KEYWORD_SCALE, *ASPECTS)
+# No aspects: they're random colours for now and an ablation showed the network ignores them (2026-11-16).
+# The player's aspect stays: once aspects are classes, the opponent's says what their hand may hold.
+CARD_STATIC_FEATURES = ("cost", "power", "health", *KEYWORD_SCALE)
 CARD_DYNAMIC_FEATURES = ("in_hand", "in_play", "mine", "attacked", "fresh", "damage", "health_left",
                          "mulligan_marked", "hidden", "frozen")
 PLAYER_FEATURES = ("health", "mana", "crystals", "hand", "deck", "discard", "units", "can_attack", "power_in_play",
@@ -103,19 +105,16 @@ class Observation:
 
 
 def hide_aspects(encoded: EncodedObs) -> None:
-    """Zeroes the aspect features of every card and both players, in place: an ablation, to see
-    whether a network leans on aspects while they're only random colours."""
-    n = len(ASPECTS)
-    encoded.card_static[:, CARD_STATIC_DIM - n:] = 0
-    encoded.player[:, PLAYER_DIM - n:] = 0
+    """Zeroes both players' aspect features, in place: an ablation, to see whether a network leans
+    on aspects while they're only random colours."""
+    encoded.player[:, PLAYER_DIM - len(ASPECTS):] = 0
 
 
 @lru_cache(maxsize=None)
 def card_static_features(card: Card) -> np.ndarray:
     """What the card is. The card encoder turns these into the card embedding."""
     return np.array([card.cost / 10, card.power / 10, card.health / 10,
-                     *(card.keyword(k) / scale for k, scale in KEYWORD_SCALE.items()),
-                     *(float(a in card.aspects) for a in ASPECTS)], dtype=np.float32)
+                     *(card.keyword(k) / scale for k, scale in KEYWORD_SCALE.items())], dtype=np.float32)
 
 
 def action_outcome(game: Game, player: int, action: Action) -> np.ndarray:

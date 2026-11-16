@@ -11,6 +11,7 @@ from src.cards.generate import generate_card_set
 from src.game.actions import Action, ActionType
 from src.game.decks import random_deck
 from src.game.engine import Game
+from src.game.terms import ASPECTS
 from src.graph.abilities import FEATURES
 from src.graph.builder import collate_hetero, to_hetero_data
 from src.graph.dense import NUM_FIXED_TOKENS, REL, bucket, collate_dense, relation_matrix
@@ -289,3 +290,17 @@ def test_checkpoints_from_before_names_drop_the_v1_features_and_action(arch, tmp
     loaded = load_model(tmp_path / "old.pt")
     assert torch.equal(loaded.ability_in[0].weight, net.ability_in[0].weight)
     assert torch.equal(loaded.action_type_emb.weight, net.action_type_emb.weight)
+
+
+@pytest.mark.parametrize("arch", ARCHS)
+def test_checkpoints_with_card_aspects_load_without_them(arch, tmp_path):
+    """Checkpoints from before the aspects were dropped from the card features had a column for each,
+    after the keywords; loading drops those columns."""
+    net = create_model(arch, hidden=32, num_layers=2)
+    save_model(net, tmp_path / "model.pt")
+    checkpoint = torch.load(tmp_path / "model.pt")
+    weight = checkpoint["state_dict"]["card_encoder.0.weight"]
+    checkpoint["state_dict"]["card_encoder.0.weight"] = torch.cat([weight, torch.ones(32, len(ASPECTS))], 1)
+    del checkpoint["card_features"]
+    torch.save(checkpoint, tmp_path / "old.pt")
+    assert torch.equal(load_model(tmp_path / "old.pt").card_encoder[0].weight, net.card_encoder[0].weight)
