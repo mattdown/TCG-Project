@@ -74,7 +74,8 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/graph/    encode.py (state → NumPy; abilities.py: ability nodes and edges) → builder.py (PyG) /
                 dense.py (padded tensors)
   src/model/    gnn.py, transformer.py, registry.py (create / save / load by arch)
-  src/agents/   random, heuristic, neural and search (within a turn) agents; match runner
+  src/agents/   random, heuristic, neural and search (within a turn) agents; match runner;
+                tactical puzzles (positions with a sure lethal)
   src/training/ PPO self-play
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
   scripts/      generate_cards, experiments, train, benchmark, server (run as `python -m scripts.<name>`)
@@ -104,6 +105,7 @@ uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/a
 uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/heldout_200.json cardsets/armor_heavy.json \
     --models models/a.pt models/b.pt    # paired games; --search adds each model with search within a turn;
                                             # --mirror, --hide-aspects (ablations)
+uv run python -m scripts.puzzles --model models/a.pt   # does it find lethal? puzzles from its own games
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client; the AI searches its turn (--no-search: raw policy)
 ```
 

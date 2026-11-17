@@ -10,8 +10,15 @@ how to beat anything else; the league keeps old strategies in the mix.
 Every decision the learner makes becomes one training step. The reward is +1 / -1 for a win
 / loss (0 for a draw) at the player's last decision, and advantages come from GAE over that
 player's own decisions.
+
+Puzzle episodes (`puzzle_games` a iteration, from `puzzles`) start at a position with a sure lethal
+(src/agents/puzzles.py) and cover only that player's turn: +1 if it wins before the turn ends,
+otherwise the value of where the turn left it (minus the opponent's value at their first decision),
+so the value head keeps meaning "chance of winning". They give a direct signal for taking lethal,
+which a whole game only gives through the final result.
 """
 import copy
+import json
 import random
 import time
 from dataclasses import asdict, dataclass
@@ -23,6 +30,7 @@ from torch import nn
 from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.match import play_match
 from src.agents.neural_agent import NeuralAgent
+from src.agents.puzzles import Puzzle
 from src.agents.random_agent import RandomAgent
 from src.cards.schema import CardSet
 from src.game.decks import random_deck
@@ -60,6 +68,8 @@ class PPOConfig:
     init: str = ""  # checkpoint to start from (its arch and size win over the fields above)
     mirror_share: float = 0.0  # share of games with the same deck on both sides: the result is down to play, not deck luck
     outcomes: bool = True  # False hides the action-outcome features in self-play (an ablation)
+    puzzles: str = ""  # puzzle file (scripts/puzzles.py) on the training cards, for puzzle episodes
+    puzzle_games: int = 0  # puzzle episodes a iteration, on top of the games
     wandb: str = ""  # Weights & Biases project to log to ("" = off; `wandb login` once, or WANDB_MODE=offline)
 
 
@@ -97,10 +107,13 @@ def _sample(net: nn.Module, observations: list, device: str):
 
 def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games: int, rng: random.Random,
                   device: str, gamma: float = 1.0, gae_lambda: float = 0.95, league: list | None = None,
-                  league_share: float = 0.0, outcomes: bool = True, mirror_share: float = 0.0):
+                  league_share: float = 0.0, outcomes: bool = True, mirror_share: float = 0.0,
+                  puzzles: list[Puzzle] | None = None, puzzle_games: int = 0):
     """Plays num_games games, a league_share of them against league opponents (frozen networks or
-    agents) and a mirror_share with the same deck on both sides. Returns the training steps, the average game length in turns, and the learner's
-    results against the league as (wins, games). outcomes=False zeroes the action-outcome features."""
+    agents) and a mirror_share with the same deck on both sides, plus puzzle_games puzzle episodes
+    (one turn each, from puzzles on these card sets). Returns the training steps, the average game
+    length in turns, the learner's results against the league as (wins, games), and the share of
+    puzzle episodes it won (None without any). outcomes=False zeroes the action-outcome features."""
     def look(game: Game):
         obs = observe(game, game.state.decision_player)
         if not outcomes:
@@ -116,8 +129,15 @@ def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games:
         games.append(Game(deck, other, seed=rng.randrange(2**31)))
         matchups.append(LeagueGame(rng.randrange(2), rng.randrange(len(league)))
                         if league and rng.random() < league_share else None)
+    focus: list[int | None] = [None] * num_games  # a puzzle episode's player: only their turn is played
+    if puzzles and puzzle_games:
+        by_name = {cs.name: cs for cs in card_sets}
+        for puzzle in rng.choices(puzzles, k=puzzle_games):
+            games.append(puzzle.position(by_name[puzzle.cards]))
+            matchups.append(None)
+            focus.append(puzzle.player)
     trajectories = [([], []) for _ in games]  # per game, per player: the learner's decisions only
-    active = list(range(num_games))
+    active = list(range(len(games)))
     net.eval()
     while active:
         learner, by_opponent = [], {}
@@ -131,7 +151,8 @@ def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games:
             observations = [look(games[g]) for g in learner]
             for g, obs, (choice, log_prob, value) in zip(learner, observations, _sample(net, observations, device)):
                 game = games[g]
-                trajectories[g][game.state.decision_player].append(Step(obs.encoded, choice, log_prob, value))
+                if focus[g] is None or game.state.decision_player == focus[g]:
+                    trajectories[g][game.state.decision_player].append(Step(obs.encoded, choice, log_prob, value))
                 game.step(obs.actions[choice], validate=False)
         for k, group in by_opponent.items():
             opponent = league[k]
@@ -142,18 +163,37 @@ def collect_games(net: nn.Module, card_sets: CardSet | list[CardSet], num_games:
             else:
                 for g in group:
                     games[g].step(opponent.choose(games[g]), validate=False)
-        active = [g for g in active if not games[g].is_over]
+        active = [g for g in active if not games[g].is_over
+                  and (focus[g] is None or games[g].state.active_player == focus[g])]
 
-    steps, league_wins, league_games = [], 0, 0
-    for game, per_player, m in zip(games, trajectories, matchups):
+    unfinished = [g for g in range(len(games)) if focus[g] is not None and not games[g].is_over]
+    bootstrap = dict(zip(unfinished, _values(net, [games[g] for g in unfinished], device)))
+    steps, league_wins, league_games, solved = [], 0, 0, 0
+    for g, (game, per_player, m) in enumerate(zip(games, trajectories, matchups)):
         winner = game.state.winner
         for player, trajectory in enumerate(per_player):
-            outcome = 0.0 if winner is None else (1.0 if winner == player else -1.0)
+            if g in bootstrap:  # a puzzle whose turn ended: the position's value for the player
+                outcome = bootstrap[g] if game.state.decision_player == player else -bootstrap[g]
+            else:
+                outcome = 0.0 if winner is None else (1.0 if winner == player else -1.0)
             steps.extend(_gae(trajectory, outcome, gamma, gae_lambda))
         if m is not None:
             league_games += 1
             league_wins += winner == 1 - m.seat
-    return steps, sum(g.state.turn for g in games) / num_games, (league_wins, league_games)
+        if focus[g] is not None:
+            solved += winner == focus[g]
+    puzzle_rate = solved / (len(games) - num_games) if len(games) > num_games else None
+    return steps, sum(g.state.turn for g in games[:num_games]) / max(num_games, 1), (league_wins, league_games), puzzle_rate
+
+
+def _values(net: nn.Module, games: list[Game], device: str) -> list[float]:
+    """The value of each game for its decision player."""
+    if not games:
+        return []
+    batch = net.collate([observe(g, g.state.decision_player).encoded for g in games]).to(device)
+    with torch.no_grad():
+        _, _, values = net(batch)
+    return values.cpu().tolist()
 
 
 def _gae(trajectory: list[Step], outcome: float, gamma: float, lam: float) -> list[Step]:
@@ -246,20 +286,24 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
     net.train()
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr)
     snapshots: list[nn.Module] = []
+    puzzles = _load_puzzles(cfg.puzzles, card_sets) if cfg.puzzle_games else None
     best = -1.0
     for it in range(1, cfg.iterations + 1):
         t0 = time.time()
         league = [HeuristicAgent(), *snapshots]
-        steps, avg_turns, (league_wins, league_games) = collect_games(
+        steps, avg_turns, (league_wins, league_games), puzzle_rate = collect_games(
             net, card_sets, cfg.games_per_iteration, rng, cfg.device, cfg.gamma, cfg.gae_lambda,
-            league, cfg.league_share, cfg.outcomes, cfg.mirror_share)
+            league, cfg.league_share, cfg.outcomes, cfg.mirror_share, puzzles, cfg.puzzle_games)
         t1 = time.time()
         metrics = ppo_update(net, optimizer, steps, cfg)
         t2 = time.time()
         league_text = f" | league {league_wins}/{league_games}" if league_games else ""
+        if puzzle_rate is not None:
+            league_text += f" | puzzles {puzzle_rate:.0%}"
         if run:
             run.log({"steps": len(steps), "turns_per_game": avg_turns, **metrics, "play_s": t1 - t0, "learn_s": t2 - t1,
-                     **({"league_win_rate": league_wins / league_games} if league_games else {})}, step=it)
+                     **({"league_win_rate": league_wins / league_games} if league_games else {}),
+                     **({"puzzle_win_rate": puzzle_rate} if puzzle_rate is not None else {})}, step=it)
         log(f"it {it:4d} | {len(steps):6d} steps | {avg_turns:5.1f} turns/game | "
             f"pi {metrics['policy_loss']:+.3f} v {metrics['value_loss']:.3f} ent {metrics['entropy']:.3f} "
             f"kl {metrics['approx_kl']:+.4f} clip {metrics['clip_frac']:.2f} ep {metrics['epochs']} | "
@@ -288,3 +332,13 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
     if run:
         run.finish()
     return net
+
+
+def _load_puzzles(path: str, card_sets: list[CardSet]) -> list[Puzzle]:
+    """The puzzles from `path` on the training card sets (puzzles on other cards would be evaluation data)."""
+    names = {cs.name for cs in card_sets}
+    puzzles = [Puzzle.from_dict(json.loads(line)) for line in Path(path).read_text().splitlines()]
+    puzzles = [p for p in puzzles if p.cards in names]
+    if not puzzles:
+        raise ValueError(f"no puzzles in {path} on the training cards ({', '.join(sorted(names))})")
+    return puzzles

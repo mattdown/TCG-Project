@@ -13,11 +13,13 @@ art and a GNN overlay. Blog part 1 is published.
 
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
 
-- [ ] **Tactical puzzles:** positions from real games where a short search finds lethal or a much
-  better line; does the policy find it? A diagnostic first (and the way to check "does it value
-  draw 2, removal, may-costs sensibly?"), training targets later if it keeps missing them.
-- [ ] **Free hero attacks:** re-check on v6b (results.md); if it still passes them up, add
-  potential-based reward shaping on the hero-health difference.
+- [ ] **Missed lethal:** v6b misses about 1 in 10 face lethals by trading instead of going face
+  (results.md, tactical puzzles). Puzzle episodes in PPO (`--puzzles`) made it worse; plain extra
+  self-play helped (94–97%). Next: reward a puzzle win more than a merely winning position (e.g.
+  score a miss as 0, or a small bonus for winning sooner), or potential-based reward shaping, and
+  re-score with `scripts.puzzles`. Re-check free hero attacks on v6b at the same time.
+- [ ] **More puzzles:** "a much better line" beyond lethal (needs a judge other than the value head),
+  and the checks "does it value draw 2, removal, may-costs sensibly?".
 - [ ] **Faster self-play:** parallel self-play workers (the play half of an iteration, ~3–5×),
   then larger batches per iteration. `torch.compile` or a CUDA GPU only if learning dominates
   after that. No TPU / JAX work until the model is the bottleneck.

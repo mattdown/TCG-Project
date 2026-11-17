@@ -428,6 +428,15 @@ choices inside the agent's turn are made greedily by the network. Defaults: beam
 moves deep, about 90 ms a decision. The server's neural opponent uses it (`--no-search` turns it
 off). Training doesn't use it yet (expert iteration is P4).
 
+**Tactical puzzles** (`src/agents/puzzles.py`, `scripts/puzzles.py`) check whether an agent finds
+lethal. Positions come from the model's own games: at the start of each turn an exact depth-first
+search (positions already ruled out are remembered, 20,000 positions at most) looks for moves that
+win before the turn ends. A line counts only if it also wins on four re-deals of what the player
+can't see and needs no choice from the opponent, so a puzzle never asks for a guess. Each is stored
+as decks, seed and the move indexes that reach it, so it replays exactly, and labelled "face"
+(attacking the hero with everything is enough) or "tactical". The score is how often an agent wins
+before its turn ends.
+
 ## 9. How part a sets up b and c
 
 | Part a decision | Payoff in b | Payoff in c |

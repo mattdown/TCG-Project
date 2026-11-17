@@ -91,6 +91,58 @@ the value head is worse than the policy at choosing when to stop unless it also 
 decision of the whole game, with 8 runs sharing the CPU on one thread each, so they're higher than
 alone. Log: `PythonServer/data/search_sweep.jsonl`.
 
+### Tactical puzzles: lethal (2026-11-17)
+
+Positions from 200 v6b-vs-v6b games per set where the player to move has a sure win this turn
+(`scripts/puzzles.py`; see the technical plan, section 8). The score is how often each agent takes
+it. "Face": attacking the hero with everything is enough; "tactical": it takes more.
+
+| | `heldout_200` face (144) | tactical (90) | `armor_heavy` face (189) | tactical (44) |
+|---|---|---|---|---|
+| heuristic | 72.9% | 40.0% | 58.2% | 47.7% |
+| v6b | 89.6% | 77.8% | 89.4% | 65.9% |
+| v6b+search | 93.8% | 88.9% | 94.7% | 81.8% |
+
+- v6b misses about 1 in 10 face lethals. In almost every miss it attacks enemy units first and runs
+  out of attackers: it trades when going face wins. The heuristic misses more for the same reason
+  (it makes favourable trades before attacking the hero).
+- Search fixes about half the misses, most on tactical puzzles (+11 and +16 points).
+- About 7% of turns (256 of 3,617 and 244 of 3,943) were too big to search within 20,000
+  positions, so the hardest positions are under-represented. The puzzles come from v6b's own games,
+  so they're the lethals v6b's play leads to.
+
+Puzzles: `PythonServer/data/puzzles_<set>.jsonl`, logs `puzzles_<set>.log` (not in git).
+
+### Training on puzzles (2026-11-17)
+
+Two 150-iteration fine-tunes from v6b on `set_1000` (seed 2): a control, and the same run with 64
+puzzle episodes per iteration on top of the 64 games (776 lethal puzzles from 600 v6b games on
+`set_1000`; one turn from the puzzle position, +1 for a win, otherwise minus the opponent's value
+at their first decision). Scored on the held-out puzzles above (face / tactical, no search):
+
+| | `heldout_200` | `armor_heavy` |
+|---|---|---|
+| v6b | 89.6% / 77.8% | 89.4% / 65.9% |
+| control | 93.8% / 72.2% | 96.8% / 72.7% |
+| puzzles | 86.8% / 70.0% | 87.8% / 52.3% |
+| control+search | 96.5% / 87.8% | 97.4% / 84.1% |
+| puzzles+search | 94.4% / 85.6% | 94.2% / 81.8% |
+
+400 paired games (`heldout_200` / `armor_heavy`): the heuristic scores 19.5% / 25.2% against v6b,
+18.0% / 25.0% against the control and 23.2% / 25.8% against the puzzle model. Head to head, v6b vs
+the control 50.0% / 51.0%, v6b vs the puzzle model 48.0% / 47.8%, the control vs the puzzle model
+46.0% / 46.2%.
+
+- **Puzzle training made lethal worse,** not better, and its in-training solve rate didn't rise
+  (65% over the first 10 iterations, 61% over the last 10). A likely reason: a missed lethal is
+  scored by the value of the position left behind, which is usually already winning, so taking
+  lethal is barely better than playing on.
+- **More self-play alone helped:** the control takes 94–97% of face lethals, up from 89%.
+- The puzzle model wins head to head (about 54%, just outside the noise) but does slightly worse
+  against the heuristic, so it isn't clearly stronger. Neither fine-tune replaces v6b yet.
+
+Logs: `PythonServer/data/train_v7_{control,puzzles}.log`, `puzzles_v7_*.log`, `bench_v7.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
