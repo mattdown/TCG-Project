@@ -17,6 +17,7 @@ otherwise the value of where the turn left it (minus the opponent's value at the
 so the value head keeps meaning "chance of winning". They give a direct signal for taking lethal,
 which a whole game only gives through the final result.
 """
+import contextlib
 import copy
 import json
 import random
@@ -38,6 +39,7 @@ from src.game.engine import Game
 from src.graph.encode import EncodedObs, observe
 from src.model.common import segment_entropy, segment_log_softmax, segment_ptr
 from src.model.registry import create_model, load_model, save_model
+from src.training.workers import SelfPlayPool
 
 
 @dataclass
@@ -70,6 +72,7 @@ class PPOConfig:
     outcomes: bool = True  # False hides the action-outcome features in self-play (an ablation)
     puzzles: str = ""  # puzzle file (scripts/puzzles.py) on the training cards, for puzzle episodes
     puzzle_games: int = 0  # puzzle episodes a iteration, on top of the games
+    workers: int = 0  # self-play worker processes (0: play in this process); see src/training/workers.py
     wandb: str = ""  # Weights & Biases project to log to ("" = off; `wandb login` once, or WANDB_MODE=offline)
 
 
@@ -288,47 +291,53 @@ def train(cfg: PPOConfig, card_sets: CardSet | list[CardSet], out_path, log=prin
     snapshots: list[nn.Module] = []
     puzzles = _load_puzzles(cfg.puzzles, card_sets) if cfg.puzzle_games else None
     best = -1.0
-    for it in range(1, cfg.iterations + 1):
-        t0 = time.time()
-        league = [HeuristicAgent(), *snapshots]
-        steps, avg_turns, (league_wins, league_games), puzzle_rate = collect_games(
-            net, card_sets, cfg.games_per_iteration, rng, cfg.device, cfg.gamma, cfg.gae_lambda,
-            league, cfg.league_share, cfg.outcomes, cfg.mirror_share, puzzles, cfg.puzzle_games)
-        t1 = time.time()
-        metrics = ppo_update(net, optimizer, steps, cfg)
-        t2 = time.time()
-        league_text = f" | league {league_wins}/{league_games}" if league_games else ""
-        if puzzle_rate is not None:
-            league_text += f" | puzzles {puzzle_rate:.0%}"
-        if run:
-            run.log({"steps": len(steps), "turns_per_game": avg_turns, **metrics, "play_s": t1 - t0, "learn_s": t2 - t1,
-                     **({"league_win_rate": league_wins / league_games} if league_games else {}),
-                     **({"puzzle_win_rate": puzzle_rate} if puzzle_rate is not None else {})}, step=it)
-        log(f"it {it:4d} | {len(steps):6d} steps | {avg_turns:5.1f} turns/game | "
-            f"pi {metrics['policy_loss']:+.3f} v {metrics['value_loss']:.3f} ent {metrics['entropy']:.3f} "
-            f"kl {metrics['approx_kl']:+.4f} clip {metrics['clip_frac']:.2f} ep {metrics['epochs']} | "
-            f"play {t1 - t0:4.1f}s learn {t2 - t1:4.1f}s{league_text}")
-        if cfg.league_share > 0 and it % cfg.snapshot_every == 0:
-            snapshot = copy.deepcopy(net).eval()
-            for p in snapshot.parameters():
-                p.requires_grad_(False)
-            snapshots = (snapshots + [snapshot])[-cfg.pool_size:]
-        if it % cfg.eval_every == 0 or it == cfg.iterations:
-            result = evaluate(net, card_sets[0], cfg.eval_games, seed=cfg.eval_seed, device=cfg.device)
-            agent = NeuralAgent(net, device=cfg.device, greedy=True)
-            for name, cs in eval_sets.items():
-                result[f"{name}_vs_heuristic"] = play_match(agent, HeuristicAgent(), cs, cfg.eval_games, cfg.eval_seed)["win_rate"]
-            held_out = [result[f"{name}_vs_heuristic"] for name in eval_sets]
-            score = sum(held_out) / len(held_out) if held_out else result["vs_heuristic"]
-            log(f"     eval: {result['vs_random']:.1%} vs random, {result['vs_heuristic']:.1%} vs heuristic"
-                + "".join(f", {name} {result[f'{name}_vs_heuristic']:.1%}" for name in eval_sets))
+    with SelfPlayPool(cfg.workers, card_sets, puzzles) if cfg.workers else contextlib.nullcontext() as pool:
+        for it in range(1, cfg.iterations + 1):
+            t0 = time.time()
+            league = [HeuristicAgent(), *snapshots]
+            options = dict(gamma=cfg.gamma, gae_lambda=cfg.gae_lambda, league_share=cfg.league_share,
+                           outcomes=cfg.outcomes, mirror_share=cfg.mirror_share)
+            if pool:
+                collected = pool.collect(net, cfg.games_per_iteration, rng, league, cfg.puzzle_games, **options)
+            else:
+                collected = collect_games(net, card_sets, cfg.games_per_iteration, rng, cfg.device, league=league,
+                                          puzzles=puzzles, puzzle_games=cfg.puzzle_games, **options)
+            steps, avg_turns, (league_wins, league_games), puzzle_rate = collected
+            t1 = time.time()
+            metrics = ppo_update(net, optimizer, steps, cfg)
+            t2 = time.time()
+            league_text = f" | league {league_wins}/{league_games}" if league_games else ""
+            if puzzle_rate is not None:
+                league_text += f" | puzzles {puzzle_rate:.0%}"
             if run:
-                run.log({f"eval/{k}": v for k, v in result.items()} | {"eval/score": score}, step=it)
-            save_model(net, out_path, {"config": asdict(cfg), "iteration": it, "eval": result})
-            if score > best:
-                best = score
-                save_model(net, str(out_path).replace(".pt", "_best.pt"),
-                           {"config": asdict(cfg), "iteration": it, "eval": result})
+                run.log({"steps": len(steps), "turns_per_game": avg_turns, **metrics, "play_s": t1 - t0, "learn_s": t2 - t1,
+                         **({"league_win_rate": league_wins / league_games} if league_games else {}),
+                         **({"puzzle_win_rate": puzzle_rate} if puzzle_rate is not None else {})}, step=it)
+            log(f"it {it:4d} | {len(steps):6d} steps | {avg_turns:5.1f} turns/game | "
+                f"pi {metrics['policy_loss']:+.3f} v {metrics['value_loss']:.3f} ent {metrics['entropy']:.3f} "
+                f"kl {metrics['approx_kl']:+.4f} clip {metrics['clip_frac']:.2f} ep {metrics['epochs']} | "
+                f"play {t1 - t0:4.1f}s learn {t2 - t1:4.1f}s{league_text}")
+            if cfg.league_share > 0 and it % cfg.snapshot_every == 0:
+                snapshot = copy.deepcopy(net).eval()
+                for p in snapshot.parameters():
+                    p.requires_grad_(False)
+                snapshots = (snapshots + [snapshot])[-cfg.pool_size:]
+            if it % cfg.eval_every == 0 or it == cfg.iterations:
+                result = evaluate(net, card_sets[0], cfg.eval_games, seed=cfg.eval_seed, device=cfg.device)
+                agent = NeuralAgent(net, device=cfg.device, greedy=True)
+                for name, cs in eval_sets.items():
+                    result[f"{name}_vs_heuristic"] = play_match(agent, HeuristicAgent(), cs, cfg.eval_games, cfg.eval_seed)["win_rate"]
+                held_out = [result[f"{name}_vs_heuristic"] for name in eval_sets]
+                score = sum(held_out) / len(held_out) if held_out else result["vs_heuristic"]
+                log(f"     eval: {result['vs_random']:.1%} vs random, {result['vs_heuristic']:.1%} vs heuristic"
+                    + "".join(f", {name} {result[f'{name}_vs_heuristic']:.1%}" for name in eval_sets))
+                if run:
+                    run.log({f"eval/{k}": v for k, v in result.items()} | {"eval/score": score}, step=it)
+                save_model(net, out_path, {"config": asdict(cfg), "iteration": it, "eval": result})
+                if score > best:
+                    best = score
+                    save_model(net, str(out_path).replace(".pt", "_best.pt"),
+                               {"config": asdict(cfg), "iteration": it, "eval": result})
     if run:
         run.finish()
     return net

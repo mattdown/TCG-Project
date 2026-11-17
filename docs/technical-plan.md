@@ -403,7 +403,8 @@ and backward pass about 2.4× as long as without abilities.
 ## 7. Training (`src/training/ppo.py`)
 
 - **PPO self-play.** Each iteration plays 64 games (in lockstep, so the network scores many
-  positions at once) and makes a PPO update. The reward is +1 for a win and −1 for a loss, with
+  positions at once) and makes a PPO update. `--workers N` splits the games over N processes
+  (`src/training/workers.py`), each with its own seed and one torch thread. The reward is +1 for a win and −1 for a loss, with
   GAE (γ = 1, λ = 0.95), and an update stops early once the KL divergence passes a target.
 - **League.** 30% of games are against an opponent from the league: frozen snapshots of the
   network (one every 10 iterations, the newest 8 kept) and the heuristic agent, so the agent

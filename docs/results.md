@@ -205,6 +205,16 @@ Decks played against altered copies of themselves, 800 games per comparison
 | 2026-11-15 | CPU, deepcopy previews | 21 s | play 13.4 (previews 7.7, model 4.7), learn 7.6 |
 | 2026-11-15 | CPU, hand-written `Game.clone()` | 15 s | play 7.2 (previews 1.3), learn 7.9 |
 | 2026-11-16 | CPU, v6b late in training | ~20–25 s | play ~12, learn ~8–13: longer games than the profile's |
+| 2026-11-17 | CPU, fine-tuning v6b, one process | ~20 s | play 5.7, learn ~14 |
+| 2026-11-17 | CPU, the same with 4 self-play workers (`--workers 4`) | ~16 s | play 2.5, learn ~14 |
+
+**Self-play workers (2026-11-17).** Splitting the 64 games over worker processes: 2 workers 4.6 s,
+4 workers 3.1 s, 6 or 8 workers 3.4–3.8 s, against 6.7–7.7 s in one process (v6b on `set_1000`,
+30% league games). So about 2.3× at 4, and no better beyond: the M4 has 4 performance cores, and
+an iteration waits for its slowest worker. Learning is now about 85% of an iteration, and it's
+compute, not overhead: a PPO update (about 6,000 steps, 3 epochs) took 15.5 s with 4 threads,
+16.4 s with 2, 18.7–20.4 s with 6–10, 14.6 s on MPS, and the same per step with minibatches of
+512, 1,024 or 2,048 (about 1,200 steps a second forward and backward).
 
 The graphs are small, so the GNN is overhead-bound: about 350 µs a position on CPU and 190–250 µs
 on MPS, and MPS only wins from batches of 32 up. The model is now about 85% of an iteration.

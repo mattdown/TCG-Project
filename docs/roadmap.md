@@ -13,16 +13,10 @@ art and a GNN overlay. Blog part 1 is published.
 
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
 
-- [ ] **Missed lethal:** v6b misses about 1 in 10 face lethals by trading instead of going face
-  (results.md, tactical puzzles). Puzzle episodes in PPO (`--puzzles`) made it worse; plain extra
-  self-play helped (94–97%). Next: reward a puzzle win more than a merely winning position (e.g.
-  score a miss as 0, or a small bonus for winning sooner), or potential-based reward shaping, and
-  re-score with `scripts.puzzles`. Re-check free hero attacks on v6b at the same time.
-- [ ] **More puzzles:** "a much better line" beyond lethal (needs a judge other than the value head),
-  and the checks "does it value draw 2, removal, may-costs sensibly?".
-- [ ] **Faster self-play:** parallel self-play workers (the play half of an iteration, ~3–5×),
-  then larger batches per iteration. `torch.compile` or a CUDA GPU only if learning dominates
-  after that. No TPU / JAX work until the model is the bottleneck.
+- [ ] **Faster learning:** the PPO update is now about 85% of an iteration (results.md, speed), and
+  it's compute: more threads, MPS and bigger minibatches don't help. Options: a CUDA GPU, a
+  smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
+  the model is the bottleneck.
 - [ ] **P2, first grammar batch:** pick items from [ability-generation.md](ability-generation.md),
   "What's missing" 1–16, when it starts.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
@@ -108,6 +102,14 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 
 ## Research questions (later)
 
+- [ ] **Missed lethal** (parked 2026-11-17: better decks in P3 may teach this anyway): v6b misses
+  about 1 in 10 face lethals by trading instead of going face (results.md, tactical puzzles).
+  Puzzle episodes in PPO (`--puzzles`) made it worse; plain extra self-play helped (94–97%). Next:
+  reward a puzzle win more than a merely winning position (e.g. score a miss as 0, or a small
+  bonus for winning sooner), or potential-based reward shaping, and re-score with
+  `scripts.puzzles`. Re-check free hero attacks on v6b at the same time.
+- [ ] **More puzzles:** "a much better line" beyond lethal (needs a judge other than the value head),
+  and the checks "does it value draw 2, removal, may-costs sensibly?".
 - [ ] Ablations: GATv2 vs SAGE / R-GCN; with and without `faces` edges; the flat per-ability
   baseline instead of ability subgraphs.
 - [ ] Auxiliary value targets (final health difference, turns remaining).
@@ -145,7 +147,7 @@ Rule: general tests on the tree's shape, never rules about particular cards.
   not from a learned cost model, and only for average random decks.
 - Dominated "choose one" options are only caught when both options have the same shape; abilities
   equal to a keyword aren't caught.
-- Self-play is a single process on the CPU.
+- Training runs on the CPU of one machine (self-play in up to 4 worker processes).
 - The opponent's hand and deck are counts only, with no belief model. Search (`SearchAgent`)
   covers only the agent's own turn and guesses the opponent's cards from the set (a prior).
 - The heuristic agent is deliberately simple (plays its most expensive card, makes favourable

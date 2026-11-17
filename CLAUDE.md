@@ -76,7 +76,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/model/    gnn.py, transformer.py, registry.py (create / save / load by arch)
   src/agents/   random, heuristic, neural and search (within a turn) agents; match runner;
                 tactical puzzles (positions with a sure lethal)
-  src/training/ PPO self-play
+  src/training/ PPO self-play (ppo.py), self-play worker processes (workers.py)
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
   scripts/      generate_cards, experiments, train, benchmark, server (run as `python -m scripts.<name>`)
   cardsets/     generated card sets (JSON, one card per line)
@@ -99,7 +99,8 @@ Blog/           everything that isn't the game or training: the card lab (card_l
 uv sync
 uv run pytest
 uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
-uv run python -m scripts.train [--arch gnn --iterations 100]   # CPU by default: MPS is slower for these small graphs
+uv run python -m scripts.train [--arch gnn --iterations 100 --workers 4]   # CPU by default: MPS is slower for these small graphs;
+                                            # --workers: self-play processes (4 suits an M4)
 uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/armor_heavy.json --wandb tcg-selfplay
                                             # evals on held-out sets during training; logs to W&B
 uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/heldout_200.json cardsets/armor_heavy.json \
