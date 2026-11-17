@@ -128,14 +128,15 @@ Legal attack actions and their previews already account for all of these.
 
 ```json
 → {"type": "new_game", "opponent": "neural", "human_seat": 0, "seed": 7}
-← {"status": "ok", "opponent": "tcgnet", "state": {…}}
+← {"status": "ok", "opponent": "tcgnet+search", "state": {…}}
 ```
 
 - `opponent`: `"neural"` (needs a trained model in `models/tcgnet.pt`), `"heuristic"` or
-  `"random"`. Defaults to `"neural"`.
+  `"random"`. Defaults to `"neural"`, which searches its own turn (`SearchAgent`, about 0.1 s a
+  turn) unless the server runs with `--no-search`.
 - `human_seat`: 0 or 1 (default 0). Who goes first is random: see `active_player`.
 - `seed`: optional, makes decks and shuffles reproducible.
-- `opponent` in the response is the AI's name (the model file name for neural agents).
+- `opponent` in the response is the AI's name (the model file name for neural agents, with `+search` when it searches).
 - `scenario`: optional, for checking single cards by hand. The game skips both mulligans and
   starts on the human's first turn with chosen cards (IDs from `card_set`):
 

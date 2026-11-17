@@ -18,13 +18,14 @@ def main():
     parser.add_argument("--port", type=int, default=5555)
     parser.add_argument("--cards", type=Path, default=CARDSET_PATH)
     parser.add_argument("--model", type=Path, default=MODEL_PATH)
+    parser.add_argument("--no-search", action="store_true", help="the neural opponent plays the raw policy, without search")
     args = parser.parse_args()
 
-    session = GameSession(load_card_set(args.cards), model_path=args.model)
+    session = GameSession(load_card_set(args.cards), model_path=args.model, search=not args.no_search)
     socket = zmq.Context().socket(zmq.REP)
     socket.bind(f"tcp://*:{args.port}")
     print(f"Server ready on tcp://*:{args.port} ({len(session.card_set)} cards"
-          f"{', model ' + str(args.model) if args.model.exists() else ', no trained model'})", flush=True)
+          f"{', model ' + str(args.model) + ('' if args.no_search else ' with search') if args.model.exists() else ', no trained model'})", flush=True)
 
     while True:
         message = socket.recv_string()

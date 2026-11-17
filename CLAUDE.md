@@ -104,7 +104,7 @@ uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/a
 uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/heldout_200.json cardsets/armor_heavy.json \
     --models models/a.pt models/b.pt    # paired games; --search adds each model with search within a turn;
                                             # --mirror, --hide-aspects (ablations)
-uv run python -m scripts.server            # tcp://*:5555 for the Unity client
+uv run python -m scripts.server            # tcp://*:5555 for the Unity client; the AI searches its turn (--no-search: raw policy)
 ```
 
 Blog tools, from the repository root:

@@ -425,7 +425,8 @@ positions. A line ends when the turn does, scored as minus the opponent's value 
 decision (the value head is trained only on positions where it's the observer's move). The agent
 plays the first move of the best line and searches again at its next decision. The opponent's
 choices inside the agent's turn are made greedily by the network. Defaults: beam 4, top 4, 12
-moves deep, about 90 ms a decision. Training doesn't use it yet (expert iteration is P4).
+moves deep, about 90 ms a decision. The server's neural opponent uses it (`--no-search` turns it
+off). Training doesn't use it yet (expert iteration is P4).
 
 ## 9. How part a sets up b and c
 

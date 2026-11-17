@@ -35,7 +35,7 @@ unseen cards" was on cards it trained on. On truly held-out cards v4 scores 61.8
 | `tcgnet_v4` | 2026-10-23 | 120-iteration fine-tune on repriced sets | 68.8% `set_200`, 61.8% held-out, 60.0% Armor-heavy (400 games) | First measured as 74.8% over 100 games |
 | `tcgnet_v5_control` | 2026-11-15 | 120-iteration fine-tune from v4 | 68.2% / 65.2% / 59.5% | Control for P1a |
 | `tcgnet_v5_outcomes` | 2026-11-15 | same, with action-outcome features | 70.0% / 68.0% / 59.5% | |
-| **`tcgnet_v6b`** | 2026-11-16 | 3,000 iterations from scratch, outcome features, about a day | **81.5% / 79.0% / 74.0%** | The server's AI since 2026-11-16 |
+| **`tcgnet_v6b`** | 2026-11-16 | 3,000 iterations from scratch, outcome features, about a day | **81.5% / 79.0% / 74.0%** | The server's AI since 2026-11-16; with search since 2026-11-17 |
 
 ### v6b against the earlier models (2026-11-16, 400 games each, seed 0)
 

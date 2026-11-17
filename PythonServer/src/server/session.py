@@ -5,7 +5,7 @@ Every request is a JSON object with a "type"; every response has "status" ("ok" 
 
   {"type": "card_set"}                         → all card definitions
   {"type": "new_game", "human_seat": 0,        → starts a game on random decks
-   "opponent": "neural"|"heuristic"|"random",
+   "opponent": "neural"|"heuristic"|"random",   (neural: the network with search within a turn)
    "seed": 123,
    "scenario": {...}}                          → optional: skip the mulligan and set up chosen cards (see _set_up)
   {"type": "state"}                            → current state
@@ -24,6 +24,7 @@ from src.agents.base import Agent
 from src.agents.heuristic_agent import HeuristicAgent
 from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
+from src.agents.search_agent import SearchAgent
 from src.cards.abilities import Renderer, render
 from src.cards.art import art_key
 from src.cards.schema import CardSet
@@ -42,9 +43,11 @@ PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD)
 
 
 class GameSession:
-    def __init__(self, card_set: CardSet, model_path=None):
+    def __init__(self, card_set: CardSet, model_path=None, search: bool = True):
+        """With `search` the neural opponent searches its turn (SearchAgent); without, it plays the raw policy."""
         self.card_set = card_set
         self.model_path = model_path
+        self.search = search
         self.game: Game | None = None
         self.human_seat = 0
         self.ai: Agent | None = None
@@ -89,7 +92,7 @@ class GameSession:
         seed = request.get("seed")
         rng = random.Random(seed)
         self.human_seat = int(request.get("human_seat", 0))
-        self.ai = self._make_agent(request.get("opponent", "neural"))
+        self.ai = self._make_agent(request.get("opponent", "neural"), rng.randrange(2**31))
         scenario = request.get("scenario")
         self.game = Game(random_deck(self.card_set, rng), random_deck(self.card_set, rng), seed=rng.randrange(2**31),
                          first_player=self.human_seat if scenario else None)
@@ -166,16 +169,18 @@ class GameSession:
 
     def _graph_net(self):
         """The AI's network if it has one, else the saved model; None without either."""
-        if isinstance(self.ai, NeuralAgent):
+        if isinstance(self.ai, (NeuralAgent, SearchAgent)):
             return self.ai.net
         if self._net is None and self.model_path is not None and self.model_path.exists():
             self._net = load_model(self.model_path)
         return self._net
 
-    def _make_agent(self, name: str) -> Agent:
+    def _make_agent(self, name: str, seed: int) -> Agent:
         if name == "neural":
             if self.model_path is None or not self.model_path.exists():
                 raise ValueError("no trained model found: train one or choose another opponent")
+            if self.search:
+                return SearchAgent.from_checkpoint(self.model_path, self.card_set, seed=seed)
             return NeuralAgent.from_checkpoint(self.model_path)
         if name == "heuristic":
             return HeuristicAgent()

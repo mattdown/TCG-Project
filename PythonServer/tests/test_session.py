@@ -6,7 +6,7 @@ from src.cards.art import art_key
 from src.cards.coverage import generate_coverage_set
 from src.cards.schema import Card, CardSet
 from src.cards.vanilla import generate_vanilla_set
-from src.model.registry import create_model
+from src.model.registry import create_model, save_model
 from src.server.session import GameSession
 from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit
 
@@ -36,6 +36,21 @@ def test_state_hides_ai_hand(session):
 def test_neural_opponent_without_model_is_an_error():
     response = GameSession(generate_vanilla_set()).handle({"type": "new_game", "opponent": "neural"})
     assert response["status"] == "error"
+
+
+@pytest.mark.parametrize("search", [True, False])
+def test_neural_opponent_searches_unless_told_not_to(tmp_path, search):
+    path = tmp_path / "net.pt"
+    save_model(create_model("gnn", hidden=16, num_layers=1), path)
+    s = GameSession(generate_vanilla_set(), model_path=path, search=search)
+    response = s.handle({"type": "new_game", "opponent": "neural", "human_seat": 0, "seed": 1})
+    assert response["status"] == "ok" and response["opponent"].endswith("+search") == search
+    for _ in range(200):
+        state = s.handle({"type": "state"})["state"]
+        if state["game_over"] or state["turn"] > 4:
+            break
+        request = {"type": "act", "action_index": 0} if state["decision_player"] == 0 else {"type": "ai_turn"}
+        assert s.handle(request)["status"] == "ok"
 
 
 def test_full_game_through_the_session(session):

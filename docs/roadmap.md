@@ -5,16 +5,15 @@ Open work only. When something lands, delete its item (git history keeps it), pu
 design doc it belongs to. The design is [technical-plan.md](technical-plan.md); part 2's plan is
 [stage-2-research-plan.md](stage-2-research-plan.md).
 
-Where things stand (2026-11-16): the engine runs rules v2 with generated ability cards, priced from
+Where things stand (2026-11-17): the engine runs rules v2 with generated ability cards, priced from
 measurements on random decks (stage 1). The agent (`tcgnet_v6b`) beats the heuristic player 79% on
-cards it has never seen, 89% with search within a turn. Part 2 has started with a stronger agent and the cost model. The Unity
-client plays all of it, with painted art and a GNN overlay. Blog part 1 is published.
+cards it has never seen, 89% with search within a turn, which the server's AI now uses. Part 2 has
+started with a stronger agent and the cost model. The Unity client plays all of it, with painted
+art and a GNN overlay. Blog part 1 is published.
 
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
 
-- [ ] **Search for the server's AI:** use v6b+search (`SearchAgent`) in `scripts/server.py`?
-  It wins about 63% against plain v6b and 84–90% against the heuristic, at about 90 ms a decision.
-  Tune beam and top-k first (wider or deeper isn't measured).
+- [ ] **Tune search:** beam and top-k (4 and 4 now; wider or deeper isn't measured).
 - [ ] **Tactical puzzles:** positions from real games where a short search finds lethal or a much
   better line; does the policy find it? A diagnostic first (and the way to check "does it value
   draw 2, removal, may-costs sensibly?"), training targets later if it keeps missing them.
