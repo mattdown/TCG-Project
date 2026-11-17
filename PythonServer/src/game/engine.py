@@ -16,9 +16,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from src.cards.abilities import Renderer
-from src.cards.schema import Card
+from src.cards.schema import Card, CardSet
 from src.cards.tokens import is_token, token_card
 from src.game.actions import Action, ActionType
+from src.game.decks import random_deck
 from src.game.decision_graph import CompiledAbility, Node, compiled
 from src.game.state import ActiveEffect, CardInstance, Continuation, Frame, GameState, Phase, PlayerState, Zone
 from src.game.terms import KEYWORDS, TERMS
@@ -329,28 +330,42 @@ class Game:
             duel=s.duel, turn_actions=s.turn_actions, turn_abilities=s.turn_abilities)
         return g
 
-    def determinize(self, player: int, rng: random.Random):
-        """Re-deals what `player` can't see, in place: for search on a clone, so trying moves never
-        reveals a draw, a random discard or the opponent's hand.
+    def determinize(self, player: int, rng: random.Random, card_set: CardSet):
+        """Replaces what `player` can't see with a guess, in place: for search on a clone, so trying
+        moves never reveals a draw, a random discard, the opponent's hand or their deck list.
 
-        Their own deck is shuffled; the opponent's hand and deck are pooled, shuffled and dealt
-        back in the same sizes; the game's random numbers are reseeded. Hidden cards are sorted
-        before shuffling, so two games that differ only in hidden cards come out the same. The
-        pool is the opponent's real remaining cards: their deck list leaks, not their hand. A
-        belief over unseen deck lists comes later.
+        Their own deck is shuffled (they know its contents, not its order). The opponent's hand and
+        deck become cards from a deck drawn from `card_set` the way decks are built
+        (`random_deck`), less the cards that opponent has already shown, dealt in the same sizes.
+        The game's random numbers are reseeded. Hidden cards are sorted before shuffling and their
+        real contents are never read, so two games that differ only in hidden cards come out the
+        same. The guess is a prior: it doesn't yet infer the opponent's focus jobs from what
+        they've played.
         """
         s = self.state
         mine, theirs = s.players[player], s.players[1 - player]
         mine.deck = sorted(mine.deck)
         rng.shuffle(mine.deck)
-        pool = sorted(theirs.hand + theirs.deck)
-        rng.shuffle(pool)
-        theirs.hand, theirs.deck = pool[:len(theirs.hand)], pool[len(theirs.hand):]
-        for uid in theirs.hand:
-            self.card(uid).zone = Zone.HAND
-        for uid in theirs.deck:
-            self.card(uid).zone = Zone.DECK
+        hidden = sorted(theirs.hand + theirs.deck)
+        rng.shuffle(hidden)
+        theirs.hand, theirs.deck = hidden[:len(theirs.hand)], hidden[len(theirs.hand):]
+        for uid, card in zip(hidden, self._guess_cards(1 - player, len(hidden), rng, card_set)):
+            instance = self.card(uid)
+            instance.card = card
+            instance.zone = Zone.HAND if uid in theirs.hand else Zone.DECK
         self.rng = random.Random(rng.randrange(2**63))
+
+    def _guess_cards(self, owner: int, count: int, rng: random.Random, card_set: CardSet) -> list[Card]:
+        """`count` cards for `owner`'s hidden zones: random decks, less one copy of each card they've shown."""
+        shown = Counter(c.card.id for c in self.state.cards if c.owner == owner and c.zone not in (Zone.HAND, Zone.DECK))
+        guess = []
+        while len(guess) < count:
+            for card in random_deck(card_set, rng):
+                if shown[card.id]:
+                    shown[card.id] -= 1
+                else:
+                    guess.append(card)
+        return guess[:count]
 
     # ------------------------------------------------------------------ turn structure
 

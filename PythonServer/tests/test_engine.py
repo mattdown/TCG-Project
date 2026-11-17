@@ -451,12 +451,14 @@ def test_determinize_redeals_only_what_the_player_cant_see(ability_set, seed):
     game = _midgame(ability_set, seed)
     me = game.state.decision_player
     before = copy.deepcopy(game.state)
-    game.determinize(me, random.Random(1))
+    game.determinize(me, random.Random(1), ability_set)
     s, mine, theirs = game.state, game.state.players[me], game.state.players[1 - me]
     old_mine, old_theirs = before.players[me], before.players[1 - me]
     assert mine.hand == old_mine.hand and sorted(mine.deck) == sorted(old_mine.deck)
     assert len(theirs.hand) == len(old_theirs.hand) and len(theirs.deck) == len(old_theirs.deck)
     assert sorted(theirs.hand + theirs.deck) == sorted(old_theirs.hand + old_theirs.deck)
+    assert all(game.card(u).card in ability_set.cards for u in theirs.hand + theirs.deck)
+    assert [game.card(u).card for u in mine.hand] == [before.cards[u].card for u in mine.hand]
     for p in (mine, theirs):
         assert all(game.card(u).zone == Zone.HAND for u in p.hand) and all(game.card(u).zone == Zone.DECK for u in p.deck)
     for p, old in ((mine, old_mine), (theirs, old_theirs)):
@@ -465,12 +467,13 @@ def test_determinize_redeals_only_what_the_player_cant_see(ability_set, seed):
 
 
 def test_determinize_gives_the_same_game_whatever_the_hidden_cards_were(ability_set):
-    """Two games that differ only in what the player can't see come out identical."""
+    """Two games that differ only in what the player can't see (the opponent's hand and deck list, the
+    order of their own deck) come out identical."""
     game = _midgame(ability_set, 2)
     me = game.state.decision_player
     other = game.clone()
-    other.determinize(me, random.Random(99))  # a different deal of the same hidden cards, and new randomness
+    other.determinize(me, random.Random(99), ability_set)  # other hidden cards, and new randomness
     for g in (game, other):
-        g.determinize(me, random.Random(5))
+        g.determinize(me, random.Random(5), ability_set)
     assert copy.deepcopy(game.state) == copy.deepcopy(other.state)
     assert game.rng.getstate() == other.rng.getstate()

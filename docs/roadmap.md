@@ -13,7 +13,7 @@ client plays all of it, with painted art and a GNN overlay. Blog part 1 is publi
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
 
 - [ ] **Search for the server's AI:** use v6b+search (`SearchAgent`) in `scripts/server.py`?
-  It wins 64% against plain v6b and 85–89% against the heuristic, at about 90 ms a decision.
+  It wins about 63% against plain v6b and 84–90% against the heuristic, at about 90 ms a decision.
   Tune beam and top-k first (wider or deeper isn't measured).
 - [ ] **Tactical puzzles:** positions from real games where a short search finds lethal or a much
   better line; does the policy find it? A diagnostic first (and the way to check "does it value
@@ -79,7 +79,7 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 - [ ] Items (a card type).
 - [ ] Active effects as graph nodes (`active_effect`, `affects`, `source_of` edges).
 - [ ] Search past the end of the turn (IS-MCTS with the value head), on `Game.determinize`;
-  a belief over the opponent's deck list instead of their real remaining cards.
+  a belief over the opponent's deck (their focus jobs from what they've played) instead of a prior.
 - [ ] Check new cards in Unity against the coverage checklist after each grammar addition.
 
 ## Unity client
@@ -147,7 +147,7 @@ Rule: general tests on the tree's shape, never rules about particular cards.
   equal to a keyword aren't caught.
 - Self-play is a single process on the CPU.
 - The opponent's hand and deck are counts only, with no belief model. Search (`SearchAgent`)
-  covers only the agent's own turn and knows the opponent's real deck list (not their hand).
+  covers only the agent's own turn and guesses the opponent's cards from the set (a prior).
 - The heuristic agent is deliberately simple (plays its most expensive card, makes favourable
   trades, otherwise attacks the hero; always says yes to "you may").
 - A turn is capped at 50 plays and attacks and 100 abilities (`GameConfig`), so a runaway loop

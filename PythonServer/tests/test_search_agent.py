@@ -22,7 +22,7 @@ def small_net():
 def test_search_plays_whole_games_with_legal_moves(cards):
     rng = random.Random(0)
     net = small_net()
-    search = SearchAgent(net, beam=2, top_k=2, max_depth=4)
+    search = SearchAgent(net, cards, beam=2, top_k=2, max_depth=4)
     for seed in range(2):
         game = Game(random_deck(cards, rng), random_deck(cards, rng), seed=seed)
         while not game.is_over:
@@ -34,7 +34,8 @@ def test_search_plays_whole_games_with_legal_moves(cards):
 
 
 def test_search_cant_see_hidden_cards(cards):
-    """The same public position with a different deal of the hidden cards gets the same move."""
+    """The same public position with different hidden cards (another hand and deck list for the
+    opponent, another order for its own deck) gets the same move."""
     rng = random.Random(1)
     net = small_net()
     game = Game(random_deck(cards, rng), random_deck(cards, rng), seed=3)
@@ -44,9 +45,17 @@ def test_search_cant_see_hidden_cards(cards):
         me = game.state.decision_player
         if game.state.active_player == me and len(game.legal_actions()) > 1 and game.state.phase.name == "MAIN":
             other = game.clone()
-            other.determinize(me, random.Random(checked))
-            moves = [SearchAgent(net, beam=2, top_k=3, max_depth=4, seed=7).choose(g) for g in (game, other)]
+            _swap_hidden_cards(other, 1 - me, cards, random.Random(checked))
+            moves = [SearchAgent(net, cards, beam=2, top_k=3, max_depth=4, seed=7).choose(g) for g in (game, other)]
             assert moves[0] == moves[1]
             checked += 1
         game.step(agents[me].choose(game))
     assert checked > 0
+
+
+def _swap_hidden_cards(game: Game, opponent: int, cards, rng: random.Random):
+    """Gives the opponent other hidden cards and reorders the other player's deck: what search can't see."""
+    theirs = game.state.players[opponent]
+    for uid in theirs.hand + theirs.deck:
+        game.card(uid).card = rng.choice(cards.cards)
+    rng.shuffle(game.state.players[1 - opponent].deck)

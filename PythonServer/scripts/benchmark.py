@@ -42,13 +42,15 @@ def main():
         agents.append(NeuralAgent.from_checkpoint(path))
         if args.hide_aspects:
             agents.append(NeuralAgent.from_checkpoint(path, aspects=False))
-        if args.search:
-            agents.append(SearchAgent.from_checkpoint(path, beam=args.beam, top_k=args.top_k))
 
     for cards in args.cards:
         card_set = load_card_set(cards)
+        players = list(agents)
+        if args.search:  # search guesses hidden cards from the set, so it's built per set
+            players += [SearchAgent.from_checkpoint(path, card_set, beam=args.beam, top_k=args.top_k)
+                        for path in args.models if path.exists()]
         print(f"{cards.stem}{' (mirror decks)' if args.mirror else ''}:")
-        for a, b in itertools.combinations(agents, 2):
+        for a, b in itertools.combinations(players, 2):
             r = play_match(a, b, card_set, args.games, args.seed, mirror=args.mirror)
             print(f"  {a.name:>26} vs {b.name:<26}  {r['win_rate']:6.1%}  (wins {r['wins'][0]}-{r['wins'][1]}, "
                   f"draws {r['draws']}, {r['avg_turns']:.1f} turns/game)", flush=True)

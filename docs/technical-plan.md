@@ -323,11 +323,12 @@ Why this form works for both consumers:
   and `choose_one` nodes, which become ordinary decision points. Static abilities are
   applied whenever stats or legality are calculated.
 - **Determinism:** all randomness comes from a seeded RNG. `clone()` (a hand-written copy,
-  about 6× faster than `deepcopy`) supports previews and search. `determinize(player, rng)`
-  re-deals what the player can't see on a copy: their own deck order, the opponent's hand and deck
-  (pooled and dealt back in the same sizes) and the random numbers, so search never sees a draw
-  or the opponent's hand. The pool is the opponent's real remaining cards, so their deck list
-  leaks; a belief over unseen deck lists is later.
+  about 6× faster than `deepcopy`) supports previews and search. `determinize(player, rng, card_set)`
+  replaces what the player can't see on a copy with a guess: their own deck is shuffled, the
+  opponent's hand and deck become cards from a deck drawn from the set the way decks are built
+  (less the cards that opponent has shown), and the random numbers are reseeded. Search never sees
+  a draw, the opponent's hand or their deck list. The guess is a prior; inferring the opponent's
+  focus jobs from what they've played (a belief) is later.
 - **Safety caps:** a turn allows at most 50 plays and attacks; after that only ending the turn is
   legal. Abilities past 100 in a turn fizzle. Two copies of "at the end of each turn, summon…"
   can't loop forever (`GameConfig.max_turn_actions`, `max_turn_abilities`).
@@ -418,7 +419,7 @@ and backward pass about 2.4× as long as without abilities.
 ## 8. Search within a turn (`src/agents/search_agent.py`)
 
 At play time the agent can search its own turn. At each of its decisions it copies the game,
-re-deals the hidden cards (`determinize`), and runs a beam search over its moves: each step keeps
+guesses the hidden cards from the set (`determinize`), and runs a beam search over its moves: each step keeps
 the policy's `top_k` moves (always including ending the turn) and the value head's best `beam`
 positions. A line ends when the turn does, scored as minus the opponent's value at their first
 decision (the value head is trained only on positions where it's the observer's move). The agent

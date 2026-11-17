@@ -133,7 +133,8 @@ the command in `caffeinate -ims` (and `nohup ... &`) so the Mac doesn't sleep. T
   only what the card is, so it handles unseen and generated cards.
 - **Player-facing names** go through `src/game/terms.py`, so the game can be renamed in one place.
 - **Hidden information.** Observations and the server's state are always from one player's
-  point of view. Never leak the opponent's hand or deck order.
+  point of view. Never leak the opponent's hand, deck list or deck order
+  (search guesses them from the set: `Game.determinize`).
 - **Engine changes** come with tests in `tests/test_engine.py`. Use the helpers in
   `tests/helpers.py` to set up positions.
 - **Code style.** Match the surrounding code: dataclasses, type hints, short docstrings that

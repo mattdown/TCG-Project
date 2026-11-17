@@ -53,16 +53,22 @@ The biggest gain is on held-out cards, so the longer run generalises rather than
 ### Search within a turn (P1b, 2026-11-17, 400 games each, seed 0)
 
 `SearchAgent` (beam 4, top-k 4, depth 12) around v6b, no retraining. Win rates are v6b+search's.
+"Fair" guesses the opponent's hidden cards from the set; the first version ("leaky") re-dealt their
+real remaining cards, so it knew their deck list (not their hand).
 
 | | `set_200` | `heldout_200` | `armor_heavy` |
 |---|---|---|---|
 | v6b vs heuristic (same run) | 81.2% | 80.5% | 74.8% |
-| v6b+search vs heuristic | 88.0% | 89.2% | 84.8% |
-| v6b+search vs v6b | 62.5% | 65.0% | 64.2% |
+| v6b+search vs heuristic, fair | 87.5% | 89.5% | 83.8% |
+| v6b+search vs v6b, fair | 59.5% | 65.8% | 63.5% |
+| v6b+search vs heuristic, leaky | 88.0% | 89.2% | 84.8% |
+| v6b+search vs v6b, leaky | 62.5% | 65.0% | 64.2% |
 
-Search adds 7–10 points against the heuristic, most on Armor-heavy cards, where the raw policy was
-weakest, and wins about 64% head to head. Games end about a turn sooner. It costs about 90 ms a
-decision (about 25 positions scored each). Logs: `PythonServer/data/eval_search_<set>.log`.
+Search adds 7–9 points against the heuristic, most on held-out and Armor-heavy cards, and wins
+about 63% head to head; games end about a turn sooner. Knowing the deck list made no difference
+beyond noise, so the gain is from searching the turn. It costs about 90 ms a decision (about 25
+positions scored each). Logs: `PythonServer/data/eval_search_fair_<set>.log` (and
+`eval_search_<set>.log` for the leaky run).
 
 ## Training findings
 

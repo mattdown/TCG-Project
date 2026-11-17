@@ -1,7 +1,8 @@
 """Search within a turn (P1b): a beam search over the agent's own turn, on a copy of the game.
 
-At each of its decisions in its own turn, the agent copies the game, re-deals what it can't see
-(`Game.determinize`), and searches sequences of its moves: plays, attacks and the choices inside
+At each of its decisions in its own turn, the agent copies the game, replaces what it can't see with
+a guess (`Game.determinize`: its own deck shuffled, the opponent's hand and deck drawn from the card
+set the way decks are built, so it never learns their deck list), and searches sequences of its moves: plays, attacks and the choices inside
 abilities. Each step keeps the `top_k` moves the policy likes best (always including ending the
 turn), and the `beam` positions the value head likes best go on to the next step. A line ends when
 the turn ends: it's scored as minus the opponent's value at their first decision, the kind of
@@ -19,6 +20,7 @@ import torch
 from torch import nn
 
 from src.agents.base import Agent
+from src.cards.schema import CardSet
 from src.game.actions import Action, ActionType
 from src.game.engine import Game
 from src.game.state import Phase
@@ -30,9 +32,11 @@ from src.model.registry import load_model
 class SearchAgent(Agent):
     name = "search"
 
-    def __init__(self, net: nn.Module, device: str = "cpu", beam: int = 4, top_k: int = 4, max_depth: int = 12,
-                 seed: int = 0, name: str | None = None):
+    def __init__(self, net: nn.Module, card_set: CardSet, device: str = "cpu", beam: int = 4, top_k: int = 4,
+                 max_depth: int = 12, seed: int = 0, name: str | None = None):
+        """`card_set` is the set decks are built from: public knowledge, used to guess hidden cards."""
         self.net = net
+        self.card_set = card_set
         self.device = device
         self.beam = beam
         self.top_k = top_k
@@ -43,8 +47,8 @@ class SearchAgent(Agent):
             self.name = name
 
     @classmethod
-    def from_checkpoint(cls, path, device: str = "cpu", **kwargs) -> "SearchAgent":
-        return cls(load_model(path, device), device, name=Path(path).stem + "+search", **kwargs)
+    def from_checkpoint(cls, path, card_set: CardSet, device: str = "cpu", **kwargs) -> "SearchAgent":
+        return cls(load_model(path, device), card_set, device, name=Path(path).stem + "+search", **kwargs)
 
     def choose(self, game: Game) -> Action:
         me = game.state.decision_player
@@ -54,7 +58,7 @@ class SearchAgent(Agent):
         if len(actions) == 1:
             return actions[0]
         root = game.clone()
-        root.determinize(me, self.rng)
+        root.determinize(me, self.rng, self.card_set)
         move = self._search(root, me)
         return move if move in actions else self._greedy(game)
 
