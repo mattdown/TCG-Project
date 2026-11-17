@@ -72,7 +72,9 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 
 ## Engine and graph
 
-- [ ] `for each` steps (in the grammar; not sampled or run).
+- [ ] The `for_each` step: repeat steps once per matching card ("for each damaged enemy unit,
+  draw a card"). In the grammar, not sampled or run. "For each" *amounts* ("deal 1 damage for
+  each Miner you control, up to 4") are already built and generated.
 - [ ] Items (a card type).
 - [ ] Active effects as graph nodes (`active_effect`, `affects`, `source_of` edges).
 - [ ] `determinize(player)`, then search past the end of the turn (IS-MCTS with the value head).
@@ -136,7 +138,7 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 
 - The network sees active effects ("frozen until…", "+1 power this turn") only through their
   results on stats and flags, not as nodes.
-- `for each` steps and items aren't in the engine.
+- The `for_each` step and items aren't in the engine ("for each" amounts are).
 - Ability prices come from a hand-written value table scaled by measured factors per effect group,
   not from a learned cost model, and only for average random decks.
 - Dominated "choose one" options are only caught when both options have the same shape; abilities

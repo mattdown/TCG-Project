@@ -279,11 +279,11 @@ ENTRY(on_play) → CHOOSE(1 opposing unit, as "it") → EFFECT(deal 2 damage) �
 - **Node types:**
   - `entry`
   - `choose`, `may`, `choose_one`: the decision points
-  - `if`, `for_each`, `effect`
+  - `if`, `effect`, and `for_each` (not built yet)
   - `end`
 - **Edges:**
   - control: `next`, `then`, `else`, `option`, `if_you_do`
-  - data: `uses`, from a `choose` or `for_each` to every step that refers to its name
+  - data: `uses`, from a `choose` (or, once built, a `for_each`) to every step that refers to its name
 - **Filters** are features of the node that uses them: a `choose`, an `effect` targeting
   `all(…)`, or an `if` testing `count(…)`.
 
