@@ -1,7 +1,7 @@
 """A rough value for abilities, in stat-budget points, so cards with abilities can be costed.
 
 This is a hand-written first guess, not data: it's a prior about how much things are worth,
-and the learned cost model replaces it later (docs/technical-plan.md section 8). One budget
+and the learned cost model replaces it later (docs/technical-plan.md section 9). One budget
 point is one point of power or health (see vanilla.py).
 """
 import math

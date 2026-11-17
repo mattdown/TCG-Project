@@ -8,13 +8,10 @@ talks is in [client-protocol.md](client-protocol.md).
 
 Everything named here (aspects, keywords, card names) is a placeholder, like the rest of the game.
 
-> **Rules v2 (2026-10-21).** The game moved to Hearthstone-style rules
-> ([technical-plan.md](technical-plan.md) section 2), and the look below still shows v1 in
-> places. Client milestone 4 (built 2026-10-21) changed:
-> - **VP bars → hero portraits** with health out of 30. The enemy hero is an attack target.
-> - **Energy gems and the energy zone → mana crystals:** full / total, up to 10, refilled each
->   turn. No "add as energy" drop zone, no energy-source rim on the cost gem.
-> - **No score crowns** on cards, and no score drop zone.
+> **Rules v2 (2026-10-21).** The game follows Hearthstone-style rules
+> ([technical-plan.md](technical-plan.md) section 2). The client shows:
+> - **Hero portraits** with health out of 30. The enemy hero is an attack target.
+> - **Mana crystals:** full / total, up to 10, refilled each turn.
 > - **The Spare Spore:** a small button for the second player's one-off +1 mana.
 > - **Units only attack:** drag an arrow from a unit to any enemy unit or the enemy hero. A unit that has attacked just loses its glow (no "Zz" since 2026-10-22, no dimming since 2026-10-31); a frozen one shows ice; a
 >   hidden (Elusive) one can't be targeted by enemies.
@@ -165,15 +162,14 @@ Drag previews come from each legal action's server-side `preview`
   PUT BACK badge; tap again to keep one), then CONFIRM. Picking is local: CONFIRM sends the
   whole choice at once (a `mulligan` act per card, then `keep_hand`). END TURN always reads
   END TURN and is greyed out during the mulligan, the opponent's turn and after the game.
-- **Game over:** result, final VP for both players, NEW GAME.
+- **Game over:** result, final hero health for both players, NEW GAME.
 - **The opponent's cards, to read:** before an action's result plays out, the card the opponent
   played and each of their cards whose ability fires (on either player's action) is shown large in
   the middle ("Opponent plays" / "Opponent's ability") over a dimmed board for 3 s
   (`GameController.ReadHold`). A tap skips.
-- **The opponent's turn:** one `ai_move` every 0.6 s. A played card flies in from their hand, an
-  added energy flies to their gems as a card back, a duel shows the arrow for half a second, a
-  score pulses the unit. Damage ("-2"), defeats, VP gains and card moves come from each action
-  record's `result`.
+- **The opponent's turn:** one `ai_move` every 0.6 s. A played card flies in from their hand and an
+  attack bashes into its target. Damage ("-2"), defeats, hero damage and card moves come from each
+  action record's `result`.
 
 - **Abilities** (milestone 3):
   - *Card text:* keywords first (`Guard.`, a granted one in green), then one paragraph per
@@ -193,9 +189,9 @@ Drag previews come from each legal action's server-side `preview`
   - *Inspect:* a box per keyword with the server's reminder text, the full card text, and chips
     for attacked, fresh, damage, frozen and hidden.
   - *Feedback:* the cards in `result.abilities` pulse gold in order; healing, stat changes,
-    granted keywords and VP lost float up from the card.
+    granted keywords and hero damage float up from the card.
   - *Dev panel:* the DEV button, bottom left, starts a `scenario` from text such as
-    `hand: C1-004; opponent_play: C1-018, C1-036 attacked; energy: 2; seed: 1`.
+    `hand: C1-004; opponent_play: C1-018, C1-036 attacked; mana: 2; seed: 1`.
   - *GNN overlay:* the GNN button, under DEV, darkens the board and draws the server's `graph`
     over it: card nodes on their cards with each card's ability graph unfolded below, player
     nodes on the heroes, the global node halfway between them. Each node is a disc coloured by

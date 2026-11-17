@@ -1,4 +1,8 @@
-# Technical plan, part a: rules engine and graph representation
+# Technical plan
+
+The design of the game, the engine, the state graph, the model and training, as they are now.
+Open work is in [roadmap.md](roadmap.md), measurements in [results.md](results.md), and part 2's
+plan (balancing against the best decks) in [stage-2-research-plan.md](stage-2-research-plan.md).
 
 The project has three parts:
 
@@ -14,10 +18,6 @@ condition. More people know it than any other card game, which matters for the p
 the blog series that documents the project. The terms are our own placeholders. The aim is to
 show that a whole card set can be generated from scratch once the rules are defined. This also
 keeps the project free of card licensing issues.
-
-> **Status (2026-10-21):** the engine runs rules v2. Rules v1 followed Disney Lorcana (ink,
-> questing for lore, challenging exhausted characters); section 2b records what changed and
-> what is left (protocol v2 for the Unity client, retraining).
 
 ![System overview](architecture_overview.png)
 
@@ -115,76 +115,23 @@ generator makes different kinds of cards for each (stage-2 research plan, 4G). C
 cards by what they do, so identities emerge instead, is left for later. Until then ability cards
 get a random aspect and the deck rule is off, so aspects are only colours.
 
-**From v1, dropped:** ink and energy sources, scoring and VP, "only exhausted units can be
-challenged", sites, chants and Evolve, and the keywords Berserk, Inspire, Veiled, Fragile,
-Chanter and Choir. Some may come back as part 3's twist (section 2b).
-
 **Layered rollout.** Each layer adds DSL building blocks and engine support, and is
-followed by a bootstrapping round (section 8):
+followed by a bootstrapping round (section 9). Done: vanilla units, keywords, triggered and
+static abilities, actions. Still to come: items, then part 3's mechanic of our own.
 
-1. Vanilla units (stats only).
-2. Keywords.
-3. Simple triggered and static abilities.
-4. Actions and items.
-5. The twist: a mechanic of our own (section 2b).
-
-## 2b. Moving from v1 to v2
-
-**What stays.** Most of the work so far doesn't depend on the resource or win rules:
-- the ability DSL, decision graphs and the pending-ability stack
-- the quality tests, traces, card lab and explorer, and names
-- PPO and the GNN architecture
-
-**What changed, in order** (steps 1–3 done 2026-10-21; the agent is retraining):
-
-1. **Engine.**
-   - mana in place of the energy zone
-   - heroes and their health as the win condition
-   - attacks on units or the hero, with Guard, once per turn
-   - board and hand limits, empty-deck damage, the Spare Spore
-
-   Actions: `ATTACK` (target: a unit or the hero) replaces `DUEL` and `SCORE`; `ADD_ENERGY` goes. Tests in
-   `tests/test_engine.py`. Card schema: no `score`, no `energy_source`. Vanilla and keyword
-   generators: cost budget from power + health only. Configurable hero health, so training
-   can use shorter games.
-2. **Ability grammar.** Heroes become targets, so player effects map onto unit effects:
-
-   | v1 | v2 |
-   |---|---|
-   | gain VP | heal your hero (`remove_damage` on your hero) |
-   | lose VP (opponent) | damage the enemy hero (`deal_damage` on the enemy hero) |
-   | lose VP (you, as a cost) | damage your own hero |
-   | add energy | gain an empty mana crystal |
-   | can't ready | freeze: the unit can't attack on its next turn |
-   | exhaust (enemy unit) | dropped: enemy units are refreshed on their turn anyway |
-   | ready | the unit can attack again this turn |
-   | "whenever this unit scores" | "whenever this unit attacks the enemy hero" |
-   | "if you have fewer VP" | "if your hero has less health than theirs" |
-
-   Then re-check every quality and card-level test, the costing table, the names (VP-themed
-   subtitles) and the fuzz test, and regenerate the card sets.
-3. **Graph and model.**
-   - a node for each hero (health, mana, Spare Spore)
-   - drop the score and energy-source features
-   - retrain from scratch and re-benchmark
-4. **Server and client.**
-   - Protocol v2 in docs/client-protocol.md: heroes, mana, `attack` targets.
-   - Client milestone 4: hero portraits with health, mana crystals, the enemy hero as an attack target; the energy zone and VP bars go.
-5. **Docs.** This plan's sections 3–8, the README rules, client-design.md.
-
-**The blog series** follows the same arc:
-1. **Part 1:** the setup and card generation (grammar, quality tests, the card lab and explorer).
-2. **Part 2:** self-play and balancing (the learned cost model).
-3. **Part 3:** a twist that makes the game its own. Adding a mechanic means extending the
-   grammar and engine, then regenerating and rebalancing the whole set automatically, so it
-   also shows off the pipeline.
+**Rules v1.** Until 2026-10-21 the rules followed Disney Lorcana: ink and energy sources,
+questing for lore (VP), challenging only exhausted characters, activated (⟳) abilities, sites,
+chants and Evolve, and the keywords Berserk, Inspire, Veiled, Fragile, Chanter and Choir. v2
+switched to Hearthstone's structure because more players and readers know it. VP effects became
+hero damage and healing, "can't ready" became freeze, and the scoring trigger became "whenever this
+unit attacks the enemy hero". Some dropped mechanics may come back as part 3's twist.
 
 ## 3. Card schema and ability DSL
 
 ```jsonc
 {
   "id": "gen-000123",           // for bookkeeping only, never shown to the network
-  "name": "…",                  // used for Evolve and "named X" checks, via same_name edges
+  "name": "…",                  // with the subtitle and habitat, also keys the card's art
   "subtitle": "…",              // tells apart versions of the same character
   "type": "unit",               // unit | action (item later)
   "aspects": ["aspect_1"],
@@ -353,14 +300,13 @@ Why this form works for both consumers:
   *context*, so the network knows exactly which step of which ability it is deciding.
 - **The GNN reads the graph directly** as the card's ability subgraph.
 
-**Card sources:**
+**Card sources.** Every card is generated, even for tests (`scripts.generate_cards`):
 
-- **Starter set.** About 30–60 cards written by hand. They are the engine's test fixtures,
-  cover every building block at least once, and are a sanity anchor while nothing else is
-  trusted.
-- **Random pools.** Sampled from the grammar with a rough cost formula; used to train the
-  agent.
-- **Generated sets.** The output of part c.
+- **Coverage set** (`cardsets/coverage.json` + a checklist): every building block of the grammar
+  at least twice, for checking the engine and the client.
+- **Training and evaluation sets:** `set_1000` to train on; `heldout_200` and `armor_heavy` for
+  cards the agent has never seen (results.md).
+- **Generated sets:** the output of part c.
 
 ## 4. Rules engine (`src/game/`, `src/cards/`)
 
@@ -376,9 +322,13 @@ Why this form works for both consumers:
   node, chosen values). The engine walks each decision graph and pauses at `choose`, `may`
   and `choose_one` nodes, which become ordinary decision points. Static abilities are
   applied whenever stats or legality are calculated.
-- **Determinism:** all randomness comes from a seeded RNG. `clone()` and
-  `determinize(player)` (re-deal the hidden cards consistently with what the player has
-  seen) support search in part b.
+- **Determinism:** all randomness comes from a seeded RNG. `clone()` (a hand-written copy,
+  about 6× faster than `deepcopy`) supports previews and search; `determinize(player)` (re-deal
+  the hidden cards consistently with what the player has seen) is planned, for search past the
+  end of the turn.
+- **Safety caps:** a turn allows at most 50 plays and attacks; after that only ending the turn is
+  legal. Abilities past 100 in a turn fizzle. Two copies of "at the end of each turn, summon…"
+  can't loop forever (`GameConfig.max_turn_actions`, `max_turn_abilities`).
 - **Performance:** start in pure Python for correctness, profile once self-play runs, then
   move hot paths to a faster implementation. Because the DSL is data, a C# interpreter for
   the Unity client can later load the same card files.
@@ -395,6 +345,7 @@ One heterogeneous graph per player per decision point (`torch_geometric.data.Het
 | `ability` (`src/graph/abilities.py`): one per step of each visible card's abilities: `entry`, `choose`, `may`, `choose_one`, `if`, `effect`, `end`, and one `modifier` per static modifier | node kind + ability kind + trigger event + condition + parameters (op, amount, scaling, stat and delta, buff power and health, token power and health, keyword, duration, target kind, count, chooser) + the fields of the node's Filter, numbers normalised; a flag on the node currently being resolved. 90 features; new ones are appended, so older checkpoints load with zero weights for them |
 | `player` (you, opponent): the heroes | health, mana, crystals, hand size, deck size, units and how many can attack, Spare Spore, fatigue, aspect (the class, once aspects are classes) |
 | `global` | turn number, phase, whose turn |
+| actions (scored by the policy head, not graph nodes) | action type, actor, target, context and option nodes, plus **action outcomes**: the action tried on a copy of the game, keeping only what's visible on the board (damage dealt and taken, units defeated and summoned, stat changes, hero damage and healing, win or loss). Ending the turn, the mulligan and Spare Spore aren't tried |
 | `active_effect` (not yet built) | effect type + parameters + turns until it expires |
 
 | Edge type | Kind | Meaning |
@@ -422,28 +373,47 @@ and backward pass about 2.4× as long as without abilities.
 - **Card encoder:** an MLP over stats and keywords. The card's ability isn't pooled into it:
   its ability nodes take part in message passing with the rest of the state (`part_of`
   edges), so the card's embedding and its abilities' meaning can depend on the board.
-- **State encoder:** a heterogeneous GNN (e.g. `HeteroConv` with GATv2 / Transformer
-  convolutions) with 4–6 layers. An **entity transformer** with edges as attention biases
-  (the AlphaStar / OpenAI Five pattern) is the main alternative. Game states are small enough
-  for full attention, and it avoids the limited reach of message passing over a few hops. The
-  graph builder is the same for both, so this choice can wait until there's data to compare
-  them on. Both are implemented (`src/model/gnn.py`, `src/model/transformer.py`) on top of one
-  framework-neutral encoder (`src/graph/encode.py`, NumPy arrays). The transformer's input is
-  padded to a few fixed sizes, so it also suits TPUs and a JAX port.
+- **State encoder:** a heterogeneous GNN, the default: 4 layers, each a `HeteroConv` of GATv2
+  attention (4 heads, 128 wide) with its own weights per edge type, then ReLU, a residual and
+  LayerNorm. An **entity transformer** with edges as attention biases (the AlphaStar / OpenAI
+  Five pattern) is kept as the alternative: it played as well after 100 iterations, but the GNN
+  is about 3× faster on the CPU. Both (`src/model/gnn.py`, `src/model/transformer.py`) sit on
+  one framework-neutral encoder (`src/graph/encode.py`, NumPy arrays). The transformer's input is
+  padded to a few fixed sizes, so it suits accelerators and a JAX port.
 - **Policy head:** each legal option (attacking the hero is an action type with no target
   card) is encoded as `MLP([action-type embedding,
   emb(actor node), emb(target node), emb(context node), emb(option node), emb(global)])` and
   scored, with a softmax over the legal options only (a pointer-network style head). While an
   ability resolves, the context is the decision node being resolved. For a `choose`, the target
   is the card. For a `choose_one`, the option is the first node of the option's branch.
-- **Value head:** win probability from the pooled player and global nodes. Auxiliary targets
-  (final health difference, turns remaining) help early training.
-- **Cost model:** predicts a card's fair cost from its embedding, trained on the agent's games
-  (section 8). It is used for auto-costing in part c.
-- **Baseline:** a flat vector per ability (effect one-hot plus parameters) instead of the
-  ability subgraph. If the subgraphs don't beat it, that's worth knowing early.
+  Each action's outcome features are projected and added to its action-type embedding.
+- **Value head:** win probability from the global and both player nodes. Auxiliary targets
+  (final health difference, turns remaining) are an idea for later.
+- **Cost model (planned):** predicts a card's fair cost from its embedding, trained on the
+  agent's games (section 9). It is used for auto-costing in part c.
+- **Baseline (planned):** a flat vector per ability (effect one-hot plus parameters) instead of
+  the ability subgraph, to check the subgraphs earn their keep.
+- **Checkpoints** store the names of their card, ability and outcome features and action types,
+  so an older checkpoint still loads when features change: removed columns are dropped and new
+  ones get zero weights (`src/model/registry.py`).
 
-## 7. How part a sets up b and c
+## 7. Training (`src/training/ppo.py`)
+
+- **PPO self-play.** Each iteration plays 64 games (in lockstep, so the network scores many
+  positions at once) and makes a PPO update. The reward is +1 for a win and −1 for a loss, with
+  GAE (γ = 1, λ = 0.95), and an update stops early once the KL divergence passes a target.
+- **League.** 30% of games are against an opponent from the league: frozen snapshots of the
+  network (one every 10 iterations, the newest 8 kept) and the heuristic agent, so the agent
+  doesn't just learn to beat its current self.
+- **Card sets.** Each game draws two random decks from a training set (`set_1000`). Decks focus
+  on two jobs. The agent never sees a card ID, so it plays unseen cards.
+- **Evaluation.** Every 25 iterations against the random and heuristic agents, on the training
+  set and on held-out sets (`--eval-cards`), always on the same deck pairs (`eval_seed`). These
+  100-game evals are noisy, so compare models with `scripts.benchmark` (400 games, paired).
+- **Running it.** On the CPU (faster than MPS for these small graphs), under `caffeinate`, logged
+  to Weights & Biases (`--wandb`). A from-scratch run of 3,000 iterations takes about a day.
+
+## 8. How part a sets up b and c
 
 | Part a decision | Payoff in b | Payoff in c |
 |---|---|---|
@@ -454,7 +424,7 @@ and backward pass about 2.4× as long as without abilities.
 | Abilities compiled to decision graphs | Choices inside abilities are ordinary decision points, scored with the decision node as context | Generated trees run in the engine with no new code |
 | Card embedding + cost model | — | Auto-costing and fast screening of candidates |
 
-## 8. Bootstrapping from nothing
+## 9. Bootstrapping from nothing
 
 There are no real cards to train on or compare against, which creates a chicken-and-egg
 problem: judging cards needs a trained agent, and training an agent needs cards. Iterate:
@@ -471,6 +441,9 @@ problem: judging cards needs a trained agent, and training an agent needs cards.
 4. **Add the next layer of mechanics** (section 2) and repeat from step 1 with the extended
    pool.
 
+So far the rounds used a rough value table scaled by measured factors (results.md, "Card
+pricing"). The learned cost model is step P3 of the stage-2 plan.
+
 **Main risk: balance relative to a flawed agent.** If the system only ever measures itself,
 it can settle on a "balance" that only its own agent believes in. Mitigations:
 
@@ -478,31 +451,8 @@ it can settle on a "balance" that only its own agent believes in. Mitigations:
 - exploit-seeking agents trained only to break the current set;
 - human playtesting through the Unity client.
 
-## 9. Milestones for part a
-
-1. Placeholder constants module, card schema and loader; a starter set of vanilla units and
-   keywords; DSL → text renderer.
-2. Engine core: turn structure, mana, play, attack, defeat, win/lose, decision points. Random agent vs random agent runs to completion; rules unit tests.
-3. Random card pool sampler (vanilla + keywords) with a rough cost formula.
-4. Graph builder producing `HeteroData`, with tests that node and edge counts match the
-   state.
-5. Model forward pass on batched graphs, plus a smoke-test training loop (value regression on
-   random-play outcomes). **This is the first end-to-end slice, and it covers round 0 of
-   section 8.**
-6. Ability DSL: authoring trees with validation, a text renderer, the compiler to decision
-   graphs, and a graph walker with a pending-ability stack; triggers, filters, durations,
-   active effects. Add abilities to the starter set and the sampler.
-7. Then: actions and items, then the twist (section 2b).
-
 ## 10. Open questions
 
-- The game's name, theme and final terms.
-- If an LLM is used as the generator, check that its cards don't copy existing cards from
-  other games.
-- How much set structure to specify by hand (aspect identities, cost curve, rarity, number
-  of cards per aspect) versus letting it emerge. Starting with a light, hand-specified set
-  skeleton and treating emergent aspect identity as a stretch goal is the safer path.
-- How much hidden information to model: plain PPO from the observation graph first, or invest
-  early in determinized search?
-- Whether the engine eventually needs a faster implementation (Rust or C#) for self-play
-  throughput.
+The open decisions are in [roadmap.md](roadmap.md), and stage 2's in its plan (section 7). One
+standing check: if an LLM ever generates or names cards, make sure they don't copy cards from
+existing games.

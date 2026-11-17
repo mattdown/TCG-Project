@@ -11,18 +11,24 @@ Stage 2 (balancing against the best decks, not the average) is planned in
 [docs/stage-2-research-plan.md](docs/stage-2-research-plan.md).
 
 The rules follow Hearthstone's broad structure (rules v2: mana, heroes, attacks; the earlier
-Lorcana-style v1 is recorded in docs/technical-plan.md section 2b). The card pool is entirely synthetic: never use real cards, names or text from any
+Lorcana-style v1 is summarised in docs/technical-plan.md section 2). The card pool is entirely synthetic: never use real cards, names or text from any
 existing game. Read [docs/technical-plan.md](docs/technical-plan.md)
 for the design.
 
 ## Status and planning
 
-The project dashboard is a private note outside the repository; `CLAUDE.local.md` (gitignored) says where.
-It has the status, next steps, open decisions, known limitations and a done log. Keep it up to
-date when work lands: tick items, add dated entries to "Done", and record decisions.
+- [docs/roadmap.md](docs/roadmap.md): where things stand, open work, open decisions and known
+  limitations. Open items only: when work lands, delete its item rather than ticking it.
+- [docs/results.md](docs/results.md): every measurement, dated (model win rates, experiments,
+  profiles). Add new numbers here, not in the roadmap.
+- [docs/technical-plan.md](docs/technical-plan.md): the design as it is now. Change it when the
+  design changes; history goes in a sentence, not a section.
+- A private note outside the repository (`CLAUDE.local.md` says where) has personal things: blog
+  drafts, costs, private links. Project status doesn't go there.
 
 Decisions already made (don't re-open without a reason):
-- **Cards:** fully synthetic cards; all game terms are placeholders.
+- **Cards:** fully synthetic cards; all game terms are placeholders. Every card is generated
+  from the grammar, even for tests (the coverage set), never written by hand.
 - **Rules v2:** Hearthstone-style, chosen because more players and readers know it. Heroes
   with 30 health, mana up to 10, units attack units or the hero. Units only attack.
 - **Blog series:** part 1 setup and card generation, part 2 self-play and balancing, part 3 a
@@ -32,6 +38,11 @@ Decisions already made (don't re-open without a reason):
 - **Model:** PyTorch, with the heterogeneous GNN (`--arch gnn`) as the default model. The
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
+- **Training:** on the CPU (faster than MPS for these small graphs). Judge models with
+  `scripts.benchmark` (400 paired games) on `heldout_200` and `armor_heavy`, not `set_200`, which
+  is part of the training set; a 100-game training eval is too noisy to pick a checkpoint. No
+  mirror-deck training (deck luck doesn't cap the win rate). Aspects are a player feature only,
+  not a card feature, until they mean something.
 - **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;
   aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost). For now they are only colours:
   assigned at random, and decks draw from the whole set (`ONE_ASPECT = False` in
@@ -71,7 +82,8 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
 TCGClient/      Unity 6000.3.28f1, URP 2D template
-docs/           technical plan, client protocol and design, theme, draw.io diagrams (+ PNGs)
+docs/           roadmap, results, technical plan, stage-2 plan, ability generation, client protocol
+                and design, theme, draw.io diagrams (+ PNGs)
 Blog/           everything that isn't the game or training: the card lab (card_lab.py,
                 card_kit.html), card_generation_visualiser (one card's path through the grammar, animated),
                 gnn_visualiser (how the GNN reads the board, one layer, and the policy and value heads, animated), design_loop (the
@@ -88,9 +100,9 @@ uv run pytest
 uv run python -m scripts.generate_cards     # --kind keywords|vanilla|set|coverage, --count N
 uv run python -m scripts.train [--arch gnn --iterations 100]   # CPU by default: MPS is slower for these small graphs
 uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/armor_heavy.json --wandb tcg-selfplay
-                                            # held-out evals pick the best checkpoint; logs to W&B
-uv run python -m scripts.benchmark [--models a.pt b.pt]   # --cards several sets, --mirror (same deck both sides),
-                                            # --hide-aspects (also play each model with aspects zeroed)
+                                            # evals on held-out sets during training; logs to W&B
+uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/heldout_200.json cardsets/armor_heavy.json \
+    --models models/a.pt models/b.pt    # paired games; also --mirror, --hide-aspects (ablations)
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
 ```
 
@@ -163,7 +175,7 @@ the command in `caffeinate -ims` (and `nohup ... &`) so the Mac doesn't sleep. T
   there opens `Board/GraphLayerPopup.cs`, that layer's GATv2 steps from `graph_layer`); `Board/AutoPlayer.cs` is a dev-only random player for soak tests (add it to the
   Game object in Play mode). Marcellus SC and Outfit lack some symbols (→, ❄): DejaVu Sans Bold
   is their TMP fallback.
-- **No rules in C#.** Drop zones come only from `legal_actions`; drag previews ("+2 VP",
+- **No rules in C#.** Drop zones come only from `legal_actions`; drag previews ("-2",
   "Defeated") come from each legal action's `preview`, and animations from each action
   record's `result`; the engine records both as it applies the rules (`StepResult`), so the
   client never works out a result. Animation uses DOTween (free; its TMP tweens are Pro-only, so tween TMP values by hand).

@@ -10,7 +10,8 @@ visual version. This README has the details.
 
 - **Part 1:** a card generator, an agent that can play cards it has never seen, and a basic balance pass.
 - **Part 2:** balancing the set against the best decks rather than the average one
-  ([docs/stage-2-research-plan.md](docs/stage-2-research-plan.md)).
+  ([docs/stage-2-research-plan.md](docs/stage-2-research-plan.md)). Where it stands:
+  [docs/roadmap.md](docs/roadmap.md); measurements: [docs/results.md](docs/results.md).
 - **Part 3:** using the tools to make an original game of its own.
 
 Everything is synthetic: no real cards, names or text from any existing game. All game terms are
@@ -171,7 +172,7 @@ PythonServer/     game engine, agents and training (Python 3.12, uv)
   tests/          pytest
 TCGClient/        Unity 6 client (6000.3.28f1): a thin view, the server owns every rule
 Blog/             the blog's interactive pages and their tests
-docs/             technical plan, ability generation log, client protocol and design, theme, diagrams
+docs/             roadmap, results, technical plan, ability generation log, client protocol and design, theme
 ```
 
 ## Running it
