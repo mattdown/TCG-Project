@@ -329,6 +329,29 @@ class Game:
             duel=s.duel, turn_actions=s.turn_actions, turn_abilities=s.turn_abilities)
         return g
 
+    def determinize(self, player: int, rng: random.Random):
+        """Re-deals what `player` can't see, in place: for search on a clone, so trying moves never
+        reveals a draw, a random discard or the opponent's hand.
+
+        Their own deck is shuffled; the opponent's hand and deck are pooled, shuffled and dealt
+        back in the same sizes; the game's random numbers are reseeded. Hidden cards are sorted
+        before shuffling, so two games that differ only in hidden cards come out the same. The
+        pool is the opponent's real remaining cards: their deck list leaks, not their hand. A
+        belief over unseen deck lists comes later.
+        """
+        s = self.state
+        mine, theirs = s.players[player], s.players[1 - player]
+        mine.deck = sorted(mine.deck)
+        rng.shuffle(mine.deck)
+        pool = sorted(theirs.hand + theirs.deck)
+        rng.shuffle(pool)
+        theirs.hand, theirs.deck = pool[:len(theirs.hand)], pool[len(theirs.hand):]
+        for uid in theirs.hand:
+            self.card(uid).zone = Zone.HAND
+        for uid in theirs.deck:
+            self.card(uid).zone = Zone.DECK
+        self.rng = random.Random(rng.randrange(2**63))
+
     # ------------------------------------------------------------------ turn structure
 
     def _keep_hand(self, p: int):

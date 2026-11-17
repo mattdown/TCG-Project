@@ -7,13 +7,14 @@ design doc it belongs to. The design is [technical-plan.md](technical-plan.md); 
 
 Where things stand (2026-11-16): the engine runs rules v2 with generated ability cards, priced from
 measurements on random decks (stage 1). The agent (`tcgnet_v6b`) beats the heuristic player 79% on
-cards it has never seen. Part 2 has started with a stronger agent and the cost model. The Unity
+cards it has never seen, 89% with search within a turn. Part 2 has started with a stronger agent and the cost model. The Unity
 client plays all of it, with painted art and a GNN overlay. Blog part 1 is published.
 
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
 
-- [ ] **P1b, search within a turn at play time:** beam search over plays and attacks with
-  `Game.clone()`, the value head scoring the end of the turn. Measure against v6b and the heuristic.
+- [ ] **Search for the server's AI:** use v6b+search (`SearchAgent`) in `scripts/server.py`?
+  It wins 64% against plain v6b and 85–89% against the heuristic, at about 90 ms a decision.
+  Tune beam and top-k first (wider or deeper isn't measured).
 - [ ] **Tactical puzzles:** positions from real games where a short search finds lethal or a much
   better line; does the policy find it? A diagnostic first (and the way to check "does it value
   draw 2, removal, may-costs sensibly?"), training targets later if it keeps missing them.
@@ -77,7 +78,8 @@ Rule: general tests on the tree's shape, never rules about particular cards.
   each Miner you control, up to 4") are already built and generated.
 - [ ] Items (a card type).
 - [ ] Active effects as graph nodes (`active_effect`, `affects`, `source_of` edges).
-- [ ] `determinize(player)`, then search past the end of the turn (IS-MCTS with the value head).
+- [ ] Search past the end of the turn (IS-MCTS with the value head), on `Game.determinize`;
+  a belief over the opponent's deck list instead of their real remaining cards.
 - [ ] Check new cards in Unity against the coverage checklist after each grammar addition.
 
 ## Unity client
@@ -144,7 +146,8 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 - Dominated "choose one" options are only caught when both options have the same shape; abilities
   equal to a keyword aren't caught.
 - Self-play is a single process on the CPU.
-- The opponent's hand and deck are counts only: no belief model and no search.
+- The opponent's hand and deck are counts only, with no belief model. Search (`SearchAgent`)
+  covers only the agent's own turn and knows the opponent's real deck list (not their hand).
 - The heuristic agent is deliberately simple (plays its most expensive card, makes favourable
   trades, otherwise attacks the hero; always says yes to "you may").
 - A turn is capped at 50 plays and attacks and 100 abilities (`GameConfig`), so a runaway loop

@@ -116,7 +116,7 @@ cards by what they do, so identities emerge instead, is left for later. Until th
 get a random aspect and the deck rule is off, so aspects are only colours.
 
 **Layered rollout.** Each layer adds DSL building blocks and engine support, and is
-followed by a bootstrapping round (section 9). Done: vanilla units, keywords, triggered and
+followed by a bootstrapping round (section 10). Done: vanilla units, keywords, triggered and
 static abilities, actions. Still to come: items, then part 3's mechanic of our own.
 
 **Rules v1.** Until 2026-10-21 the rules followed Disney Lorcana: ink and energy sources,
@@ -323,9 +323,11 @@ Why this form works for both consumers:
   and `choose_one` nodes, which become ordinary decision points. Static abilities are
   applied whenever stats or legality are calculated.
 - **Determinism:** all randomness comes from a seeded RNG. `clone()` (a hand-written copy,
-  about 6× faster than `deepcopy`) supports previews and search; `determinize(player)` (re-deal
-  the hidden cards consistently with what the player has seen) is planned, for search past the
-  end of the turn.
+  about 6× faster than `deepcopy`) supports previews and search. `determinize(player, rng)`
+  re-deals what the player can't see on a copy: their own deck order, the opponent's hand and deck
+  (pooled and dealt back in the same sizes) and the random numbers, so search never sees a draw
+  or the opponent's hand. The pool is the opponent's real remaining cards, so their deck list
+  leaks; a belief over unseen deck lists is later.
 - **Safety caps:** a turn allows at most 50 plays and attacks; after that only ending the turn is
   legal. Abilities past 100 in a turn fizzle. Two copies of "at the end of each turn, summon…"
   can't loop forever (`GameConfig.max_turn_actions`, `max_turn_abilities`).
@@ -390,7 +392,7 @@ and backward pass about 2.4× as long as without abilities.
 - **Value head:** win probability from the global and both player nodes. Auxiliary targets
   (final health difference, turns remaining) are an idea for later.
 - **Cost model (planned):** predicts a card's fair cost from its embedding, trained on the
-  agent's games (section 9). It is used for auto-costing in part c.
+  agent's games (section 10). It is used for auto-costing in part c.
 - **Baseline (planned):** a flat vector per ability (effect one-hot plus parameters) instead of
   the ability subgraph, to check the subgraphs earn their keep.
 - **Checkpoints** store the names of their card, ability and outcome features and action types,
@@ -413,7 +415,18 @@ and backward pass about 2.4× as long as without abilities.
 - **Running it.** On the CPU (faster than MPS for these small graphs), under `caffeinate`, logged
   to Weights & Biases (`--wandb`). A from-scratch run of 3,000 iterations takes about a day.
 
-## 8. How part a sets up b and c
+## 8. Search within a turn (`src/agents/search_agent.py`)
+
+At play time the agent can search its own turn. At each of its decisions it copies the game,
+re-deals the hidden cards (`determinize`), and runs a beam search over its moves: each step keeps
+the policy's `top_k` moves (always including ending the turn) and the value head's best `beam`
+positions. A line ends when the turn does, scored as minus the opponent's value at their first
+decision (the value head is trained only on positions where it's the observer's move). The agent
+plays the first move of the best line and searches again at its next decision. The opponent's
+choices inside the agent's turn are made greedily by the network. Defaults: beam 4, top 4, 12
+moves deep, about 90 ms a decision. Training doesn't use it yet (expert iteration is P4).
+
+## 9. How part a sets up b and c
 
 | Part a decision | Payoff in b | Payoff in c |
 |---|---|---|
@@ -424,7 +437,7 @@ and backward pass about 2.4× as long as without abilities.
 | Abilities compiled to decision graphs | Choices inside abilities are ordinary decision points, scored with the decision node as context | Generated trees run in the engine with no new code |
 | Card embedding + cost model | — | Auto-costing and fast screening of candidates |
 
-## 9. Bootstrapping from nothing
+## 10. Bootstrapping from nothing
 
 There are no real cards to train on or compare against, which creates a chicken-and-egg
 problem: judging cards needs a trained agent, and training an agent needs cards. Iterate:
@@ -451,7 +464,7 @@ it can settle on a "balance" that only its own agent believes in. Mitigations:
 - exploit-seeking agents trained only to break the current set;
 - human playtesting through the Unity client.
 
-## 10. Open questions
+## 11. Open questions
 
 The open decisions are in [roadmap.md](roadmap.md), and stage 2's in its plan (section 7). One
 standing check: if an LLM ever generates or names cards, make sure they don't copy cards from

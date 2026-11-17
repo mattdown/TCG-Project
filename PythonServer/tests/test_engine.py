@@ -434,3 +434,43 @@ def test_abilities_past_max_turn_abilities_fizzle_until_next_turn():
     give_mana(game, 1, 1)
     game.step(Action(ActionType.PLAY, put_in_hand(game, 1, action(ping, cost=1))))
     assert game.state.players[0].health == 29  # a new turn, a new allowance
+
+
+def _midgame(card_set, seed: int, decisions: int = 60) -> Game:
+    rng = random.Random(seed)
+    game = Game(random_deck(card_set, rng), random_deck(card_set, rng), seed=seed)
+    for _ in range(decisions):
+        if game.is_over:
+            break
+        game.step(rng.choice(game.legal_actions()))
+    return game
+
+
+@pytest.mark.parametrize("seed", range(4))
+def test_determinize_redeals_only_what_the_player_cant_see(ability_set, seed):
+    game = _midgame(ability_set, seed)
+    me = game.state.decision_player
+    before = copy.deepcopy(game.state)
+    game.determinize(me, random.Random(1))
+    s, mine, theirs = game.state, game.state.players[me], game.state.players[1 - me]
+    old_mine, old_theirs = before.players[me], before.players[1 - me]
+    assert mine.hand == old_mine.hand and sorted(mine.deck) == sorted(old_mine.deck)
+    assert len(theirs.hand) == len(old_theirs.hand) and len(theirs.deck) == len(old_theirs.deck)
+    assert sorted(theirs.hand + theirs.deck) == sorted(old_theirs.hand + old_theirs.deck)
+    for p in (mine, theirs):
+        assert all(game.card(u).zone == Zone.HAND for u in p.hand) and all(game.card(u).zone == Zone.DECK for u in p.deck)
+    for p, old in ((mine, old_mine), (theirs, old_theirs)):
+        assert p.play == old.play and p.discard == old.discard and p.health == old.health
+    assert s.effects == before.effects and s.turn == before.turn
+
+
+def test_determinize_gives_the_same_game_whatever_the_hidden_cards_were(ability_set):
+    """Two games that differ only in what the player can't see come out identical."""
+    game = _midgame(ability_set, 2)
+    me = game.state.decision_player
+    other = game.clone()
+    other.determinize(me, random.Random(99))  # a different deal of the same hidden cards, and new randomness
+    for g in (game, other):
+        g.determinize(me, random.Random(5))
+    assert copy.deepcopy(game.state) == copy.deepcopy(other.state)
+    assert game.rng.getstate() == other.rng.getstate()

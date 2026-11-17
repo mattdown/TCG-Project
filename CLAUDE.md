@@ -74,7 +74,7 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/graph/    encode.py (state → NumPy; abilities.py: ability nodes and edges) → builder.py (PyG) /
                 dense.py (padded tensors)
   src/model/    gnn.py, transformer.py, registry.py (create / save / load by arch)
-  src/agents/   random, heuristic, neural agents; match runner
+  src/agents/   random, heuristic, neural and search (within a turn) agents; match runner
   src/training/ PPO self-play
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
   scripts/      generate_cards, experiments, train, benchmark, server (run as `python -m scripts.<name>`)
@@ -102,7 +102,8 @@ uv run python -m scripts.train [--arch gnn --iterations 100]   # CPU by default:
 uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/armor_heavy.json --wandb tcg-selfplay
                                             # evals on held-out sets during training; logs to W&B
 uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/heldout_200.json cardsets/armor_heavy.json \
-    --models models/a.pt models/b.pt    # paired games; also --mirror, --hide-aspects (ablations)
+    --models models/a.pt models/b.pt    # paired games; --search adds each model with search within a turn;
+                                            # --mirror, --hide-aspects (ablations)
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client
 ```
 
