@@ -70,6 +70,27 @@ beyond noise, so the gain is from searching the turn. It costs about 90 ms a dec
 positions scored each). Logs: `PythonServer/data/eval_search_fair_<set>.log` (and
 `eval_search_<set>.log` for the leaky run).
 
+### Search width (2026-11-17, v6b+search vs plain v6b, 400 games per set, seed 0)
+
+| Beam × top-k | `heldout_200` | `armor_heavy` | Mean | Positions a decision | ms a decision |
+|---|---|---|---|---|---|
+| 1 × 1 | 44.0% | 43.0% | 43.5% | 5 | 55 |
+| 2 × 2 | 54.7% | 60.5% | 57.6% | 11 | 70 |
+| 4 × 2 | 56.0% | 58.8% | 57.4% | 17 | 80 |
+| 2 × 4 | 60.0% | 60.0% | 60.0% | 15 | 74 |
+| **4 × 4** | **64.0%** | **63.7%** | **63.9%** | **26** | **90** |
+| 4 × 8 | 62.3% | 62.0% | 62.1% | 32 | 100 |
+| 8 × 4 | 62.5% | 65.0% | 63.7% | 41 | 115 |
+| 8 × 8 | 65.2% | 66.0% | 65.6% | 58 | 140 |
+
+Each mean is 800 games (one standard error about ±1.7). The gain levels off at 4 × 4: 8 × 8 is
+within noise of it at more than twice the positions, so 4 × 4 stays the default. Considering more
+moves (top-k) helps more than keeping more lines (beam). The narrowest search, 1 × 1 (at each step,
+the policy's favourite move or ending the turn), *loses* to the plain policy, which suggests
+the value head is worse than the policy at choosing when to stop unless it also sees alternatives. Times are per
+decision of the whole game, with 8 runs sharing the CPU on one thread each, so they're higher than
+alone. Log: `PythonServer/data/search_sweep.jsonl`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and

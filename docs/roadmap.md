@@ -13,7 +13,6 @@ art and a GNN overlay. Blog part 1 is published.
 
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
 
-- [ ] **Tune search:** beam and top-k (4 and 4 now; wider or deeper isn't measured).
 - [ ] **Tactical puzzles:** positions from real games where a short search finds lethal or a much
   better line; does the policy find it? A diagnostic first (and the way to check "does it value
   draw 2, removal, may-costs sensibly?"), training targets later if it keeps missing them.
