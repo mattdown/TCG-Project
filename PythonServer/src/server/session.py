@@ -268,7 +268,7 @@ class GameSession:
 
     def _preview(self, action: Action) -> dict | None:
         """What a play or an attack would do: the action tried on a copy of the game, up to the
-        first choice an ability asks for.
+        first choice an ability asks for or makes at random.
 
         The client shows these while dragging ("−3 to the hero", "Defeated") without knowing any rules.
         Only moves of cards that were in play are kept, so a preview never reveals a card an
@@ -276,7 +276,7 @@ class GameSession:
         """
         if action.type not in (ActionType.PLAY, ActionType.ATTACK, ActionType.ATTACK_HERO):
             return None
-        trial = self.game.clone()
+        trial = self.game.clone(preview=True)
         result = trial.step(action, validate=False, record=True)
         result.moves = [m for m in result.moves if m.source == Zone.PLAY or m.uid == action.card]
         return self._result_view(result, trial)

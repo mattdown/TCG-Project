@@ -118,7 +118,8 @@ def card_static_features(card: Card) -> np.ndarray:
 
 
 def action_outcome(game: Game, player: int, action: Action) -> np.ndarray:
-    """What the action would do, up to the first choice an ability asks for (OUTCOME_FEATURES).
+    """What the action would do, up to the first choice an ability asks for or makes at random
+    (OUTCOME_FEATURES), so the network never sees how a random choice will fall.
 
     A one-step lookahead in the inputs, so the network doesn't have to learn the combat sums (Armor,
     Duelist) from end-of-game rewards. The copy holds the hidden cards too, so only what happens on
@@ -127,7 +128,7 @@ def action_outcome(game: Game, player: int, action: Action) -> np.ndarray:
     out = np.zeros(OUTCOME_DIM, dtype=np.float32)
     if action.type not in PREVIEWED:
         return out
-    trial = game.clone()
+    trial = game.clone(preview=True)
     r = trial.step(action, validate=False, record=True)
     mine = lambda uid: trial.card(uid).owner == player
     stat = [0, 0]  # enemy, mine

@@ -8,9 +8,9 @@
 Run from the repository root. The cards come from the generator in PythonServer (via card_lab.py),
 so this uses PythonServer's environment.
 
-The cards are the first --count (200) of cardsets/set_200.json, generated again here with the same
-seed and settings so each comes with its derivation (src/cards/trace.py): every decision the sampler
-made, its options and the one it took. Those are the cards with painted art. The page plays a
+The cards are the first --count (200) of cardsets/set_200.json, each with its derivation
+(src/cards/trace.py): every decision the sampler made, its options and the one it took. They come from
+a snapshot of the draws that made the set (card_lab.SNAPSHOT), since the grammar has grown since. Those are the cards with painted art. The page plays a
 timeline (2 s per decision) with a scrubber for checking the timing; it starts on --card and its
 "New card" button picks from the rest, so the page needs no server.
 
@@ -26,9 +26,8 @@ import subprocess
 import webbrowser
 from pathlib import Path
 
-from card_lab import ART, DEFAULTS, _attempt_json, bake, describe, make_generator  # next to this file; it puts PythonServer on the path
+from card_lab import ART, bake, describe, snapshot  # next to this file; it puts PythonServer on the path
 from src.cards.abilities import Renderer, render as card_text  # noqa: E402
-from src.cards.generate import Attempt  # noqa: E402
 
 TEMPLATE = Path(__file__).with_name("card_generation_visualiser.html")
 SUMMARY = ("One card of an original trading card game, generated step by step: each decision that grows its ability "
@@ -36,7 +35,7 @@ SUMMARY = ("One card of an original trading card game, generated step by step: e
            "of the one taken, then the finished card with its text, stats and cost. New card picks another.")
 OUT = Path(__file__).parent / "build"
 CLIENT = Path(__file__).parents[1] / "TCGClient"
-SET_SEED, SET_SIZE = 0, 200  # cardsets/set_200.json, the set the card art was painted for
+SET_SIZE = 200  # cardsets/set_200.json, the set the card art was painted for
 WIDTH, HEIGHT = 1920, 1080
 
 # Blog/art name → (client image, width on the web): about twice the size they are shown at.
@@ -50,15 +49,15 @@ PARTS = {"card_frame": ("Assets/Art/Sprites/card_frame_action.png", 840),
 CARD_ART_SIZE = (320, 400)  # the client's CardArt is 640x800; the art window is about 270 px wide on the page
 
 
-def set_cards(count: int) -> list[Attempt]:
-    """The first `count` cards of the set, each with its trace (the same cards as generate_card_set)."""
-    params = {k: v for k, v in DEFAULTS.items() if k not in ("seed", "count")}
-    _, generator = make_generator(SET_SEED, **params)
-    return [generator.card() for _ in range(count)]
+def set_cards(count: int) -> list[dict]:
+    """The first `count` cards of the set, each with its trace, from the snapshot of their draws
+    (card_lab.SNAPSHOT): the grammar has grown since, so generating seed 0 again gives other cards."""
+    snap = snapshot()
+    attempts = {a["index"]: a for a in snap["attempts"]}
+    return [attempts[i] | snap["traces"][str(i)] for i in snap["kept"][:count]]
 
 
-def card_data(number: int, a: Attempt) -> dict:
-    kept = _attempt_json(a, trace=True)
+def card_data(number: int, kept: dict) -> dict:
     return {"number": number, "art": kept["card"]["art"], "kept": kept,
             "text_stages": text_stages(kept)}
 

@@ -16,7 +16,7 @@ def main_effect(ability: dict) -> str | None:
         for step in steps:
             if "effect" in step:
                 return step["effect"]
-            for key in ("if_you_do", "then"):
+            for key in ("if_you_do", "then", "steps"):
                 if key in step:
                     return first(step[key])
             if "choose_one" in step:

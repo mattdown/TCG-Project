@@ -17,7 +17,7 @@ from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
 from src.game.terms import ASPECT_NAMES, ASPECTS, keyword_text
 
-FILTER_FIELDS = ("trait", "damaged", "cost_max", "not_this")
+FILTER_FIELDS = ("trait", "damaged", "cost_max", "not_this", "keyword", "played_this_turn")
 
 
 def _filter_features(f: dict, out: set):
@@ -25,6 +25,8 @@ def _filter_features(f: dict, out: set):
         if field in f:
             out.add(f"filter: {field}")
     out.add(f"filter owner: {f.get('owner', 'any')}")
+    if "zone" in f:
+        out.add(f"filter zone: {f['zone']}")
 
 
 def _target_features(target, out: set):
@@ -59,8 +61,11 @@ def _condition_features(cond: dict, out: set):
 def _steps_features(steps: list, out: set):
     for step in steps:
         if "choose" in step:
-            out.add("decision: choose")
+            out.add("decision: choose" + (" (random)" if step["choose"].get("chooser") == "random" else ""))
             _filter_features(step["choose"]["filter"], out)
+        elif "repeat" in step:
+            out.add("step: repeat (split at random)")
+            _steps_features(step["steps"], out)
         elif "effect" in step:
             out.add(f"effect: {step['effect']}")
             _target_features(step["target"], out)

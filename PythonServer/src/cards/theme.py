@@ -28,6 +28,14 @@ SUBTITLES_BY_TRIGGER = {
                        "Head of the Table"),
     "opposing_defeated": ("Sore Winner", "Keeps Score", "Taking Notes", "Picks Up the Pieces", "Bounty Hunter",
                           "Waiting in the Wings", "Opportunist", "Silver Lining", "Victory Lap", "Tallying Up"),
+    "ally_defeated": ("Carries On", "In Their Memory", "Picks Up the Slack", "Grieving Friend", "Fills the Gap",
+                      "Holds the Line", "Never Forgets", "Last One Standing", "Stepping Up", "Keeps the Lamp Lit"),
+    "damaged": ("Thick Skinned", "Gets Back Up", "Bruised but Busy", "Tough Cookie", "Shrugs It Off",
+                "Battle Scarred", "Hard to Squash", "Bounces Back", "Takes a Knock", "Grits Its Gills"),
+    "action_played": ("Quick Study", "Takes Notes", "Follows Orders", "Plan Maker", "Bookkeeper",
+                      "Keen Apprentice", "Busy Bee", "Paperwork Pro", "Clipboard Carrier", "Ready for Anything"),
+    "token_summoned": ("Den Mother", "Nursery Keeper", "Babysitter", "Crowd Herder", "Head Count",
+                       "Roll Call", "Welcome Party", "Spore Shepherd", "Group Leader", "Little League Coach"),
 }
 SUBTITLES_BY_EFFECT = {
     "deal_damage": ("Sharp Tongue", "Heavy Handed", "Prickly Customer", "Thorn in the Side", "Hard Knocks",

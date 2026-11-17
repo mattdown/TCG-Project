@@ -39,8 +39,9 @@ Decisions already made (don't re-open without a reason):
   entity transformer (`--arch transformer`) is kept for accelerators.
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
 - **Training:** on the CPU (faster than MPS for these small graphs). Judge models with
-  `scripts.benchmark` (400 paired games) on `heldout_200` and `armor_heavy`, not `set_200`, which
-  is part of the training set; a 100-game training eval is too noisy to pick a checkpoint. No
+  `scripts.benchmark` (400 paired games) on `heldout_200` and `armor_heavy` (their `_g2` versions
+  for models trained on `set_1000_g2`, P2's grammar), not `set_200`, which is part of the
+  training set; a 100-game training eval is too noisy to pick a checkpoint. No
   mirror-deck training (deck luck doesn't cap the win rate). Aspects are a player feature only,
   not a card feature, until they mean something.
 - **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;
@@ -89,7 +90,8 @@ Blog/           everything that isn't the game or training: the card lab (card_l
                 card_kit.html), card_generation_visualiser (one card's path through the grammar, animated),
                 gnn_visualiser (how the GNN reads the board, one layer, and the policy and value heads, animated), design_loop (the
                 series' generate-playtest-measure-tune loop as one animated panel), map_elites_visualiser (part 2: how
-                MAP-Elites finds the best deck of each kind, from a small real run), painted_card.html (the client's card, shared), tests/;
+                MAP-Elites finds the best deck of each kind, from a small real run), painted_card.html (the client's card, shared), data/ (set_200's draws, saved before the grammar grew, so
+                the demos keep the cards with painted art), tests/;
                 uses PythonServer's environment, writes to Blog/build/ (gitignored)
 ```
 

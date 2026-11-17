@@ -20,7 +20,7 @@ def complexity(ability: dict) -> int:
         total = 0
         for step in seq:
             total += 1
-            for key in ("then", "else", "may", "if_you_do"):
+            for key in ("then", "else", "may", "if_you_do", "steps"):
                 total += steps(step.get(key, []))
             for branch in step.get("choose_one", []):
                 total += steps(branch)
@@ -74,11 +74,11 @@ def disconnected_steps(seq: list) -> list[str]:
             continue
         touched = _touches(step)
         if not first and not touched & seen:
-            label = step.get("effect") or next(k for k in ("if", "may", "choose_one") if k in step)
+            label = step.get("effect") or next(k for k in ("if", "may", "choose_one", "repeat") if k in step)
             problems.append(f"'{label}' isn't connected to the steps before it")
         seen |= touched
         first = False
-        for key in ("then", "else", "may", "if_you_do"):
+        for key in ("then", "else", "may", "if_you_do", "steps"):
             problems += disconnected_steps(step.get(key, []))
         for branch in step.get("choose_one", []):
             problems += disconnected_steps(branch)

@@ -4,153 +4,183 @@ Generated from the grammar (seed 0), so every building block appears at least 2 
 
 ## Cards
 
-- [ ] **C1-001 Ember Ambush** (cost 1, action, Ember)
-  - Deal 1 damage to chosen damaged enemy unit for each Chef unit in play (up to 4). If it was defeated, summon a 1/2 Gill Grub.
-- [ ] **C1-002 Ghost Scholar – Pointy End** (cost 2, 1 power · 2 health, Guard, Bog)
-  - When you play this unit, deal 1 damage to chosen enemy unit with cost 4 or less for each Miner unit in play (up to 3). If it was defeated, heal your hero for 4.
-- [ ] **C1-003 Ghost Miner – Pickpocket** (cost 2, 1 power · 3 health, Moss)
-  - Whenever this unit attacks, choose one: • Your opponent discards a card at random. • Your other damaged units get +1 power this turn.
-- [ ] **C1-004 Ghost Baker – Fashionably Early** (cost 5, 3 power · 7 health, Duelist +1, Meadow)
-  - When you play this unit, if your hero has less health than the enemy hero, you may discard a card. If you do, your other units get +1 health this turn.
-- [ ] **C1-005 Glow Colony** (cost 4, action, Glow)
-  - Choose one: • Summon two 1/2 Toadstool Tots with Charge. • Deal 3 damage to the enemy hero.
-- [ ] **C1-006 Ghost Lamplighter – Handy Tips** (cost 3, 1 power · 2 health, Armor +2, Frost)
-  - Whenever this unit attacks the enemy hero, if your hero has less health than the enemy hero, this unit gains Guard until the start of your next turn.
-- [ ] **C1-007 Ghost Chef – Heads for Home** (cost 3, 4 power · 2 health, Guard, Ember)
-  - Whenever this unit attacks the enemy hero, you may deal 3 damage to your hero. If you do, remove 4 damage from this unit.
-- [ ] **C1-008 Ghost Postman – Stubborn Streak** (cost 2, 1 power · 2 health, Elusive, Bog)
-  - While this unit is defending, it gets +1 health.
-- [ ] **C1-009 Fern Scouting** (cost 1, action, Moss)
-  - Choose one: • Draw 2 cards. • A chosen unit of yours with cost 3 or less gets +3 power.
-- [ ] **C1-010 Shiitake Scholar – Stands Tall** (cost 3, 3 power · 2 health, Elusive, Meadow)
+- [ ] **C1-001 Smoulder Ambush** (cost 2, action, Ember)
+  - Deal 1 damage to chosen enemy unit with cost 2 or less for each other card you played this turn (up to 3). If it was defeated, summon two 3/1 Sporelings.
+- [ ] **C1-002 Snowcap Scholar – Stepping Up** (cost 2, 3 power · 2 health, Bog)
+  - Whenever another of your units is defeated, you may deal 2 damage to your hero. If you do, a random other Chef unit of yours gets +1 power this turn for each of your damaged units (up to 5).
+- [ ] **C1-003 Snowcap Miner – New in Town** (cost 5, 3 power · 6 health, Charge, Moss)
+  - When you play this unit, if your hero has less health than the enemy hero, choose one: • Deal 1 damage to the enemy hero. • Freeze all enemy units: they can’t attack on their next turn.
+- [ ] **C1-004 Snowcap Baker – Big Day** (cost 4, 4 power · 4 health, Charge, Meadow)
+  - Whenever another of your units is defeated, you may deal 2 damage to another chosen unit of yours. If you do, your other units get +1 power this turn.
+- [ ] **C1-005 Firefly Almanac** (cost 1, action, Glow)
+  - Choose one: • Draw a card for each Scholar unit in play (up to 3). • Your opponent discards 4 cards at random.
+- [ ] **C1-006 Snowcap Lamplighter – Heavy Handed** (cost 4, 3 power · 2 health, Duelist +3, Frost)
+  - At the end of your turn, deal 2 damage to a random enemy unit with cost 4 or less. If it was defeated, heal your hero for 1 for each card you played this turn (up to 4).
+- [ ] **C1-007 Snowcap Chef – Lends a Hand** (cost 4, 3 power · 4 health, Duelist +2, Ember)
+  - Whenever this unit attacks, this unit gains Guard until the start of your next turn.
+- [ ] **C1-008 Snowcap Postman – Bigger Than Looks** (cost 2, 2 power · 1 health, Armor +1, Bog)
   - While this unit is attacking, it gets +1 power.
-- [ ] **C1-011 Shiitake Miner – No Time to Wait** (cost 2, 1 power · 3 health, Charge, Glow)
-  - Whenever this unit attacks, remove all damage from this unit.
-- [ ] **C1-012 Shiitake Baker – Opportunist** (cost 5, 3 power · 6 health, Armor +1, Frost)
-  - Whenever an enemy unit is defeated, this unit gains Guard until the start of your next turn.
-- [ ] **C1-013 Cinder Banquet** (cost 1, action, Ember)
-  - Choose one: • Heal your hero for 3. • Draw 5 cards.
-- [ ] **C1-014 Shiitake Lamplighter – Instinct** (cost 4, 6 power · 2 health, Charge, Bog)
-  - While this unit is damaged, it has Armor +1.
-- [ ] **C1-015 Shiitake Chef – Hard Cap** (cost 1, 1 power · 1 health, Duelist +1, Moss)
-  - While this unit is attacking, it gets +2 power.
-- [ ] **C1-016 Shiitake Postman – Rainmaker** (cost 4, 7 power · 1 health, Meadow)
-  - Whenever an enemy unit is defeated, choose one: • Gain an empty mana crystal. • This unit gets +2 power and +2 health.
-- [ ] **C1-017 Glow Spring Rain** (cost 3, action, Glow)
-  - Choose one: • Gain an empty mana crystal. • Summon a 4/1 Fruiting Bud.
-- [ ] **C1-018 Porcini Scholar – Thick Skin** (cost 3, 3 power · 4 health, Frost)
-  - While this unit is damaged, it has Duelist +1.
-- [ ] **C1-019 Porcini Miner – Stubborn Streak** (cost 4, 3 power · 6 health, Ember)
+- [ ] **C1-009 Fern Sprouting** (cost 3, action, Moss)
+  - Choose one: • Summon a 3/1 Sprout with Armor +1. • Draw a card for each damaged enemy unit (up to 5).
+- [ ] **C1-010 Fly-agaric Scholar – Bigger Than Looks** (cost 3, 1 power · 2 health, Armor +2, Meadow)
   - While this unit is defending, it gets +2 health.
-- [ ] **C1-020 Porcini Baker – Sunrise Watch** (cost 2, 3 power · 1 health, Bog)
+- [ ] **C1-011 Fly-agaric Miner – Bright and Early** (cost 1, 1 power · 1 health, Guard, Glow)
+  - At the start of your turn, choose one: • Gain an empty mana crystal. • This unit gets +1 power.
+- [ ] **C1-012 Fly-agaric Baker – Fights Dirty** (cost 4, 5 power · 2 health, Elusive, Frost)
+  - While this unit is attacking, it gets +1 power for each Scholar unit in play (up to +4).
+- [ ] **C1-013 Bonfire Growth** (cost 2, action, Ember)
+  - Your units get +1 health for each card in your hand (up to 4).
+- [ ] **C1-014 Fly-agaric Lamplighter – Steady Hand** (cost 5, 1 power · 9 health, Guard, Bog)
+  - When you play this unit, you may discard a card. If you do, heal your hero for 3.
+- [ ] **C1-015 Fly-agaric Chef – Waiting in the Wings** (cost 4, 1 power · 4 health, Elusive, Moss)
+  - Whenever an enemy unit is defeated, if your hero has less health than the enemy hero, return all enemy units to their owners’ hands.
+- [ ] **C1-016 Fly-agaric Postman – Planting Season** (cost 1, 2 power · 1 health, Meadow)
+  - Whenever you summon a token, if you've played 3 or more other cards this turn, choose one: • Gain an empty mana crystal. • Remove all damage from your other units.
+- [ ] **C1-017 Firefly Gathering** (cost 3, action, Glow)
+  - Choose one: • Summon two 2/1 Spore Clouds. • Your units gain Armor +1 until the start of your next turn.
+- [ ] **C1-018 Puffball Scholar – Follows Orders** (cost 2, 4 power · 1 health, Frost)
+  - Whenever you play an action, remove all damage from your other units.
+- [ ] **C1-019 Puffball Miner – Quick on the Draw** (cost 4, 4 power · 5 health, Ember)
+  - While this unit is damaged, it has Armor +1.
+- [ ] **C1-020 Puffball Baker – Battle Scarred** (cost 1, 1 power · 2 health, Bog)
+  - While this unit is damaged, it has Guard.
+- [ ] **C1-021 Root Spore Burst** (cost 1, action, Moss)
+  - Choose one: • Summon a 4/1 Sporeling. • Chosen enemy unit with cost 4 or less gets −1 power this turn for each of your units with Duelist (up to 5).
+- [ ] **C1-022 Puffball Lamplighter – Steady Under Pressure** (cost 5, 6 power · 5 health, Meadow)
+  - While this unit is defending, it gets +1 health.
+- [ ] **C1-023 Puffball Chef – Bright and Early** (cost 1, 1 power · 1 health, Glow)
   - At the start of your turn, if you have 2 or more other Chef units in play, freeze chosen enemy unit: it can’t attack on its next turn.
-- [ ] **C1-021 Fern Muster** (cost 3, action, Moss)
-  - Choose one: • Summon a 3/1 Cap Kid with Armor +1. • Freeze all enemy units: they can’t attack on their next turn.
-- [ ] **C1-022 Porcini Lamplighter – Opening Shift** (cost 2, 2 power · 3 health, Meadow)
-  - At the start of your turn, if you have 2 or more other Chef units in play, another chosen unit of yours gets +1 power this turn.
-- [ ] **C1-023 Porcini Chef – Do Over** (cost 2, 1 power · 1 health, Glow)
-  - At the end of your turn, return chosen enemy unit to its owner’s hand.
-- [ ] **C1-024 Porcini Postman – One Final Favour** (cost 5, 4 power · 6 health, Frost)
-  - When this unit is defeated, return chosen enemy unit to its owner’s hand.
-- [ ] **C1-025 Bonfire Gathering** (cost 2, action, Ember)
-  - Choose one: • Summon a 2/3 Cap Kid with Guard. • Defeat chosen enemy unit with cost 4 or less.
-- [ ] **C1-026 Honey Scholar – Uproots Trouble** (cost 2, 1 power · 2 health, Bog)
-  - At the end of your turn, defeat chosen enemy unit with cost 2 or less.
-- [ ] **C1-027 Honey Miner – Last Act** (cost 5, 7 power · 4 health, Moss)
-  - When this unit is defeated, all enemy units get −1 power this turn.
-- [ ] **C1-028 Honey Baker – Family Business** (cost 2, 1 power · 4 health, Meadow)
-  - Whenever you play another Scholar unit, this unit gets +1 health this turn.
-- [ ] **C1-029 Glow Sprouting** (cost 2, action, Glow)
-  - Choose one: • Summon two 1/2 Sporelings. • Chosen enemy unit with cost 4 or less gets −4 power this turn.
-- [ ] **C1-030 Honey Lamplighter – Pours Cold Water** (cost 2, 1 power · 4 health, Frost)
+- [ ] **C1-024 Puffball Postman – Head Count** (cost 3, 2 power · 5 health, Frost)
+  - Whenever you summon a token, chosen damaged enemy unit gets −1 power this turn for each of your units with Duelist (up to 5).
+- [ ] **C1-025 Bonfire Pummel** (cost 1, action, Ember)
+  - Deal 7 damage split at random among enemy units.
+- [ ] **C1-026 Inkcap Scholar – Bold Visitor** (cost 2, 1 power · 2 health, Bog)
+  - Whenever this unit attacks the enemy hero, return all enemy units to their owners’ hands.
+- [ ] **C1-027 Inkcap Miner – Storms the Castle** (cost 1, 1 power · 1 health, Moss)
+  - Whenever this unit attacks the enemy hero, defeat a random damaged enemy unit.
+- [ ] **C1-028 Inkcap Baker – Parting Gift** (cost 1, 1 power · 1 health, Meadow)
+  - When this unit is defeated, defeat a random damaged enemy unit.
+- [ ] **C1-029 Firefly Sprouting** (cost 4, action, Glow)
+  - Choose one: • Summon a 1/5 Sprout with Charge. • Deal 2 damage split at random among enemy units.
+- [ ] **C1-030 Inkcap Lamplighter – Tallying Up** (cost 1, 2 power · 1 health, Frost)
+  - Whenever an enemy unit is defeated, heal your hero for 1 for each card in your hand (up to 3).
+- [ ] **C1-031 Inkcap Chef – Proud Teacher** (cost 4, 6 power · 3 health, Ember)
+  - Your other Postman units get +1 health.
+- [ ] **C1-032 Inkcap Postman – Doom and Gloom** (cost 3, 3 power · 4 health, Bog)
   - All damaged enemy units get −1 power.
-- [ ] **C1-031 Honey Chef – Coupon Clipper** (cost 4, 5 power · 4 health, Ember)
-  - Lamplighter cards you play cost 1 less.
-- [ ] **C1-032 Honey Postman – Shift Supervisor** (cost 1, 1 power · 2 health, Bog)
-  - Your other Scholar units get +1 health.
-- [ ] **C1-033 Oyster Scholar – Grand Master** (cost 1, 2 power · 1 health, Moss)
-  - Your other Chef units get +1 health.
-- [ ] **C1-034 Oyster Miner – Head of the Guild** (cost 5, 5 power · 6 health, Meadow)
-  - Your other Lamplighter units get +1 power.
-- [ ] **C1-035 Oyster Baker – Shop Keeper** (cost 4, 2 power · 7 health, Glow)
+- [ ] **C1-033 Honey Scholar – Proud Teacher** (cost 1, 1 power · 2 health, Moss)
+  - Your other Baker units get +1 power.
+- [ ] **C1-034 Honey Miner – Union Leader** (cost 1, 2 power · 1 health, Meadow)
+  - Your other Miner units get +1 health.
+- [ ] **C1-035 Honey Baker – Two for One** (cost 4, 2 power · 7 health, Glow)
   - Postman cards you play cost 1 less.
-- [ ] **C1-036 Oyster Lamplighter – Steady Hands** (cost 2, 2 power · 3 health, Frost)
-  - Whenever this unit attacks the enemy hero, remove all damage from this unit.
-- [ ] **C1-037 Oyster Chef – Rallying the Crew** (cost 3, 4 power · 3 health, Ember)
-  - Whenever you play another Lamplighter unit, draw a card.
-- [ ] **C1-038 Bog Letters** (cost 1, action, Bog)
+- [ ] **C1-036 Honey Lamplighter – Knows a Guy** (cost 5, 7 power · 4 health, Frost)
+  - Baker cards you play cost 1 less.
+- [ ] **C1-037 Honey Chef – Rival** (cost 2, 1 power · 3 health, Ember)
+  - At the end of your turn, deal 1 damage to the enemy hero.
+- [ ] **C1-038 Honey Postman – Last Batch** (cost 4, 2 power · 6 health, Bog)
+  - When this unit is defeated, summon two 1/1 Miner Mycelium Mites.
+- [ ] **C1-039 Porcini Scholar – Plan Maker** (cost 4, 4 power · 4 health, Moss)
+  - Whenever you play an action, your opponent discards a card at random.
+- [ ] **C1-040 Porcini Miner – Loose Pages** (cost 2, 1 power · 4 health, Meadow)
+  - Whenever this unit takes damage and survives, draw 2 cards.
+- [ ] **C1-041 Porcini Baker – Plus Ones** (cost 5, 7 power · 3 health, Glow)
+  - Whenever this unit attacks, summon two 1/1 Baker Spore Clouds.
+- [ ] **C1-042 Porcini Lamplighter – Shrugs It Off** (cost 5, 6 power · 4 health, Frost)
+  - Whenever this unit takes damage and survives, draw 3 cards.
+- [ ] **C1-043 Porcini Chef – Team Player** (cost 5, 5 power · 5 health, Ember)
+  - Whenever you play another Chef unit, deal 1 damage to the enemy hero.
+- [ ] **C1-044 Porcini Postman – Never Works Alone** (cost 1, 1 power · 2 health, Bog)
+  - Whenever you play another Postman unit, draw 2 cards.
+- [ ] **C1-045 Moss Letters** (cost 1, action, Moss)
   - Draw 4 cards.
-- [ ] **C1-039 Moss Scouting** (cost 2, action, Moss)
+- [ ] **C1-046 Clover Muster** (cost 4, action, Meadow)
+  - Summon two 1/3 Sprouts.
+- [ ] **C1-047 Starlit Letters** (cost 1, action, Glow)
+  - Draw 3 cards.
+- [ ] **C1-048 Rime Gossip** (cost 2, action, Frost)
   - Draw 5 cards.
+- [ ] **C1-049 Bonfire Spore Burst** (cost 3, action, Ember)
+  - Summon two 1/2 Buttons.
 
 ## Building blocks
 
 | Building block | Cards |
 |---|---|
-| ability: on_resolve | C1-001, C1-005, C1-009, C1-013, C1-017, C1-021, C1-025, C1-029, C1-038, C1-039 |
-| ability: static | C1-008, C1-010, C1-014, C1-015, C1-018, C1-019, C1-030, C1-031, C1-032, C1-033, C1-034, C1-035 |
-| ability: triggered | C1-002, C1-003, C1-004, C1-006, C1-007, C1-011, C1-012, C1-016, C1-020, C1-022, C1-023, C1-024, C1-026, C1-027, C1-028, C1-036, C1-037 |
-| amount: all | C1-011, C1-036 |
-| amount: per count, capped | C1-001, C1-002 |
-| card type: action | C1-001, C1-005, C1-009, C1-013, C1-017, C1-021, C1-025, C1-029, C1-038, C1-039 |
-| card type: unit | C1-002, C1-003, C1-004, C1-006, C1-007, C1-008, C1-010, C1-011, C1-012, C1-014, C1-015, C1-016, C1-018, C1-019, C1-020, C1-022, C1-023, C1-024, C1-026, C1-027, C1-028, C1-030, C1-031, C1-032, C1-033, C1-034, C1-035, C1-036, C1-037 |
-| condition: behind_on_health | C1-004, C1-006 |
-| condition: count | C1-020, C1-022 |
-| condition: defeated | C1-001, C1-002 |
-| condition: this_is attacking | C1-010, C1-015 |
-| condition: this_is damaged | C1-014, C1-018 |
-| condition: this_is defending | C1-008, C1-019 |
-| decision: choose | C1-001, C1-002, C1-009, C1-020, C1-022, C1-023, C1-024, C1-025, C1-026, C1-029 |
-| decision: choose one | C1-003, C1-005, C1-009, C1-013, C1-016, C1-017, C1-021, C1-025, C1-029 |
-| decision: may | C1-004, C1-007 |
-| duration: this_turn | C1-003, C1-004, C1-022, C1-027, C1-028, C1-029 |
-| duration: until_your_next_turn | C1-006, C1-012 |
-| effect: buff | C1-009, C1-016 |
-| effect: damage_hero | C1-005, C1-007 |
-| effect: deal_damage | C1-001, C1-002 |
-| effect: defeat | C1-025, C1-026 |
-| effect: discard | C1-003, C1-004 |
-| effect: draw | C1-009, C1-013, C1-037, C1-038, C1-039 |
-| effect: freeze | C1-020, C1-021 |
-| effect: gain_crystal | C1-016, C1-017 |
-| effect: grant_keyword | C1-006, C1-012 |
-| effect: heal_hero | C1-002, C1-013 |
-| effect: modify_stat | C1-003, C1-004, C1-022, C1-027, C1-028, C1-029 |
-| effect: remove_damage | C1-007, C1-011, C1-036 |
-| effect: return_to_hand | C1-023, C1-024 |
-| effect: summon | C1-001, C1-005, C1-017, C1-021, C1-025, C1-029 |
-| filter owner: any | C1-001, C1-002 |
-| filter owner: opponent | C1-001, C1-002, C1-020, C1-021, C1-023, C1-024, C1-025, C1-026, C1-027, C1-029 |
-| filter owner: you | C1-003, C1-004, C1-009, C1-020, C1-022, C1-028, C1-037 |
-| filter: cost_max | C1-002, C1-009, C1-025, C1-026, C1-029 |
-| filter: damaged | C1-001, C1-003 |
-| filter: not_this | C1-003, C1-004, C1-020, C1-022, C1-028, C1-037 |
-| filter: trait | C1-001, C1-002, C1-020, C1-022, C1-028, C1-037 |
-| keyword: armor | C1-006, C1-012 |
-| keyword: charge | C1-011, C1-014 |
-| keyword: duelist | C1-004, C1-015 |
-| keyword: elusive | C1-008, C1-010 |
-| keyword: guard | C1-002, C1-007 |
-| stat change: health + | C1-004, C1-028 |
-| stat change: power + | C1-003, C1-022 |
-| stat change: power − | C1-027, C1-029 |
-| static: cost reduction | C1-031, C1-035 |
-| static: health for all(…) | C1-032, C1-033 |
-| static: health for this card | C1-008, C1-019 |
-| static: keyword for this card | C1-014, C1-018 |
-| static: power for all(…) | C1-030, C1-034 |
-| static: power for this card | C1-010, C1-015 |
-| step: if | C1-001, C1-002 |
-| target: all(…) | C1-003, C1-004, C1-021, C1-027 |
-| target: an earlier choice | C1-001, C1-002, C1-009, C1-020, C1-022, C1-023, C1-024, C1-025, C1-026, C1-029 |
-| target: opponent | C1-003, C1-005 |
-| target: this card | C1-006, C1-007, C1-011, C1-012, C1-016, C1-028, C1-036 |
-| target: you | C1-001, C1-002, C1-004, C1-005, C1-007, C1-009, C1-013, C1-016, C1-017, C1-021, C1-025, C1-029, C1-037, C1-038, C1-039 |
-| trigger: another_played | C1-028, C1-037 |
-| trigger: end_of_turn | C1-023, C1-026 |
-| trigger: on_attack | C1-003, C1-011 |
-| trigger: on_attack_hero | C1-006, C1-007, C1-036 |
-| trigger: on_defeated | C1-024, C1-027 |
-| trigger: on_play | C1-002, C1-004 |
-| trigger: opposing_defeated | C1-012, C1-016 |
-| trigger: start_of_turn | C1-020, C1-022 |
+| ability: on_resolve | C1-001, C1-005, C1-009, C1-013, C1-017, C1-021, C1-025, C1-029, C1-045, C1-046, C1-047, C1-048, C1-049 |
+| ability: static | C1-008, C1-010, C1-012, C1-019, C1-020, C1-022, C1-031, C1-032, C1-033, C1-034, C1-035, C1-036 |
+| ability: triggered | C1-002, C1-003, C1-004, C1-006, C1-007, C1-011, C1-014, C1-015, C1-016, C1-018, C1-023, C1-024, C1-026, C1-027, C1-028, C1-030, C1-037, C1-038, C1-039, C1-040, C1-041, C1-042, C1-043, C1-044 |
+| amount: all | C1-016, C1-018 |
+| amount: per count, capped | C1-001, C1-002, C1-005, C1-006, C1-009, C1-012, C1-013, C1-021, C1-024, C1-030 |
+| card type: action | C1-001, C1-005, C1-009, C1-013, C1-017, C1-021, C1-025, C1-029, C1-045, C1-046, C1-047, C1-048, C1-049 |
+| card type: unit | C1-002, C1-003, C1-004, C1-006, C1-007, C1-008, C1-010, C1-011, C1-012, C1-014, C1-015, C1-016, C1-018, C1-019, C1-020, C1-022, C1-023, C1-024, C1-026, C1-027, C1-028, C1-030, C1-031, C1-032, C1-033, C1-034, C1-035, C1-036, C1-037, C1-038, C1-039, C1-040, C1-041, C1-042, C1-043, C1-044 |
+| condition: behind_on_health | C1-003, C1-015 |
+| condition: count | C1-016, C1-023 |
+| condition: defeated | C1-001, C1-006 |
+| condition: this_is attacking | C1-008, C1-012 |
+| condition: this_is damaged | C1-019, C1-020 |
+| condition: this_is defending | C1-010, C1-022 |
+| decision: choose | C1-001, C1-004, C1-021, C1-023, C1-024 |
+| decision: choose (random) | C1-002, C1-006, C1-025, C1-027, C1-028, C1-029 |
+| decision: choose one | C1-003, C1-005, C1-009, C1-011, C1-016, C1-017, C1-021, C1-029 |
+| decision: may | C1-002, C1-004, C1-014 |
+| duration: this_turn | C1-002, C1-004, C1-021, C1-024 |
+| duration: until_your_next_turn | C1-007, C1-017 |
+| effect: buff | C1-011, C1-013 |
+| effect: damage_hero | C1-002, C1-003, C1-037, C1-043 |
+| effect: deal_damage | C1-001, C1-004, C1-006, C1-025, C1-029 |
+| effect: defeat | C1-027, C1-028 |
+| effect: discard | C1-005, C1-014, C1-039 |
+| effect: draw | C1-005, C1-009, C1-040, C1-042, C1-044, C1-045, C1-047, C1-048 |
+| effect: freeze | C1-003, C1-023 |
+| effect: gain_crystal | C1-011, C1-016 |
+| effect: grant_keyword | C1-007, C1-017 |
+| effect: heal_hero | C1-006, C1-014, C1-030 |
+| effect: modify_stat | C1-002, C1-004, C1-021, C1-024 |
+| effect: remove_damage | C1-016, C1-018 |
+| effect: return_to_hand | C1-015, C1-026 |
+| effect: summon | C1-001, C1-009, C1-017, C1-021, C1-029, C1-038, C1-041, C1-046, C1-049 |
+| filter owner: any | C1-005, C1-012 |
+| filter owner: opponent | C1-001, C1-003, C1-006, C1-009, C1-015, C1-021, C1-023, C1-024, C1-025, C1-026, C1-027, C1-028, C1-029 |
+| filter owner: you | C1-001, C1-002, C1-004, C1-006, C1-013, C1-016, C1-017, C1-018, C1-021, C1-023, C1-024, C1-030, C1-043, C1-044 |
+| filter zone: any | C1-001, C1-006, C1-016 |
+| filter zone: discard | C1-002, C1-004 |
+| filter zone: hand | C1-013, C1-030 |
+| filter: cost_max | C1-001, C1-006, C1-021 |
+| filter: damaged | C1-002, C1-009, C1-024, C1-027, C1-028 |
+| filter: keyword | C1-021, C1-024 |
+| filter: not_this | C1-001, C1-002, C1-004, C1-016, C1-018, C1-023, C1-043, C1-044 |
+| filter: played_this_turn | C1-001, C1-006, C1-016 |
+| filter: trait | C1-002, C1-005, C1-012, C1-023, C1-043, C1-044 |
+| keyword: armor | C1-008, C1-010 |
+| keyword: charge | C1-003, C1-004 |
+| keyword: duelist | C1-006, C1-007 |
+| keyword: elusive | C1-012, C1-015 |
+| keyword: guard | C1-011, C1-014 |
+| stat change: power + | C1-002, C1-004 |
+| stat change: power − | C1-021, C1-024 |
+| static: cost reduction | C1-035, C1-036 |
+| static: health for all(…) | C1-031, C1-034 |
+| static: health for this card | C1-010, C1-022 |
+| static: keyword for this card | C1-019, C1-020 |
+| static: power for all(…) | C1-032, C1-033 |
+| static: power for this card | C1-008, C1-012 |
+| step: if | C1-001, C1-006 |
+| step: repeat (split at random) | C1-025, C1-029 |
+| target: all(…) | C1-003, C1-004, C1-013, C1-015, C1-016, C1-017, C1-018, C1-026 |
+| target: an earlier choice | C1-001, C1-002, C1-004, C1-006, C1-021, C1-023, C1-024, C1-025, C1-027, C1-028, C1-029 |
+| target: opponent | C1-003, C1-005, C1-037, C1-039, C1-043 |
+| target: this card | C1-007, C1-011 |
+| target: you | C1-001, C1-002, C1-005, C1-006, C1-009, C1-011, C1-014, C1-016, C1-017, C1-021, C1-029, C1-030, C1-038, C1-040, C1-041, C1-042, C1-044, C1-045, C1-046, C1-047, C1-048, C1-049 |
+| trigger: action_played | C1-018, C1-039 |
+| trigger: ally_defeated | C1-002, C1-004 |
+| trigger: another_played | C1-043, C1-044 |
+| trigger: damaged | C1-040, C1-042 |
+| trigger: end_of_turn | C1-006, C1-037 |
+| trigger: on_attack | C1-007, C1-041 |
+| trigger: on_attack_hero | C1-026, C1-027 |
+| trigger: on_defeated | C1-028, C1-038 |
+| trigger: on_play | C1-003, C1-014 |
+| trigger: opposing_defeated | C1-015, C1-030 |
+| trigger: start_of_turn | C1-011, C1-023 |
+| trigger: token_summoned | C1-016, C1-024 |

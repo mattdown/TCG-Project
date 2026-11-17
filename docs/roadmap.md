@@ -8,7 +8,8 @@ design doc it belongs to. The design is [technical-plan.md](technical-plan.md); 
 Where things stand (2026-11-17): the engine runs rules v2 with generated ability cards, priced from
 measurements on random decks (stage 1). The agent (`tcgnet_v6b`) beats the heuristic player 79% on
 cards it has never seen, 89% with search within a turn, which the server's AI now uses. Part 2 has
-started with a stronger agent and the cost model. The Unity client plays all of it, with painted
+started with a stronger agent, and P2's first grammar batch (new triggers, counts, memory and
+randomness) is in, with new `_g2` card sets. The Unity client plays all of it, with painted
 art and a GNN overlay. Blog part 1 is published.
 
 ## Now: a stronger agent (part 2, plan section 6, P1–P4)
@@ -17,8 +18,10 @@ art and a GNN overlay. Blog part 1 is published.
   it's compute: more threads, MPS and bigger minibatches don't help. Options: a CUDA GPU, a
   smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
   the model is the bottleneck.
-- [ ] **P2, first grammar batch:** pick items from [ability-generation.md](ability-generation.md),
-  "What's missing" 1–16, when it starts.
+- [ ] **P2, after the first batch:** fine-tune on `set_1000_g2` (the new triggers, counts, "played
+  this turn" and random targets; v6b has never seen their features) and judge on `heldout_200_g2`
+  and `armor_heavy_g2`. Then measure the new triggers' fire rates (`experiments.py fire`) to
+  replace their guessed use rates in `costing.py`.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
   frozen agent (the cost model) → MAP-Elites deck search (move `map_elites()` from `Blog/` into
   PythonServer) → a fixed benchmark. The cost model work below is part of it.
@@ -55,6 +58,12 @@ art and a GNN overlay. Blog part 1 is published.
 ## Card generation
 
 Rule: general tests on the tree's shape, never rules about particular cards.
+
+- [ ] **Second grammar batch:** interacting with abilities and making cards (ability-generation.md,
+  "What's missing" 8 and 9), and what's left of 2, 3, 5 and 10 (split damage that can hit the
+  hero, a draw trigger).
+- [ ] Split damage is rare (5 in `set_1000_g2`): the variety stage keeps few of one shape. Raise
+  its weight if deck search needs more of it.
 
 - [ ] Keyword equivalence: write keywords in the DSL; an ability that compiles to a keyword becomes
   the keyword ("+1 power while attacking" = Duelist +1).

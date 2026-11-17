@@ -138,29 +138,45 @@ ability twice.
 
 The grammar in technical-plan.md section 3 is the full design space. The generator covers only
 part of it, and the engine runs a little more than the generator makes. Counts are from
-`cardsets/set_200.json` (139 of its 200 cards have an ability).
+`cardsets/set_200.json` (139 of its 200 cards have an ability), or `set_1000_g2` (723 of 1,000,
+the grammar since P2's first batch) where marked.
 
 **Generated now:**
 
-- **Kinds:** triggered (8 triggers: when played, when it attacks, when it attacks the enemy hero,
+- **Kinds:** triggered (12 triggers: when played, when it attacks, when it attacks the enemy hero,
   when it's defeated, start and end of your turn, when you play another unit of a job, when an
-  enemy unit is defeated), static, and on-resolve for actions. One ability per card.
-- **Effects (14):** deal damage, remove damage, defeat, return to hand, freeze, a "this turn" stat
-  bonus or penalty, a **lasting buff** (+power and/or +health until the unit leaves play; 10 in
-  `set_200`), grant a keyword (Guard, Armor or Duelist, for a set duration), draw, discard, heal your
-  hero, damage a hero, gain a mana crystal, summon tokens (the most common effect, 42).
+  enemy unit is defeated, and since P2: when another of your units (of a job) is defeated, when
+  this unit takes damage and survives, when you play an action, when you summon a token; 81 of
+  the newer ones in `set_1000_g2`), static, and on-resolve for actions. One ability per card.
+- **Effects (14):** deal damage, remove damage, defeat, return to hand, freeze, a "this turn"
+  **power** bonus or penalty (never health: health only changes for good, through buffs), a
+  **lasting buff** (+power and/or +health until the unit leaves play; 10 in `set_200`), grant a
+  keyword (Guard, Armor or Duelist, for a set duration), draw, discard, heal your hero, damage a
+  hero, gain a mana crystal, summon tokens (the most common effect, 42).
 - **Step patterns:** one effect, two effects, "deal damage; if it was defeated, …", "you may … if
   you do …" (units only) and "choose one".
-- **"For each" amounts:** damage, draw and hero healing can scale with the number of units of a job
-  (yours or everyone's), up to a cap of 3–5, and so can a static "while attacking" bonus: "+1 power
-  for each other Miner you control". 16 in `set_200`.
-- **Conditions:** "if you have 2 or 3 other units of a job", "if your hero has less health", "if it
-  was defeated", and for statics "while attacking / defending / damaged".
+- **"For each" amounts:** damage, draw, hero healing, power bonuses and lasting buffs can scale
+  with a count, up to a cap of 3–5: units of a job (yours or everyone's), damaged units, your
+  units with a keyword, cards in your hand, or cards you played this turn. A static "while
+  attacking" bonus can scale with units of a job: "+1 power for each other Miner you control".
+  Health never scales with damaged units. 16 in `set_200`; in `set_1000_g2`, 17 count damaged
+  units, 19 a keyword, 8 your hand and 26 buffs or power bonuses scale.
+- **Conditions:** "if you have 2 or 3 other units of a job", "if you've played 2 or 3 other cards
+  this turn" (45 abilities mention cards played this turn in `set_1000_g2`), "if your hero has
+  less health", "if it was defeated", and for statics "while attacking / defending / damaged".
 - **Statics:** a bonus while attacking or defending, +1 to your other units of a job, a keyword
   while damaged or while you have other units of a job, cost −1 for a job, and −1 power for
   damaged enemy units.
-- **Targets:** a chosen unit, all units matching a filter, this unit, you or your opponent.
-  Filters: whose, a job (your side only), damaged, cost at most 2–4.
+- **Targets:** a chosen unit, a **random** unit (94 in `set_1000_g2`), all units matching a filter,
+  this unit, you or your opponent, and **damage split at random** among enemy units ("deal 4
+  damage split at random among enemy units": a `repeat` of a random choice and 1 damage; 5 in
+  `set_1000_g2`, since the variety stage keeps few of one shape). Filters: whose, a job (your
+  side only), damaged, cost at most 2–4. Random choices are made by the engine's random numbers,
+  never a player; previews stop at them, so neither the network nor the client sees how they'll
+  fall.
+- **Rules that keep the new triggers sensible:** "when this takes damage and survives" never gives
+  this unit health (no buff with health, no "remove damage"), and needs at least 2 health; "when
+  you summon a token" never summons.
 
 **The engine runs, but the generator doesn't make:** "else" branches, amounts equal to a
 unit's stat (`stat_of`: "deal damage equal to its power"; the graph encoder has no feature
@@ -172,27 +188,27 @@ its price and a test.
 
 **In the grammar, but not built yet:** the `for_each` step (repeat steps for each matching
 unit: "for each damaged enemy unit, draw a card"), the durations "until their next turn" and
-"permanent", optional choices ("up to one"), cost comparisons other than "at most", and
-filters by keyword.
+"permanent", optional choices ("up to one"), and cost comparisons other than "at most". The
+keyword filter is built but only used for counts, and `repeat` only for split damage.
 
 **What's missing for a richer set** (part 2's grammar work, roughly in order of value):
 
-1. **Durations that fit the effect.** A "this turn" health bonus from a start-of-turn trigger
-   ends at the end of your turn, so it only helps in your own unit's one attack, not on the
-   opponent's turn when it's attacked. Health bonuses should last until your next turn, as
-   Guard and Armor grants already do.
-2. **More things to count.** Counts are units of one job. Missing: damaged units, units with
-   a keyword, cards in your hand, units defeated or cards played this turn, and the stat of a
-   chosen unit. Scaling also stops at three effects: buffs, summons and stat bonuses never scale.
-3. **More triggers.** Nothing reacts to damage taken, to drawing, to playing an action, to your
-   own units being defeated, to a unit surviving a fight, or to a token being summoned. Triggers
-   are where combos and synergy come from, so this matters most for part 2's synergy work.
+1. **Durations that fit the effect.** Done differently in P2's first batch: there are no
+   temporary health changes at all (a "this turn" health bonus mostly did nothing).
+2. **More things to count.** P2's first batch added damaged units, units with a keyword, cards
+   in your hand and cards played this turn, and scaling buffs and power bonuses. Still missing:
+   units defeated this turn, the stat of a chosen unit, and scaling summons.
+3. **More triggers.** P2's first batch added your own units being defeated, taking damage and
+   surviving, playing an action, and summoning a token. Still missing: drawing (it risks loops
+   with draw effects) and a unit surviving a fight it started. Triggers are where combos and
+   synergy come from, so this matters most for part 2's synergy work.
 4. **Other zones.** Abilities only touch the board, the hand (discard) and the deck (draw).
    Missing: bringing a unit back from the discard pile, searching the deck for a job, changing
    the cost of cards in hand, copying or transforming a card.
-5. **Memory.** No counters and no "this turn" history, so there's no "if you played two cards
-   this turn" and no unit that grows each time something happens (a buff on this unit from a
-   repeating trigger is the closest).
+5. **Memory.** P2's first batch added "cards played this turn" (each card remembers the turn it
+   was played), as a condition and a count. Still missing: counters and other history (units
+   defeated, damage dealt this turn). A unit that grows is a lasting buff on this unit from a
+   repeating trigger.
 6. **More card kinds and keywords.** Only units and actions, and five keywords. Items (lasting
    cards that aren't units), hidden traps that trigger on the opponent's turn, and keywords such
    as healing your hero when this deals damage or defeating any unit this damages are the
@@ -208,7 +224,10 @@ with placeholder names when built; never copied cards), also missing:
 9. **Making cards.** Adding a random card to hand, "pick one of three" generated options,
    shuffling cards into a deck. Card advantage and variety in play, and a good fit for a
    generated set.
-10. **Randomness.** Random targets, damage split at random among enemies.
+10. **Randomness.** P2's first batch added random targets and damage split at random among enemy
+    units. Still missing: split damage that can also hit the enemy hero, and random cards (with
+    making cards, 9). Coin flips ("50%: …") are left out on purpose: they swing games and are hard
+    to price.
 11. **Keyword staples.** Heal your hero when this deals damage; defeat any unit this damages;
     ignore the first damage taken; attack twice a turn; can attack units but not the hero the
     turn it's played; extra damage on your actions; a delayed cost (locks mana next turn).
@@ -220,20 +239,23 @@ with placeholder names when built; never copied cards), also missing:
 16. **Conditions on hand or deck.** "If you're holding a Baker", conditions on what's in your deck.
 
 **Priority:** triggers, counting and memory (2, 3, 5) create synergy, so they give deck search
-something to find; interaction and making cards (8, 9) add the most depth. Hero-level play and
+something to find; P2's first batch (2026-11-17) did the bulk of them, plus randomness (10).
+Interaction and making cards (8, 9) add the most depth and are the obvious second batch. Hero-level play and
 new card kinds (13, 14) change the game itself and probably belong to part 3. Which items go in
 part 2's first batch is decided when that work starts (stage-2 research plan, step P2).
 
 ## Where it stands
 
-Card lab, seed 1, 60 cards, 6 jobs, variety 4: 293 draws, 60 kept (rules v2).
+Card lab, seed 1, 60 cards, 6 jobs, variety 4: 449 draws, 60 kept (P2's first batch,
+2026-11-17; 340 just before it).
 
 | Stopped at | Draws | Main reason |
 |---|---|---|
-| Grammar | 0 | almost always legal by construction (the rare exception: a "this turn" bonus at the end of the turn) |
-| Quality | 51 | steps not connected 36, too complex 15 (dominated options are rarer: about 1 in 100 draws) |
-| Card | 2 | couldn't matter on the card |
-| Variety | 180 | expected: 3 of every 4 good draws are set aside |
+| Grammar | 1 | almost always legal by construction (the rare exception: a "this turn" bonus at the end of the turn) |
+| Quality | 87 | mostly steps not connected, then too complex (dominated options are rare) |
+| Card | 174 | mostly actions too weak to be a card (worth less than 1 mana): random targets are priced at 0.65 of a chosen one, so small random actions fall below it; then keywords a cheap unit can't pay for (89 before the batch) |
+| Duplicate | 1 | the same card as one already kept |
+| Variety | 126 | expected: most good draws are set aside |
 
 Problems still visible in the output, and what will deal with each:
 
@@ -297,8 +319,9 @@ uv run --project PythonServer python Blog/card_lab.py --export lab.html --seed 7
 
 The page has the client's Lantern look, like the visualisers, and shows:
 - each kept card as the client draws it (`Blog/painted_card.html`), with its painted art. The
-  default seed, 0, gives the first cards of `set_200`, which have art; other cards get a
-  placeholder mushroom in their aspect's colour
+  default seed, 0, gives the first cards of `set_200`, which have art (from a snapshot of their
+  draws, `Blog/data/set_200_draws.json`, since today's grammar gives other cards for seed 0);
+  other cards get a placeholder mushroom in their aspect's colour
 - the funnel of draws through each stage, with counts per reason
 - for each card, the checks it passed, its costing, its ability tree and its shape
 
@@ -413,3 +436,22 @@ for checking the engine and client. It uses the same pipeline.
 - **2026-11-15:** "What's missing" extended with gaps compared with the genre (8–16: interacting
   with abilities, making cards, randomness, keyword staples, board position, hero-level play,
   card kinds, long-term goals, conditions on hand or deck) and a priority note. No code change.
+- **2026-11-17:** P2's first grammar batch (stage-2 plan, P2).
+  - No temporary health: "this turn" stat changes are power only (health only changes through
+    lasting buffs). Old sets with health bonuses still load and run.
+  - Four triggers: another of your units (of a job) is defeated, this unit takes damage and
+    survives (it never heals itself, and needs 2 health), you play an action, you summon a token
+    (it never summons).
+  - Counts: damaged units, your units with a keyword, cards in your hand, cards you played this
+    turn (`played_this_turn`, a filter over cards in any zone but the deck). Lasting buffs and
+    power bonuses can scale; health never scales with damaged units.
+  - "If you've played 2 or more other cards this turn" as a condition.
+  - Randomness: random targets (a choice whose chooser is `random`) and damage split at random
+    (`repeat`, unrolled in the decision graph). Previews (the network's action outcomes and the
+    client's) stop at the first random choice.
+  - Rough prices: the new triggers' use rates are guesses (1.0, 0.8, 0.6, 0.5), a random target
+    is worth 0.65 of a chosen one.
+  - New sets `set_1000_g2`, `heldout_200_g2` and `armor_heavy_g2` (same seeds and recipes as the
+    old ones); the old sets stay for comparisons. The coverage set was regenerated.
+  - The card lab, generation visualiser and design loop keep `set_200`'s cards (the ones with
+    painted art) from a snapshot of their draws made with the grammar of the time.

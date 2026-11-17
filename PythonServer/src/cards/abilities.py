@@ -5,14 +5,16 @@ Abilities use the authoring form from docs/technical-plan.md section 3: plain di
     ability = {"kind": "triggered", "trigger": {...}, "condition": None, "steps": [...]}
             | {"kind": "on_resolve", "steps": [...]}
             | {"kind": "static", "condition": None, "modifiers": [...]}
-    step    = {"choose": {"count": 1, "filter": F}, "as": "it"}
+    step    = {"choose": {"count": 1, "filter": F, "chooser"?: "random"}, "as": "it"}
+            | {"repeat": n, "steps": [...]}             (a random choice and one effect, n times)
             | {"effect": op, "target": T, "amount": A, ...}
             | {"if": C, "then": [...]}
             | {"may": [...], "if_you_do": [...]}
             | {"choose_one": [[...], [...]]}
     target  = "this" | "you" | "opponent" | {"ref": name} | {"all": F}
     amount  = int | "all" | {"per": F, "k": 1, "cap": 4}
-    filter  = {"owner": "you" | "opponent" | "any", "trait"?, "damaged"?, "cost_max"?, "not_this"?}
+    filter  = {"owner": "you" | "opponent" | "any", "trait"?, "damaged"?, "cost_max"?, "not_this"?, "keyword"?,
+               "played_this_turn"?, "zone"?: "play" | "hand" | "discard" | "any", "type"?: "unit" | "any"}
 
 The sampler builds trees that satisfy the constraints by construction; validate() checks
 them independently, so it can also vet trees written by hand or by another generator. The
@@ -25,7 +27,7 @@ import random
 from src.cards.quality import quality_problems
 from src.cards.trace import Tracer
 from src.cards.theme import JOBS, TOKEN_NAMES
-from src.game.terms import KEYWORDS, keyword_text
+from src.game.terms import KEYWORD_NAMES, KEYWORDS, keyword_text
 
 TRAITS = JOBS  # traits are jobs (docs/theme.md)
 HELPS, HURTS = "helps", "hurts"
@@ -38,7 +40,7 @@ EFFECTS = {
     "defeat": ("unit", HURTS, None),
     "return_to_hand": ("unit", HURTS, None),
     "freeze": ("unit", HURTS, None),
-    "modify_stat": ("unit", None, (1, 3)),  # polarity follows the sign; a bonus or penalty that ends
+    "modify_stat": ("unit", None, (1, 3)),  # power only; polarity follows the sign; a bonus or penalty that ends
     "buff": ("unit", HELPS, None),  # lasting +power / +health ("+2/+2"), until the unit leaves play
     "grant_keyword": ("unit", HELPS, None),
     "draw": ("player", HELPS, (1, 3)),
@@ -65,8 +67,14 @@ GRANT_DURATION = {"guard": "until_your_next_turn", "elusive": "until_your_next_t
                   "armor": "until_your_next_turn", "duelist": "this_turn"}
 DURATION_TEXT = {"this_turn": "this turn", "until_your_next_turn": "until the start of your next turn"}
 TRIGGERS = {"on_play": 10, "on_attack_hero": 3, "on_attack": 3, "on_defeated": 3, "start_of_turn": 3, "end_of_turn": 2,
-            "another_played": 2, "opposing_defeated": 2}
+            "another_played": 2, "opposing_defeated": 2, "ally_defeated": 2, "damaged": 2, "action_played": 2,
+            "token_summoned": 2}
+# What a scaling amount can count (_count_filter), and how often each comes up.
+COUNTS = {"job": 4, "damaged": 2, "keyword": 2, "hand": 1, "played": 2}
+COUNTED_KEYWORDS = ("guard", "armor", "duelist", "charge")
+PLAYED = {"owner": "you", "played_this_turn": True, "zone": "any", "type": "any"}  # cards you played this turn
 SITUATIONS = ("attacking", "defending", "damaged")
+SPLIT_MAX = 5  # damage split at random: up to this many points (more on actions)
 RESTRICTING = {"cost_max", "damaged"}  # filter fields that limit how strong a defeat target can be
 
 
@@ -136,6 +144,10 @@ class AbilitySampler:
             trigger = {"event": event}
             if event == "another_played":
                 trigger["filter"] = {"owner": "you", "trait": self._job("Which job"), "not_this": True}
+            elif event == "ally_defeated":
+                trigger["filter"] = {"owner": "you", "zone": "discard"}  # it's left play by the time it triggers
+                if t.chance("Only units of one job?", 0.5):
+                    trigger["filter"]["trait"] = self._job("Which job")
         return trigger
 
     def _job(self, label: str) -> str:
@@ -165,11 +177,32 @@ class AbilitySampler:
 
     def _condition(self) -> dict:
         t = self.trace
-        kind = t.weighted("Condition", {"count": 3, "behind_on_health": 1})
+        kind = t.weighted("Condition", {"count": 3, "played": 2, "behind_on_health": 1})
         if kind == "count":
             return {"count": {"owner": "you", "trait": self._job("Count which job"), "not_this": True},
                     "at_least": t.choice("At least", (2, 3))}
+        if kind == "played":
+            return {"count": {**PLAYED, "not_this": True}, "at_least": t.choice("At least", (2, 3))}
         return {"behind_on_health": True}
+
+    def _count_filter(self, health: bool = False) -> dict:
+        """What a scaling amount counts. Not damaged units for a health bonus: damage that buys
+        health reads oddly and feeds itself."""
+        t = self.trace
+        kind = t.weighted("Count what", {k: 0 if health and k == "damaged" else w for k, w in COUNTS.items()},
+                          "not damaged units for health" if health else "")
+        if kind == "job":
+            return {"owner": t.choice("Count whose units", ("you", "any")), "trait": self._job("Count which job")}
+        if kind == "damaged":
+            return {"owner": t.choice("Count whose damaged units", ("you", "opponent", "any")), "damaged": True}
+        if kind == "keyword":
+            return {"owner": "you", "keyword": t.choice("Count your units with", COUNTED_KEYWORDS)}
+        if kind == "hand":
+            return {"owner": "you", "zone": "hand", "type": "any"}
+        return {**PLAYED, **({"not_this": True} if self.card_type == "action" else {})}
+
+    def _scaling(self, health: bool = False) -> dict:
+        return {"per": self._count_filter(health), "k": 1, "cap": self.trace.choice("Up to", (3, 4, 5))}
 
     def _filter(self, owner: str, extra_chance: float = 0.35) -> dict:
         t = self.trace
@@ -207,7 +240,7 @@ class AbilitySampler:
             with t.section("first effect"):
                 first = self._effect(ability)
             with t.section("second effect"):
-                return first + self._effect(ability, player_only=True, exclude=first[-1]["effect"])
+                return first + self._effect(ability, player_only=True, exclude=list(_effects_in(first))[-1]["effect"])
         if pattern == "follow_up":
             with t.section("effect"):
                 steps = self._effect(ability, op="deal_damage", choose=True)
@@ -242,11 +275,12 @@ class AbilitySampler:
     def _effect(self, ability: dict, op: str | None = None, player_only=False, helps_only=False, choose=False,
                 strong=False, exclude: str | None = None) -> list:
         t = self.trace
+        loop = ability.get("trigger", {}).get("event") == "token_summoned"
         options = {o: (w if (not player_only or EFFECTS[o][0] == "player") and (not helps_only or EFFECTS[o][1] != HURTS)
-                       and o != exclude else 0)
+                       and o != exclude and not (loop and o == "summon") else 0)
                    for o, w in EFFECT_WEIGHTS.items()}
         why = [w for w, on in (("player effects only", player_only), ("helpful effects only", helps_only),
-                               (f"not {exclude} again", exclude)) if on]
+                               (f"not {exclude} again", exclude), ("no summons: they'd trigger it again", loop)) if on]
         if op:
             t.fixed("Effect", op, "this step pattern always deals damage first")
         else:
@@ -254,23 +288,25 @@ class AbilitySampler:
         kind, pol, rng_ = EFFECTS[op]
         step = {"effect": op}
         if op == "modify_stat":
-            stat = t.weighted("Stat", {"power": 6, "health": 3})
+            t.fixed("Stat", "power", "health changes never wear off: only lasting buffs give health")
             sign = 1 if helps_only or t.chance("Raise it? (else lower)", 0.7) else -1
-            if sign < 0:
-                stat = "power"
-                t.fixed("Stat", "power", "only power is ever lowered")
             big = strong or self.card_type == "action"
-            step.update(stat=stat, delta=sign * t.small("By", 1 + (self.card_type == "action"),
-                                                        (3 if big else 2) + (self.card_type == "action"),
-                                                        "an action spends a whole card" if self.card_type == "action" else ""),
+            step.update(stat="power", delta=sign * t.small("By", 1 + (self.card_type == "action"),
+                                                           (3 if big else 2) + (self.card_type == "action"),
+                                                           "an action spends a whole card" if self.card_type == "action" else ""),
                         duration="this_turn")
             pol = HELPS if sign > 0 else HURTS
+            if t.chance("Scale with a count instead?", 0.15):
+                step.update(delta=sign, amount=self._scaling())
         elif op == "buff":
             shape = t.weighted("Buff", {"power": 2, "health": 2, "both": 3})
             big = strong or self.card_type == "action"
             n = t.small("By", 1 + (self.card_type == "action"), (3 if big else 2) + (self.card_type == "action"),
                         "an action spends a whole card" if self.card_type == "action" else "")
             step.update(power=n if shape != "health" else 0, health=n if shape != "power" else 0)
+            if t.chance("Scale with a count instead?", 0.15):
+                step.update(power=int(shape != "health"), health=int(shape != "power"),
+                            amount=self._scaling(health=shape != "power"))
         elif op == "summon":
             step["token"] = self._token()
             action = self.card_type == "action"
@@ -291,9 +327,7 @@ class AbilitySampler:
             if op == "remove_damage" and t.chance("Remove all damage instead?", 0.3):
                 step["amount"] = "all"
             elif op in ("deal_damage", "draw", "heal_hero") and t.chance("Scale with a count instead?", 0.15):
-                step["amount"] = {"per": {"owner": t.choice("Count whose units", ("you", "any")),
-                                          "trait": self._job("Count which job")},
-                                  "k": 1, "cap": t.choice("Up to", (3, 4, 5))}
+                step["amount"] = self._scaling()
 
         side = "you" if pol == HELPS else "opponent"
         if kind == "player":
@@ -304,19 +338,27 @@ class AbilitySampler:
         # Unit effects: reuse an earlier choice, make a new one, hit everything matching, or this card.
         with t.section("target"):
             earlier = [name for name, s in self.names if s == side]
+            event = ability.get("trigger", {}).get("event")
+            heals = op == "remove_damage" or (op == "buff" and step["health"])  # never "when this is damaged, it heals"
             can_use_this = (side == "you" and ability.get("kind") in ("triggered", "static")
-                            and ability.get("trigger", {}).get("event") != "on_defeated")
+                            and event != "on_defeated" and not (event == "damaged" and heals))
             choose = choose or op == "defeat"  # defeat always goes through a restricted choice
             if earlier and not choose and t.chance(f"Reuse '{earlier[-1]}'?", 0.6):
                 step["target"] = {"ref": earlier[-1]}
                 return [step]
+            can_split = op == "deal_damage" and side == "opponent" and isinstance(step.get("amount"), int) \
+                and step["amount"] >= 2
             if choose:
-                how = "choose"
-                t.fixed("Target", "choose", "defeat always targets a restricted choice" if op == "defeat"
-                        else "the follow-up needs a chosen unit")
+                how = t.weighted("Target", {"choose": 3, "random": 1}, "defeat always targets a restricted unit"
+                                 if op == "defeat" else "the follow-up needs a unit to refer to")
             else:
-                how = t.weighted("Target", {"choose": 6, "all": 2, "this": 2 if can_use_this else 0},
+                how = t.weighted("Target", {"choose": 6, "random": 2, "all": 2, "this": 2 if can_use_this else 0,
+                                            "split": 3 if can_split else 0},
                                  "" if can_use_this else "'this' isn't possible here")
+            if how == "split":
+                n = step["amount"]
+                pick = {"choose": {"count": 1, "filter": self._filter(side), "chooser": "random"}, "as": "it"}
+                return [{"repeat": n, "steps": [pick, {**step, "target": {"ref": "it"}, "amount": 1}]}]
             if how == "this":
                 step["target"] = "this"
                 return [step]
@@ -333,6 +375,8 @@ class AbilitySampler:
                 del f["trait"]  # a trait alone doesn't limit how strong the target is
                 f["cost_max"] = t.choice("Cost at most", (2, 3), "a job alone doesn't limit a defeat target")
         choose_step = {"choose": {"count": 1, "filter": f}, "as": name}
+        if how == "random":
+            choose_step["choose"]["chooser"] = "random"
         step["target"] = {"ref": name}
         return [choose_step, step]
 
@@ -413,11 +457,28 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
             elif "choose_one" in step:
                 for branch in step["choose_one"]:
                     walk(branch, scope, depth + 1, cost_context)
+            elif "repeat" in step:
+                body = step["steps"]
+                if not (len(body) == 2 and body[0].get("choose", {}).get("chooser") == "random"
+                        and body[1].get("target") == {"ref": body[0].get("as")}):
+                    problems.append("repeat must be a random choice and one effect on it")
+                top = SPLIT_MAX + ACTION_EXTRA * (card_type == "action")
+                if not 2 <= step["repeat"] <= top:
+                    problems.append(f"repeat {step['repeat']} times outside 2–{top}")
+                walk(body, scope, depth + 1, cost_context)
 
     def check_effect(step, scope, cost_context):
         op = step["effect"]
         kind, _, rng_ = EFFECTS[op]
         target = step["target"]
+        amount = step.get("amount")
+        if (op in ("buff", "modify_stat") and isinstance(amount, dict) and amount.get("per", {}).get("damaged")
+                and step.get("health")):
+            problems.append("health that scales with damaged units")
+        if event == "damaged" and target == "this" and (op == "remove_damage" or (op == "buff" and step["health"])):
+            problems.append("this unit heals whenever it's damaged")
+        if event == "token_summoned" and op == "summon":
+            problems.append("summons tokens whenever you summon a token")
         if op == "grant_keyword":
             if step["keyword"] in ("charge", "elusive"):
                 problems.append(f"{step['keyword']} can't be granted (it only matters before a unit first acts)")
@@ -445,13 +506,13 @@ def validate(ability: dict, card_type: str = "unit") -> list[str]:
         wanted = "you" if polarity(step) == HELPS else "opponent"
         if side != wanted and not cost_context:
             problems.append(f"{op} {polarity(step)} its target but targets {side}")
-        amount = step.get("amount")
         top = rng_[1] + ACTION_EXTRA * (card_type == "action") if rng_ else None
         if isinstance(amount, int) and rng_ and not rng_[0] <= amount <= top:
             problems.append(f"{op} amount {amount} outside {rng_}")
         if isinstance(amount, dict) and "cap" not in amount:
             problems.append("scaling amount without a cap")
 
+    event = ability.get("trigger", {}).get("event")
     walk(ability["steps"], {}, 0, False)
     if ability["kind"] == "triggered" and ability["trigger"]["event"] == "end_of_turn" and any(
             e["effect"] in ("modify_stat", "grant_keyword") and e.get("duration", "this_turn") == "this_turn"
@@ -467,7 +528,7 @@ def _effects_in(steps: list):
     for step in steps:
         if "effect" in step:
             yield step
-        for key in ("then", "else", "may", "if_you_do"):
+        for key in ("then", "else", "may", "if_you_do", "steps"):
             yield from _effects_in(step.get(key, []))
         for branch in step.get("choose_one", []):
             yield from _effects_in(branch)
@@ -483,7 +544,8 @@ def card_problems(card_type: str, health: int, keywords: dict, abilities) -> lis
         # A 1-health unit is defeated by its first damage, so it's never "damaged" while in play.
         if card_type == "unit" and health < 2 and (
                 any(c.get("this_is") == "damaged" for c in conditions)
-                or any(e["effect"] == "remove_damage" for e in on_this)):
+                or any(e["effect"] == "remove_damage" for e in on_this)
+                or ability.get("trigger", {}).get("event") == "damaged"):
             problems.append("only matters once this unit is damaged, but 1 damage defeats it")
         # Keywords without a number don't stack, so giving this unit one it already has does nothing.
         given = [m for m in ability.get("modifiers", []) if m.get("subject") == "this" and "keyword" in m]
@@ -551,7 +613,13 @@ def _all_phrase(f: dict) -> str:
 
 
 def _count_phrase(f: dict) -> str:
+    if f.get("played_this_turn"):
+        return f"each {'other ' if f.get('not_this') else ''}card you played this turn"
+    if f.get("zone") == "hand":
+        return "each card in your hand"
     adj = _adjectives(f)
+    if "keyword" in f:
+        return f"each of your units with {KEYWORD_NAMES[f['keyword']]}"
     if f["owner"] == "you":
         return f"each of your {adj + ' ' if adj else ''}units"
     if f["owner"] == "opponent":
@@ -559,13 +627,25 @@ def _count_phrase(f: dict) -> str:
     return f"each {adj + ' ' if adj else ''}unit in play"
 
 
-def _chosen_phrase(f: dict) -> str:
+def _chosen_phrase(f: dict, random_: bool = False) -> str:
     adj = _adjectives({k: v for k, v in f.items() if k != "not_this"})
     unit = f"{adj} unit".strip() if adj else "unit"
+    if random_:
+        if f["owner"] == "opponent":
+            return f"a random {_opposing(f)} unit{_suffix(f)}"
+        return f"a random {'other ' if f.get('not_this') else ''}{unit} of yours{_suffix(f)}"
     if f["owner"] == "opponent":
         return f"chosen {_opposing(f)} unit{_suffix(f)}"
     other = "another" if f.get("not_this") else "a"
     return f"{other} chosen {unit} of yours{_suffix(f)}"
+
+
+def _among_phrase(f: dict) -> str:
+    """"damaged enemy units": what split damage lands on."""
+    if f["owner"] == "opponent":
+        return f"{_opposing(f)} units{_suffix(f)}"
+    adj = _adjectives(f)
+    return f"your {adj + ' ' if adj else ''}units{_suffix(f)}"
 
 
 def _amount_suffix(amount, unit_word: str = "") -> str:
@@ -598,7 +678,7 @@ class Renderer:
             if name in self.introduced:
                 return ("that unit" if len(self.introduced) > 1 else "it"), False
             self.introduced.add(name)
-            return _chosen_phrase(self.chosen[name]), False
+            return _chosen_phrase(self.chosen[name], self.chosen[name].get("chooser") == "random"), False
         if isinstance(t, dict) and "all" in t:
             return _all_phrase(t["all"]), True
         raise ValueError(t)
@@ -641,10 +721,10 @@ class Renderer:
         if op == "modify_stat":
             sign = "+" if s["delta"] > 0 else "−"
             duration = DURATION_TEXT[s.get("duration", "this_turn")]
-            return f"{_cap(t)} get{s_} {sign}{abs(s['delta'])} {s['stat']} {duration}."
+            return f"{_cap(t)} get{s_} {sign}{abs(s['delta'])} {s['stat']} {duration}{_amount_suffix(amount)}."
         if op == "buff":
             gains = " and ".join(f"+{s[stat]} {stat}" for stat in ("power", "health") if s[stat])
-            return f"{_cap(t)} get{s_} {gains}."
+            return f"{_cap(t)} get{s_} {gains}{_amount_suffix(amount)}."
         if op == "grant_keyword":
             duration = DURATION_TEXT[s.get("duration", "this_turn")]
             return f"{_cap(t)} gain{s_} {keyword_text(s['keyword'], s.get('value', 1))} {duration}."
@@ -654,7 +734,12 @@ class Renderer:
         out = []
         for s in steps:
             if "choose" in s:
-                self.chosen[s["as"]] = s["choose"]["filter"]
+                self.chosen[s["as"]] = {**s["choose"]["filter"], **({"chooser": "random"} if s["choose"].get("chooser") == "random" else {})}
+            elif "repeat" in s:
+                pick, hit = s["steps"]
+                out.append(f"Deal {s['repeat']} damage split at random among {_among_phrase(pick['choose']['filter'])}."
+                           if hit["effect"] == "deal_damage" else
+                           f"{s['repeat']} times: {_low(Renderer(self.card_type).steps(s['steps']))}")
             elif "effect" in s:
                 out.append(self.effect(s))
             elif "if" in s:
@@ -672,6 +757,8 @@ class Renderer:
 def _condition_text(c: dict, card_type: str) -> str:
     if "count" in c:
         f = c["count"]
+        if f.get("played_this_turn"):
+            return f"you've played {c['at_least']} or more {'other ' if f.get('not_this') else ''}cards this turn"
         return f"you have {c['at_least']} or more {_adjectives(f)} units in play"
     if "behind_on_health" in c:
         return "your hero has less health than the enemy hero"
@@ -688,6 +775,10 @@ def _trigger_text(t: dict) -> str:
         "end_of_turn": "At the end of your turn",
         "another_played": f"Whenever you play another {t.get('filter', {}).get('trait', '')} unit",
         "opposing_defeated": "Whenever an enemy unit is defeated",
+        "ally_defeated": f"Whenever another of your {t.get('filter', {}).get('trait', '') + ' ' if t.get('filter', {}).get('trait') else ''}units is defeated",
+        "damaged": "Whenever this unit takes damage and survives",
+        "action_played": "Whenever you play an action",
+        "token_summoned": "Whenever you summon a token",
     }[t["event"]]
 
 

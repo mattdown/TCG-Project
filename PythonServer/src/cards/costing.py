@@ -25,9 +25,12 @@ REMOVE_ALL_DAMAGE = 3  # treated as removing this much
 # (`scripts/experiments.py fire`, 2026-10-22, league model): most triggers fire far less often than
 # first guessed (start of turn was 2.5, attacking the hero 1.5).
 TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.85, "on_attack_hero": 0.7, "on_attack": 1.2, "start_of_turn": 1.1,
-                "end_of_turn": 2.0, "another_played": 0.8, "opposing_defeated": 1.0}
+                "end_of_turn": 2.0, "another_played": 0.8, "opposing_defeated": 1.0,
+                # Guesses (2026-11-17), not yet measured with `experiments.py fire`.
+                "ally_defeated": 1.0, "damaged": 0.8, "action_played": 0.6, "token_summoned": 0.5}
 NARROW_FACTOR = 0.5  # per condition or restriction (quality.narrowing): each about halved the hits measured
 IF_FACTOR = 0.5  # "if it was defeated, …"
+RANDOM_TARGET = 0.65  # a random target instead of a chosen one: you can't pick the best (a guess)
 
 
 def _amount(amount) -> float:
@@ -45,10 +48,10 @@ def _amount(amount) -> float:
 def effect_value(step: dict, card_type: str | None = None) -> float:
     """The step's rough value; with `card_type`, what that card pays for it (see PRICE_SCALE)."""
     op = step["effect"]
-    if op == "modify_stat":
-        value = STAT_VALUE[step["stat"]] * abs(step["delta"])
+    if op == "modify_stat":  # a scaling amount multiplies the change
+        value = STAT_VALUE[step["stat"]] * abs(step["delta"]) * _amount(step.get("amount"))
     elif op == "buff":
-        value = BUFF_VALUE * (step["power"] + step["health"])
+        value = BUFF_VALUE * (step["power"] + step["health"]) * _amount(step.get("amount"))
     elif op == "summon":  # a body in play, like a unit's own stats and keywords
         token = step["token"]
         value = step["amount"] * (BUFF_VALUE * (token["power"] + token["health"])
@@ -64,18 +67,25 @@ def effect_value(step: dict, card_type: str | None = None) -> float:
     return value
 
 
-def steps_value(steps: list, card_type: str | None = None) -> float:
+def steps_value(steps: list, card_type: str | None = None, random_names: frozenset = frozenset()) -> float:
     total = 0.0
     for step in steps:
-        if "effect" in step:
-            total += effect_value(step, card_type)
+        if "choose" in step and step["choose"].get("chooser") == "random":
+            random_names = random_names | {step["as"]}
+        elif "repeat" in step:
+            total += step["repeat"] * steps_value(step["steps"], card_type, random_names)
+        elif "effect" in step:
+            target = step["target"]
+            random_ = isinstance(target, dict) and target.get("ref") in random_names
+            total += effect_value(step, card_type) * (RANDOM_TARGET if random_ else 1.0)
         elif "if" in step:
-            total += IF_FACTOR * steps_value(step["then"], card_type)
+            total += IF_FACTOR * steps_value(step["then"], card_type, random_names)
         elif "may" in step:
             # What you get, less what you pay; never worth less than nothing, since you can decline.
-            total += max(0.0, steps_value(step["if_you_do"], card_type) - steps_value(step["may"], card_type))
+            total += max(0.0, steps_value(step["if_you_do"], card_type, random_names)
+                         - steps_value(step["may"], card_type, random_names))
         elif "choose_one" in step:
-            total += 1.1 * max(steps_value(b, card_type) for b in step["choose_one"])
+            total += 1.1 * max(steps_value(b, card_type, random_names) for b in step["choose_one"])
     return total
 
 

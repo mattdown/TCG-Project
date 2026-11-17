@@ -12,7 +12,8 @@ cloned, saved or sent to the client mid-ability.
   choose_one  one branch per option                                       (decision)
   end         done
 
-A chosen discard is desugared into choose + effect steps.
+A chosen discard is desugared into choose + effect steps, and `repeat` is unrolled: its steps
+appear n times, each copy binding its own name, so a random choice is made afresh each time.
 Static abilities aren't flows: they compile to an entry node only and are applied whenever
 the engine calculates stats or keywords.
 """
@@ -63,6 +64,27 @@ def _desugar(steps: list) -> list:
     return out
 
 
+def _renamed(steps: list, mapping: dict) -> list:
+    """The steps with every bound name and reference renamed (for unrolling `repeat`)."""
+    def walk(node):
+        if isinstance(node, list):
+            return [walk(n) for n in node]
+        if not isinstance(node, dict):
+            return node
+        out = {k: walk(v) for k, v in node.items()}
+        if "as" in out:
+            out["as"] = mapping.get(out["as"], out["as"])
+        if "ref" in out and len(out) == 1:
+            out["ref"] = mapping.get(out["ref"], out["ref"])
+        return out
+    return walk(steps)
+
+
+def _unrolled(step: dict) -> list:
+    names = [s["as"] for s in step["steps"] if "as" in s]
+    return [s for i in range(step["repeat"]) for s in _renamed(step["steps"], {n: f"{n}#{i}" for n in names})]
+
+
 def compile_ability(tree: dict) -> CompiledAbility:
     nodes: list[dict] = [{"kind": "entry"}]
 
@@ -90,6 +112,8 @@ def compile_ability(tree: dict) -> CompiledAbility:
         if "choose_one" in step:
             return add("choose_one", data={"options": step["choose_one"]},
                        branches=tuple(sequence(b, cont) for b in step["choose_one"]))
+        if "repeat" in step:
+            return sequence(_unrolled(step), cont)
         raise ValueError(f"unknown step {step}")
 
     if tree["kind"] != "static":

@@ -166,12 +166,13 @@ Ability    := triggered(Trigger, [Condition], Steps)
             | on_resolve(Steps)                              // action cards
             | static([Condition], Modifier+)                 // declarative, not compiled to a flow
 Steps      := Step+                                          // 1–4 steps, run in order
-Step       := choose(count, chooser, Filter, optional?) as Name    // decision point
+Step       := choose(count, chooser, Filter, optional?) as Name    // decision point (chooser: you | opponent | random)
             | Effect
             | if(Condition) then Steps [else Steps]
             | may(Steps) [if_you_do Steps]                   // yes / no decision point
             | choose_one(Steps, Steps)                       // decision point
             | for_each(Target) Steps
+            | repeat(n) Steps                                // a random choice and one effect, n times (split damage)
 Effect     := op(Amount?, Target, [Duration])
             | buff(power +n, health +n, Target)              // lasting, until the unit leaves play
             | summon(n, Token)                               // tokens enter play for you, fresh
@@ -185,14 +186,25 @@ Modifier   := Subject gets stat ±Amount [while Condition]
             | cost(−1) for Filter
 Subject    := this | all(Filter)
 Amount     := n | k per count(Filter), up to cap | stat_of(Name)
-Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, keyword?, not_this?}
+Filter     := {type?, owner?, zone?, trait?, cost_cmp?, damaged?, keyword?, played_this_turn?, not_this?}
+                                                             // zone: play | hand | discard | any (not the deck)
 Duration   := this_turn | until_your_next_turn | until_their_next_turn | while_this_in_play | permanent
 ```
 
 This is the design space, not what is generated today. The generator covers part of it, the
 engine runs a little more, and `for_each`, `until_their_next_turn`, `permanent`, optional
-choices, `cost_cmp` and the keyword filter aren't built yet: see "What the generator
-can say" in [ability-generation.md](ability-generation.md).
+choices and `cost_cmp` aren't built yet: see "What the generator can say" in
+[ability-generation.md](ability-generation.md). Triggers (events) are when played, attacking,
+attacking the hero, defeated, start and end of your turn, another of your units played, an enemy
+unit defeated, another of your units defeated, this unit takes damage and survives, you play an
+action, and you summon a token.
+
+**Randomness.** A random choice (`chooser: random`) is made by the engine's seeded random numbers,
+not by a player, so it never becomes a decision. Previews of an action (the network's
+action-outcome features, the client's drag previews) stop at the first random choice, so they
+show only what's certain, and search plays on a copy with the random numbers reseeded
+(`Game.determinize`), so it can't know how they'll fall either. `repeat` is unrolled when the
+ability is compiled: each copy binds its own name, so "split at random" picks again for every point.
 
 A `Name` can only refer to a choice made earlier in the same ability. That keeps every tree
 valid and every reference renderable as text.
@@ -228,6 +240,10 @@ card is accepted:
     played never helps either.
   - A "this turn" bonus from an end-of-turn ability would end at once, so those bonuses last
     until the start of your next turn instead.
+  - Health never changes for one turn: "this turn" bonuses and penalties are power only, and
+    health comes from lasting buffs. A unit never heals itself whenever it's damaged, and health
+    never scales with the number of damaged units.
+  - "When you summon a token" never summons (it would trigger itself).
   - Granted Guard and Armor protect against the opponent, so they last until the start of
     your next turn. Granted Duelist lasts this turn. Charge and Elusive are never granted:
     they only matter before a unit first acts.
@@ -305,7 +321,9 @@ Why this form works for both consumers:
 - **Coverage set** (`cardsets/coverage.json` + a checklist): every building block of the grammar
   at least twice, for checking the engine and the client.
 - **Training and evaluation sets:** `set_1000` to train on; `heldout_200` and `armor_heavy` for
-  cards the agent has never seen (results.md).
+  cards the agent has never seen (results.md). The `_g2` versions (`set_1000_g2`,
+  `heldout_200_g2`, `armor_heavy_g2`) are the same seeds and recipes with P2's first grammar
+  batch; the old ones stay for comparisons with earlier models.
 - **Generated sets:** the output of part c.
 
 ## 4. Rules engine (`src/game/`, `src/cards/`)

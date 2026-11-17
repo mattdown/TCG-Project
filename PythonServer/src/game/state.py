@@ -27,6 +27,7 @@ class CardInstance:
     fresh: bool = False  # entered play this turn: can't attack yet, unless it has Charge
     damage: int = 0
     revealed: bool = False  # has attacked, so Elusive no longer protects it
+    played_turn: int | None = None  # the turn it was last played from hand ("cards you played this turn")
 
 
 @dataclass

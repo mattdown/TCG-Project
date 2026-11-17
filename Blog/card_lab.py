@@ -8,7 +8,9 @@ Run from the repository root: the cards come from the generator in PythonServer,
 
 The page has the Lantern look and draws cards like the Unity client (painted_card.html). The default seed, 0,
 gives the first cards of cardsets/set_200.json, which have painted art (Blog/art/cards); other cards get a
-placeholder mushroom in their aspect's colour.
+placeholder mushroom in their aspect's colour. The grammar has grown since set_200 was generated, so those cards
+come from a snapshot of their draws (Blog/data/set_200_draws.json, made with the grammar of the time); any other
+settings generate with today's grammar.
 
 One card's path through the grammar, animated, is card_generation_visualiser.py.
 
@@ -40,6 +42,9 @@ PAINTED_CARD = Path(__file__).with_name("painted_card.html")  # the client's car
 ART = Path(__file__).with_name("art")  # the frame, its parts and the background; cards/ has each card's art
 DEFAULTS = {"seed": 0, "count": 60, "jobs": 6, "action_share": 0.25, "vanilla_share": 0.04, "keyword_share": 0.25,
             "variety": 4}
+# set_200's draws (the cards with painted art), saved before P2's grammar changed what seed 0 gives: every
+# attempt as _attempt_json makes it, the kept ones' indexes, and each kept card's trace.
+SNAPSHOT = Path(__file__).parent / "data" / "set_200_draws.json"
 
 
 def _checks(a: Attempt) -> list[dict]:
@@ -109,8 +114,26 @@ def make_generator(seed: int, jobs: int, action_share: float, vanilla_share: flo
                                    vanilla_share=vanilla_share, keyword_share=keyword_share)
 
 
+def snapshot() -> dict:
+    return json.loads(SNAPSHOT.read_text())
+
+
+def pinned(params: dict) -> bool:
+    """Whether these settings are set_200's (any count up to its 200), so the snapshot answers them."""
+    snap = snapshot()["params"]
+    return params["count"] <= snap["count"] and all(params[k] == snap[k] for k in snap if k != "count")
+
+
 def run(seed: int, count: int, jobs: int, action_share: float, vanilla_share: float, keyword_share: float,
         variety: int) -> dict:
+    params = {"seed": seed, "count": count, "jobs": jobs, "action_share": action_share,
+              "vanilla_share": vanilla_share, "keyword_share": keyword_share, "variety": variety}
+    if pinned(params):
+        snap = snapshot()
+        kept = snap["kept"][:count]
+        return {"params": params, "job_list": snap["job_list"], "stages": list(STAGES),
+                "max_complexity": MAX_COMPLEXITY, "kept": kept,
+                "attempts": [a for a in snap["attempts"] if a["index"] <= kept[-1]]}
     job_list, generator = make_generator(seed, jobs, action_share, vanilla_share, keyword_share, variety)
     kept = [generator.card().index for _ in range(count)]
     return {"params": {"seed": seed, "count": count, "jobs": jobs, "action_share": action_share,

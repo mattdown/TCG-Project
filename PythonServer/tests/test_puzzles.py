@@ -1,7 +1,7 @@
 import random
 
 from src.agents.heuristic_agent import HeuristicAgent
-from src.agents.puzzles import Puzzle, action_from_dict, face_line, find_lethal, record_game, solves, sure
+from src.agents.puzzles import Puzzle, action_from_dict, face_line, find_lethal, record_game, sure
 from src.cards.generate import generate_card_set
 from src.game.actions import ActionType
 from src.game.decks import random_deck
@@ -59,8 +59,8 @@ def test_recorded_puzzles_replay_to_their_position_and_line():
         assert Puzzle.from_dict(p.to_dict()) == p
         game = p.position(cards)
         assert game.state.decision_player == game.state.active_player == p.player
+        if p.face:  # attacking the hero with everything wins (the heuristic agent may still trade first)
+            assert face_line(game)
         for d in p.line:
             game.step(action_from_dict(d))
         assert game.state.winner == p.player
-        if p.face:
-            assert solves(HeuristicAgent(), p, cards, HeuristicAgent())

@@ -99,13 +99,13 @@ def test_card_level_checks():
 
 
 def test_end_of_turn_bonuses_last_through_the_opponents_turn():
-    buff = {"effect": "modify_stat", "stat": "health", "delta": 2, "target": {"all": {"owner": "you"}}}
+    buff = {"effect": "modify_stat", "stat": "power", "delta": 2, "target": {"all": {"owner": "you"}}}
     ability = {"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": None, "steps": [buff]}
     assert any("ends as soon as it starts" in p for p in validate({**ability, "steps": [
         {**buff, "duration": "this_turn"}]}))
     good = {**ability, "steps": [{**buff, "duration": "until_your_next_turn"}]}
     assert validate(good) == []
-    assert render(good) == "At the end of your turn, your units get +2 health until the start of your next turn."
+    assert render(good) == "At the end of your turn, your units get +2 power until the start of your next turn."
     for sampled, _ in sample(3000, seed=11):
         if sampled["kind"] == "triggered" and sampled["trigger"]["event"] == "end_of_turn":
             assert validate(sampled) == []
@@ -123,3 +123,84 @@ def test_sampler_follows_rules_v2():
         assert ability["kind"] in ("triggered", "static", "on_resolve")
         effects = {e["effect"] for e in _effects_in(ability.get("steps", []))}
         assert not effects & {"ready", "exhaust", "gain_vp", "lose_vp", "add_energy", "cant_ready"}
+
+
+def _random_pick(filter_):
+    return {"choose": {"count": 1, "filter": filter_, "chooser": "random"}, "as": "it"}
+
+
+def test_sampled_abilities_keep_the_health_rules():
+    """No temporary health; a unit never heals itself whenever it's damaged; damaged units never buy health."""
+    for ability, _ in sample(3000, seed=5):
+        event = ability.get("trigger", {}).get("event")
+        for e in _effects_in(ability.get("steps", [])):
+            assert not (e["effect"] == "modify_stat" and e["stat"] == "health")
+            if event == "damaged" and e["target"] == "this":
+                assert e["effect"] != "remove_damage" and not (e["effect"] == "buff" and e["health"])
+            if isinstance(e.get("amount"), dict) and e["amount"]["per"].get("damaged"):
+                assert not e.get("health")
+            if event == "token_summoned":
+                assert e["effect"] != "summon"
+
+
+def test_the_sampler_makes_each_new_construct():
+    seen = set()
+    for ability, _ in sample(3000, seed=6):
+        seen.add(ability.get("trigger", {}).get("event"))
+        text = render(ability)
+        seen |= {k for k in ("split at random", "a random", "played this turn", "in your hand", "units with")
+                 if k in text}
+    assert {"ally_defeated", "damaged", "action_played", "token_summoned", "split at random", "a random",
+            "played this turn", "in your hand", "units with"} <= seen
+
+
+def test_random_and_split_targets_render():
+    hit = {"kind": "on_resolve", "steps": [_random_pick({"owner": "opponent", "damaged": True}),
+                                           {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 2}]}
+    assert validate(hit, "action") == []
+    assert render(hit, "action") == "Deal 2 damage to a random damaged enemy unit."
+    split = {"kind": "on_resolve", "steps": [{"repeat": 3, "steps": [
+        _random_pick(OPPOSING), {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 1}]}]}
+    assert validate(split, "action") == []
+    assert render(split, "action") == "Deal 3 damage split at random among enemy units."
+
+
+def test_repeat_must_be_a_random_choice_and_one_effect():
+    chosen = {"choose": {"count": 1, "filter": OPPOSING}, "as": "it"}
+    bad = {"kind": "on_resolve", "steps": [{"repeat": 3, "steps": [
+        chosen, {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 1}]}]}
+    assert any("repeat" in p for p in validate(bad, "action"))
+    too_many = {"kind": "on_resolve", "steps": [{"repeat": 9, "steps": [
+        _random_pick(OPPOSING), {"effect": "deal_damage", "target": {"ref": "it"}, "amount": 1}]}]}
+    assert any("outside" in p for p in validate(too_many, "action"))
+
+
+def test_new_triggers_and_counts_render():
+    def on(event, *steps, condition=None, **trigger):
+        return {"kind": "triggered", "trigger": {"event": event, **trigger}, "condition": condition, "steps": list(steps)}
+    draw = {"effect": "draw", "target": "you", "amount": 1}
+    played = {"owner": "you", "played_this_turn": True, "zone": "any", "type": "any", "not_this": True}
+    assert render(on("ally_defeated", draw, filter={"owner": "you", "zone": "discard", "trait": "Miner"})) == \
+        "Whenever another of your Miner units is defeated, draw a card."
+    assert render(on("damaged", draw)) == "Whenever this unit takes damage and survives, draw a card."
+    assert render(on("action_played", draw)) == "Whenever you play an action, draw a card."
+    assert render(on("token_summoned", draw, condition={"count": played, "at_least": 2})) == \
+        "Whenever you summon a token, if you've played 2 or more other cards this turn, draw a card."
+    per_hand = {"effect": "damage_hero", "target": "opponent", "amount": {"per": {
+        "owner": "you", "zone": "hand", "type": "any"}, "k": 1, "cap": 3}}
+    assert render({"kind": "on_resolve", "steps": [{**per_hand, "effect": "draw", "target": "you"}]}, "action") == \
+        "Draw a card for each card in your hand (up to 3)."
+
+
+def test_validation_of_the_new_trigger_rules():
+    heal_self = {"kind": "triggered", "trigger": {"event": "damaged"}, "condition": None,
+                 "steps": [{"effect": "remove_damage", "target": "this", "amount": 1}]}
+    assert any("heals" in p for p in validate(heal_self))
+    token = {"name": "Sprout", "power": 1, "health": 1}
+    loop = {"kind": "triggered", "trigger": {"event": "token_summoned"}, "condition": None,
+            "steps": [{"effect": "summon", "target": "you", "amount": 1, "token": token}]}
+    assert any("token" in p for p in validate(loop))
+    damaged_health = {"kind": "on_resolve", "steps": [{"effect": "buff", "target": {"all": {"owner": "you"}},
+                                                       "power": 0, "health": 1, "amount": {
+                                                           "per": {"owner": "any", "damaged": True}, "k": 1, "cap": 3}}]}
+    assert any("damaged" in p for p in validate(damaged_health, "action"))

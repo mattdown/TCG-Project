@@ -3,7 +3,8 @@
 Every ability of a visible card becomes a few `ability` nodes: its decision graph (entry,
 choose, effect, if, may, choose one, end) or, for a static ability, an entry plus one node per
 modifier. Each node's features say what the step is (op, amounts, stat, keyword, duration,
-target, the fields of its filter); none of them name a card, so unseen cards read the same way.
+target, the fields of its filter, who chooses); none of them name a card, so unseen cards read
+the same way. A `repeat` arrives unrolled (decision_graph.py), as its steps n times.
 
 Edges, as index pairs local to one observation:
   part_of   node → its card (every node, so the card embedding hears all of its ability)
@@ -35,10 +36,13 @@ OPS = ("deal_damage", "remove_damage", "defeat", "return_to_hand", "freeze", "mo
 DURATIONS = ("this_turn", "until_your_next_turn", "while_this_in_play", "permanent")
 TARGETS = ("this", "you", "opponent", "ref", "all")
 OWNERS = ("you", "opponent", "any")
+# The triggers the first feature list had, in its order; later ones are appended at the end.
+FIRST_EVENTS = ("on_play", "on_attack_hero", "on_attack", "on_defeated", "start_of_turn", "end_of_turn",
+                "another_played", "opposing_defeated")
 
 FEATURES = (
     [f"kind:{k}" for k in NODE_KINDS] + [f"ability:{k}" for k in ABILITY_KINDS]
-    + [f"event:{e}" for e in TRIGGERS] + [f"cond:{c}" for c in CONDITIONS] + ["at_least"]
+    + [f"event:{e}" for e in FIRST_EVENTS] + [f"cond:{c}" for c in CONDITIONS] + ["at_least"]
     + [f"op:{o}" for o in OPS] + ["amount", "amount_all", "amount_per", "amount_cap"]
     + ["stat:power", "stat:health", "delta"] + [f"keyword:{k}" for k in KEYWORDS] + ["keyword_value"]
     + [f"duration:{d}" for d in DURATIONS] + [f"target:{t}" for t in TARGETS]
@@ -49,6 +53,8 @@ FEATURES = (
     # Added later go at the end: checkpoints from before feature names were saved rely on it (registry.py).
     + ["op:buff", "buff_power", "buff_health"]
     + ["op:summon", "token_power", "token_health"]
+    + [f"event:{e}" for e in TRIGGERS if e not in FIRST_EVENTS]
+    + ["chooser:random", "filter:keyword", "filter:played", "filter:any_zone"]
 )
 INDEX = {name: i for i, name in enumerate(FEATURES)}
 NODE_DIM = len(FEATURES)
@@ -77,6 +83,9 @@ def _filter(vec: np.ndarray, f: dict):
     _set(vec, "filter:trait", float("trait" in f))
     _set(vec, "filter:not_this", float(bool(f.get("not_this"))))
     _set(vec, "filter:hand", float(f.get("zone") == "hand"))
+    _set(vec, "filter:keyword", float("keyword" in f))
+    _set(vec, "filter:played", float(bool(f.get("played_this_turn"))))
+    _set(vec, "filter:any_zone", float(f.get("zone") == "any"))
 
 
 def _condition(vec: np.ndarray, cond: dict | None) -> dict | None:
@@ -166,7 +175,8 @@ def card_ability_graph(card: Card) -> CardAbilityGraph:
             elif n.kind == "choose":
                 _filter(vec, n.data["filter"])
                 _set(vec, "count", n.data.get("count", 1) / 2)
-                _set(vec, "chooser:opponent", float(n.data.get("chooser", "you") != "you"))
+                _set(vec, "chooser:opponent", float(n.data.get("chooser", "you") == "opponent"))
+                _set(vec, "chooser:random", float(n.data.get("chooser") == "random"))
                 filters.append((i, n.data["filter"]))
                 names[(a, n.name)] = i
             elif n.kind == "effect":

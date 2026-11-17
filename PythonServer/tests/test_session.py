@@ -215,7 +215,8 @@ def test_pending_decision_and_previews_dont_reveal_draws():
 
 def test_scenario_sets_up_chosen_cards():
     card_set = generate_coverage_set(per_feature=1, candidates=500)
-    action_card = next(c for c in card_set.cards if c.type == "action")
+    action_card = next(c for c in card_set.cards if c.type == "action"  # one that needs no target, so it's playable
+                       and not {"choose", "repeat"} & set(c.abilities[0]["steps"][0]))
     unit_card = next(c for c in card_set.cards if c.type == "unit")
     session = GameSession(card_set)
     state = session.handle({"type": "new_game", "opponent": "heuristic", "human_seat": 0, "seed": 2, "scenario": {

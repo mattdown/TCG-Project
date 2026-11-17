@@ -14,7 +14,7 @@ import webbrowser
 from pathlib import Path
 
 from card_generation_visualiser import OUT, set_cards  # next to this file; it puts PythonServer on the path
-from card_lab import _attempt_json, bake, describe
+from card_lab import bake, describe
 
 TEMPLATE = Path(__file__).with_name("design_loop.html")
 SUMMARY = ("The design loop for an AI-playtested trading card game, as an animated panel: generate cards from an "
@@ -28,7 +28,7 @@ def loop_data() -> dict:
     cards = set_cards(max(*FAN, TUNED))
 
     def card(number: int) -> dict:
-        kept = _attempt_json(cards[number - 1])
+        kept = cards[number - 1]
         return {"kind": kept["kind"], "art": kept["card"]["art"], "card": kept["card"] | {"text": kept["text"]}}
 
     return {"fan": [card(n) for n in FAN], "tuned": card(TUNED)}

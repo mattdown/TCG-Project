@@ -1,4 +1,6 @@
 """Abilities in the engine: hand-written cards for each trigger, decision, effect, duration and static."""
+import random
+
 from src.game.actions import Action, ActionType
 from src.game.state import Zone
 from tests.helpers import action, give_mana, put_in_hand, put_in_play, started_game, unit
@@ -385,3 +387,119 @@ def test_returning_to_a_full_hand_discards_the_card():
         put_in_hand(game, 1, unit())
     play(game, bounce)
     assert game.card(target).zone == Zone.DISCARD and len(game.state.players[1].hand) == 10
+
+
+# ------------------------------------------------------------------ randomness, memory and the newer triggers
+
+
+def random_choose(filter_, name="it"):
+    return {"choose": {"count": 1, "filter": filter_, "chooser": "random"}, "as": name}
+
+
+def split(n, filter_=OPP):
+    return {"repeat": n, "steps": [random_choose(filter_), effect("deal_damage", it(), amount=1)]}
+
+
+def test_a_random_target_is_picked_by_the_engine_from_the_matching_units():
+    hit = set()
+    for seed in range(20):
+        game = started_game()
+        game.rng = random.Random(seed)
+        mine = put_in_play(game, 0, unit(power=1, health=5))
+        theirs = [put_in_play(game, 1, unit(power=1, health=5)) for _ in range(3)]
+        play(game, action(random_choose(OPP), effect("deal_damage", it(), amount=2)))
+        assert game.state.decision_player == 0 and not game.state.pending  # no decision was asked for
+        damaged = [u for u in theirs if game.card(u).damage]
+        assert len(damaged) == 1 and game.card(damaged[0]).damage == 2 and not game.card(mine).damage
+        hit |= set(damaged)
+    assert len(hit) == 3
+
+
+def test_split_damage_picks_again_each_time_and_skips_defeated_units():
+    game = started_game()
+    small = put_in_play(game, 1, unit(power=1, health=1))
+    big = put_in_play(game, 1, unit(power=1, health=9))
+    play(game, action(split(4)))
+    assert game.card(small).zone == Zone.DISCARD
+    assert game.card(big).damage == 3  # the first point that hit the 1-health unit defeated it
+    game = started_game()
+    uid = put_in_hand(game, 0, action(split(4)))
+    give_mana(game, 0, 1)
+    assert Action(ActionType.PLAY, uid) not in game.legal_actions()  # no enemy units: it would do nothing
+
+
+def test_previews_stop_at_a_random_choice():
+    from src.graph.encode import action_outcome
+    outcomes = []
+    for seed in range(5):
+        game = started_game()
+        game.rng = random.Random(seed)
+        for _ in range(3):
+            put_in_play(game, 1, unit(power=1, health=1))
+        uid = put_in_hand(game, 0, action(effect("damage_hero", "opponent", amount=2),
+                                          random_choose({**OPP, "cost_max": 1}), effect("defeat", it())))
+        give_mana(game, 0, 1)
+        outcome = action_outcome(game, 0, Action(ActionType.PLAY, uid))
+        outcomes.append(outcome.tolist())
+        assert outcome[5] > 0 and outcome[3] == 0  # hero damage is certain, which unit is defeated isn't
+    assert all(o == outcomes[0] for o in outcomes)
+
+
+def test_ally_defeated_trigger_checks_its_filter():
+    game = started_game()
+    watcher = put_in_play(game, 0, unit(health=5, abilities=[triggered(
+        "ally_defeated", effect("draw", "you", amount=1),
+        trigger_filter={"owner": "you", "zone": "discard", "trait": "Miner"})]))
+    miner = put_in_play(game, 0, unit(traits=("Miner",)))
+    baker = put_in_play(game, 0, unit(traits=("Baker",)))
+    hand = len(game.state.players[0].hand)
+    game.step(END)
+    play(game, action(effect("deal_damage", {"all": OPP}, amount=1)), player=1)
+    assert game.card(miner).zone == game.card(baker).zone == Zone.DISCARD and game.card(watcher).zone == Zone.PLAY
+    assert len(game.state.players[0].hand) == hand + 1
+
+
+def test_damaged_trigger_only_fires_if_the_unit_survives():
+    def tough(health):
+        return unit(health=health, abilities=[triggered("damaged", effect("damage_hero", "opponent", amount=1))])
+    game = started_game()
+    survivor, goner = put_in_play(game, 0, tough(3)), put_in_play(game, 0, tough(2))
+    game.step(END)
+    play(game, action(effect("deal_damage", {"all": OPP}, amount=2)), player=1)
+    assert game.card(survivor).zone == Zone.PLAY and game.card(goner).zone == Zone.DISCARD
+    assert game.state.players[1].health == 29
+
+
+def test_action_played_and_token_summoned_triggers():
+    game = started_game()
+    put_in_play(game, 0, unit(abilities=[triggered("action_played", effect("damage_hero", "opponent", amount=1))]))
+    put_in_play(game, 0, unit(abilities=[triggered("token_summoned", effect("heal_hero", "you", amount=2))]))
+    game.state.players[0].health = 20
+    token = {"name": "Sprout", "power": 1, "health": 1}
+    play(game, action(effect("summon", "you", amount=2, token=token)))
+    assert game.state.players[1].health == 29  # one action played
+    assert game.state.players[0].health == 24  # two tokens summoned
+
+
+def test_cards_played_this_turn_count_and_reset():
+    played = {"owner": "you", "played_this_turn": True, "zone": "any", "type": "any", "not_this": True}
+    burn = action(effect("damage_hero", "opponent", amount={"per": played, "k": 1, "cap": 5}), name="Burn")
+    game = started_game()
+    play(game, unit(name="A"))
+    play(game, action(effect("draw", "you", amount=1), name="B"))
+    play(game, burn)
+    assert game.state.players[1].health == 28
+    game.step(END)
+    game.step(END)
+    play(game, burn)  # new turn: nothing else played yet
+    assert game.state.players[1].health == 28
+
+
+def test_a_scaling_buff_multiplies_its_bonus():
+    game = started_game()
+    baker = put_in_play(game, 0, unit(power=1, health=1, traits=("Baker",)))
+    for _ in range(2):
+        put_in_play(game, 0, unit(guard=1))
+    per_guard = {"per": {"owner": "you", "keyword": "guard"}, "k": 1, "cap": 3}
+    play(game, action(effect("buff", {"all": {"owner": "you", "trait": "Baker"}}, power=1, health=1, amount=per_guard)))
+    assert (game.stat(baker, "power"), game.stat(baker, "health")) == (3, 3)

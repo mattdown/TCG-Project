@@ -17,6 +17,7 @@ games it's about ±4–5, so single 100-game evals can't separate checkpoints.
 | `set_200` | The first 200 cards of `set_1000` (same seed), so **not** unseen by models trained on `set_1000` |
 | `heldout_200` | 200 cards from seed 7: never trained on. The fair test of unseen cards |
 | `armor_heavy` | 276 cards from seed 8 with plenty of Armor, which the agent used to play badly |
+| `set_1000_g2`, `heldout_200_g2`, `armor_heavy_g2` | The same seeds and recipes with P2's first grammar batch (2026-11-17): new triggers, counts, "played this turn", random targets (`armor_heavy_g2` has 228 cards) |
 | `keywords_200`, `vanilla_200`, `coverage` | Older and special-purpose sets |
 
 Before 2026-11-15 the docs and blog part 1 called `set_200` "unseen". It isn't: v4's "69% on
@@ -142,6 +143,13 @@ the control 50.0% / 51.0%, v6b vs the puzzle model 48.0% / 47.8%, the control vs
   against the heuristic, so it isn't clearly stronger. Neither fine-tune replaces v6b yet.
 
 Logs: `PythonServer/data/train_v7_{control,puzzles}.log`, `puzzles_v7_*.log`, `bench_v7.log`.
+
+### v6b on P2's grammar (2026-11-17, 400 paired games, seed 0)
+
+v6b against the heuristic on the `_g2` sets, whose new triggers, counts, memory and random
+targets it has never seen (their features load with zero weights): 73.2% on `heldout_200_g2` and
+69.8% on `armor_heavy_g2`, against 80.5% and 74.8% on the old sets. So it still plays, but loses
+6–7 points on the richer cards: a fine-tune on `set_1000_g2` is the next step.
 
 ## Training findings
 

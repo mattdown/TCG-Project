@@ -9,7 +9,8 @@ damage to your hero instead.
 Abilities (docs/technical-plan.md section 3) are compiled to decision graphs and resolved on a
 stack (state.pending). Triggered abilities wait in state.queue until no ability is part-way
 through resolving, then go on the stack. Whenever resolution reaches a choose, may or
-choose-one node, the engine stops and that choice becomes the next decision.
+choose-one node, the engine stops and that choice becomes the next decision; a random choice
+is made by the engine's random numbers instead.
 """
 import random
 from collections import Counter
@@ -25,6 +26,9 @@ from src.game.state import ActiveEffect, CardInstance, Continuation, Frame, Game
 from src.game.terms import KEYWORDS, TERMS
 
 ZONES = {"play": Zone.PLAY, "hand": Zone.HAND, "discard": Zone.DISCARD}
+SEEN_ZONES = (Zone.HAND, Zone.PLAY, Zone.DISCARD)  # filter zone "any": everywhere but the deck
+# Triggers that need their source still in play when they resolve: "takes damage and survives".
+NEEDS_SOURCE_IN_PLAY = ("damaged",)
 
 
 @dataclass(frozen=True)
@@ -78,6 +82,7 @@ class Game:
                  first_player: int | None = None, config: GameConfig = GameConfig()):
         self.config = config
         self.rng = random.Random(seed)
+        self.preview = False  # a copy for previews: resolution stops at the first random choice
         self._result: StepResult | None = None
         cards, players = [], []
         for owner, deck in enumerate((deck_a, deck_b)):
@@ -176,7 +181,9 @@ class Game:
         """Whether a card matches an ability's filter. "you" means the ability's controller."""
         c = self.card(uid)
         owner = f.get("owner", "any")
-        return (c.zone == ZONES[f.get("zone", "play")]
+        zone = f.get("zone", "play")
+        return ((c.zone in SEEN_ZONES if zone == "any" else c.zone == ZONES[zone])
+                and (not f.get("played_this_turn") or c.played_turn == self.state.turn)
                 and (f.get("type", "unit") == "any" or c.card.type == f.get("type", "unit"))
                 and (owner == "any" or (c.owner == controller) == (owner == "you"))
                 and ("trait" not in f or f["trait"] in c.card.traits)
@@ -186,8 +193,9 @@ class Game:
                 and (not f.get("not_this") or uid != source))
 
     def candidates(self, f: dict, controller: int, source: int | None) -> list[int]:
-        zone = ZONES[f.get("zone", "play")]
-        uids = [u for ps in self.state.players for u in self._zone_lists_of(ps)[zone]]
+        zone = f.get("zone", "play")
+        zones = SEEN_ZONES if zone == "any" else (ZONES[zone],)
+        uids = [u for ps in self.state.players for z in zones for u in self._zone_lists_of(ps)[z]]
         return [u for u in uids if self.matches(u, f, controller, source)]
 
     def pending_decision(self) -> tuple[Frame, Node] | None:
@@ -305,8 +313,9 @@ class Game:
         self._zone_lists(owner)[zone].append(uid)
         return uid
 
-    def clone(self) -> "Game":
-        """An independent copy to try moves on (previews, search).
+    def clone(self, preview: bool = False) -> "Game":
+        """An independent copy to try moves on (previews, search). A preview copy stops resolving
+        at the first random choice, so a preview never shows how the dice will fall.
 
         Written out field by field rather than with deepcopy, which was most of the cost of the
         action-outcome previews. Card definitions, the config and Continuation args are immutable,
@@ -318,6 +327,7 @@ class Game:
         g.config = self.config
         g.rng = random.Random()
         g.rng.setstate(self.rng.getstate())
+        g.preview = preview
         g._result = None
         g.state = GameState(
             cards=[_shallow(c) for c in s.cards],
@@ -437,18 +447,21 @@ class Game:
     def _play(self, p: int, uid: int):
         card = self.card(uid).card
         self._pay(p, self.play_cost(uid))
+        self.card(uid).played_turn = self.state.turn
         if card.type == "action":
             self._move(uid, Zone.DISCARD)
             for i, ability in enumerate(compiled(card)):
                 if ability.kind == "on_resolve":
                     self.state.queue.append(Frame(uid, p, i))
+            for other in self.state.players[p].play:
+                self._trigger(other, "action_played")
             return
         self._move(uid, Zone.PLAY)
         self.card(uid).fresh = True
         self._trigger(uid, "on_play")
         for other in self.state.players[p].play:
             if other != uid:
-                self._trigger(other, "another_played", played=uid)
+                self._trigger(other, "another_played", about=uid)
 
     # ------------------------------------------------------------------ abilities
 
@@ -458,14 +471,15 @@ class Game:
     def _ability_of(self, uid: int, index: int) -> CompiledAbility:
         return compiled(self.card(uid).card)[index]
 
-    def _trigger(self, uid: int, event: str, played: int | None = None):
-        """Queues the card's abilities triggered by this event."""
+    def _trigger(self, uid: int, event: str, about: int | None = None):
+        """Queues the card's abilities triggered by this event (`about`: the card that caused it,
+        checked against the trigger's filter)."""
         c = self.card(uid)
         for i, ability in enumerate(compiled(c.card)):
             if ability.kind != "triggered" or ability.tree["trigger"]["event"] != event:
                 continue
             trigger_filter = ability.tree["trigger"].get("filter")
-            if played is not None and trigger_filter and not self.matches(played, trigger_filter, c.owner, uid):
+            if about is not None and trigger_filter and not self.matches(about, trigger_filter, c.owner, uid):
                 continue
             self.state.queue.append(Frame(uid, c.owner, i))
 
@@ -491,6 +505,8 @@ class Game:
             match node.kind:
                 case "entry":
                     if (s.turn_abilities >= self.config.max_turn_abilities
+                            or (ability.kind == "triggered" and ability.tree["trigger"]["event"] in NEEDS_SOURCE_IN_PLAY
+                                and self.card(top.source).zone != Zone.PLAY)
                             or not self._condition(ability.tree.get("condition"), top.controller, top.source,
                                                    top.bindings)):
                         s.pending.pop()
@@ -513,6 +529,11 @@ class Game:
                     bound = top.bindings.setdefault(node.name, [])
                     needed = node.data.get("count", 1) - len(bound)
                     if needed <= 0 or not options:
+                        top.node = node.next
+                    elif node.data.get("chooser") == "random":
+                        if self.preview:
+                            return  # what's certain ends here
+                        bound.extend(self.rng.sample(options, min(needed, len(options))))
                         top.node = node.next
                     elif len(options) <= needed:  # no real choice
                         bound.extend(options)
@@ -674,12 +695,13 @@ class Game:
                 case "freeze":  # lasts through its owner's next turn
                     owner_next = s.turn + (1 if s.active_player != self.card(t).owner else 2)
                     self._add_effect(ActiveEffect("freeze", t, expires_turn=owner_next))
-                case "modify_stat":
-                    self._add_effect(lasting(t, kind="stat", stat=step["stat"], value=step["delta"]))
-                case "buff":  # lasts until the unit leaves play
+                case "modify_stat":  # a scaling amount multiplies the change
+                    if step["delta"] * amount:
+                        self._add_effect(lasting(t, kind="stat", stat=step["stat"], value=step["delta"] * amount))
+                case "buff":  # lasts until the unit leaves play; a scaling amount multiplies it
                     for stat in ("power", "health"):
-                        if step[stat]:
-                            self._add_effect(ActiveEffect("stat", t, stat=stat, value=step[stat]))
+                        if step[stat] * amount:
+                            self._add_effect(ActiveEffect("stat", t, stat=stat, value=step[stat] * amount))
                 case "grant_keyword":
                     self._add_effect(lasting(t, kind="keyword", keyword=step["keyword"], value=step.get("value", 1)))
                 case "draw":
@@ -708,6 +730,9 @@ class Game:
                         s.players[t].play.append(uid)
                         if self._result:
                             self._result.summoned.append(uid)
+                        for other in s.players[t].play:
+                            if other != uid:
+                                self._trigger(other, "token_summoned", about=uid)
                 case "gain_crystal":
                     ps = s.players[t]
                     if ps.crystals < self.config.max_mana:  # an empty crystal: more mana from next turn
@@ -761,6 +786,7 @@ class Game:
         self.card(uid).damage += amount
         if self._result:
             self._result.damage[uid] = self._result.damage.get(uid, 0) + amount
+        self._trigger(uid, "damaged")  # resolves only if it survives (NEEDS_SOURCE_IN_PLAY)
 
     def _check_defeats(self):
         """Defeats every unit whose damage has reached its health."""
@@ -782,6 +808,8 @@ class Game:
         self._trigger(uid, "on_defeated")
         for other in self.state.players[1 - owner].play:
             self._trigger(other, "opposing_defeated")
+        for other in self.state.players[owner].play:
+            self._trigger(other, "ally_defeated", about=uid)
 
     def _damage_hero(self, p: int, amount: int):
         if amount <= 0:
