@@ -19,8 +19,13 @@ art and a GNN overlay. Blog part 1 is published.
   smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
   the model is the bottleneck.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
-  frozen agent (the cost model) → MAP-Elites deck search (move `map_elites()` from `Blog/` into
-  PythonServer) → a fixed benchmark. The cost model work below is part of it.
+  frozen agent (the cost model) → MAP-Elites deck search (`scripts.map_elites`) → a fixed
+  benchmark. The cost model work below is part of it.
+- [ ] **Underpriced cards found by deck search** (results.md, MAP-Elites, 2026-11-18): about a dozen
+  cards are in 85–99 of the 100 elites, mostly cheap removal and draw (1-mana actions that deal 5–7
+  damage or draw 3–4, 2-mana units that deal 3–5). Re-price them (the cost model, or a look at
+  `GROUP_SCALE` and `RANDOM_TARGET` first), then search again: the map shows variety only once
+  the elites stop sharing one core.
 - [ ] **P4, search in training** (expert iteration), once P3 runs.
 - [ ] **Merge `part2-agent` into `main`** once the Unity client is checked against it (v6b needs
   this branch's code). Optionally restore the Unity 6000.3.28 upgrade on `main` first.
@@ -39,13 +44,18 @@ art and a GNN overlay. Blog part 1 is published.
 ## Next: stage 2, deck search and classes
 
 - [ ] **M0:** planted-synergy benchmark, and section 2's balance targets as code.
-- [ ] Measure games a second for the GNN (batched and not) and the heuristic agent.
-- [ ] **M1:** adapt Fontaine et al. 2019 (MAP-Elites over decks, sliding boundaries,
-  health-difference fitness): heuristic agent first, then a play-measured descriptor (share of
-  damage to the hero), then re-score the archive with the GNN.
+- [ ] **Batched GNN play:** the GNN plays about 0.9 games a second per process (6.9 with 8 workers),
+  about 120× slower than the heuristic, so it can only re-score archives. Batch its inference
+  across games to search with it.
+- [ ] **M1, what's left:** the planted-synergy test (does the search find planted combos within a
+  known budget?). Re-evaluate elites on fresh games (their search scores are a maximum over noisy
+  evaluations) and try other axes (`turns`, `action_share` are recorded).
 - [ ] **Class generation vectors** (plan 4G): a shared base plus sparse per-class offsets on the
   sampler's weights, hard zeros, themes as bundles, one cost model for all; quotas and enabler
-  checks per class. Then turn on `ONE_ASPECT` and put the class on the hero only.
+  checks per class. Then turn on `ONE_ASPECT` and put the class on the hero only. Decide the
+  share of neutral cards first (35% in `set_1000_g2`, where aspects are random). Order (decided
+  2026-11-18): MAP-Elites in PythonServer over all cards first, then classes, then P3's training
+  rounds on the class set.
 - [ ] MAP-Elites over a class-weighted set: do classes land in different regions of the map?
 - [ ] Play-style space (plan 4H): generation → card statistics → play style; a synergy graph
   and community detection for emergent archetypes.

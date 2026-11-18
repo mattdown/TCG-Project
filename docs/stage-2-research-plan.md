@@ -69,7 +69,8 @@ Search deck space for the strongest decks, with the agent playing them. Candidat
 A card's value is then measured in the decks that are good. Cost: thousands of games per
 generation, so it needs a cheap evaluator (D).
 
-**MAP-Elites in detail** (following Fontaine et al. 2019, section 8):
+**MAP-Elites in detail** (following Fontaine et al. 2019, section 8; built in `src/deck_search/`,
+first results in results.md):
 - **Fitness:** the hero health difference summed over a deck's games against a fixed field, not
   the win rate, so the margin counts and the signal is smoother.
 - **Behaviour descriptors:** the paper's are deck statistics known before any game (mean and

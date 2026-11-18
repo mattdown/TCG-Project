@@ -1,55 +1,55 @@
 {
  "name": "coverage",
  "cards": [
-  {"id": "C1-001", "name": "Smoulder Barrage", "type": "action", "aspects": ["aspect_1"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 2}}, "as": "it"}, {"effect": "deal_damage", "amount": {"per": {"owner": "you", "played_this_turn": true, "zone": "any", "type": "any", "not_this": true}, "k": 1, "cap": 3}, "target": {"ref": "it"}}, {"if": {"defeated": "it"}, "then": [{"effect": "summon", "token": {"name": "Sporeling", "power": 3, "health": 1}, "amount": 2, "target": "you"}]}]}], "subtitle": ""},
-  {"id": "C1-002", "name": "Ghost Scholar", "type": "unit", "aspects": ["aspect_2"], "cost": 4, "power": 4, "health": 3, "traits": ["Scholar"], "keywords": {"charge": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "damaged": true}}, "as": "it"}, {"effect": "deal_damage", "amount": {"per": {"owner": "you", "damaged": true}, "k": 1, "cap": 5}, "target": {"ref": "it"}}, {"if": {"defeated": "it"}, "then": [{"effect": "heal_hero", "amount": {"per": {"owner": "any", "trait": "Miner"}, "k": 1, "cap": 5}, "target": "you"}]}]}], "subtitle": "Rise and Shine"},
-  {"id": "C1-003", "name": "Ghost Miner", "type": "unit", "aspects": ["aspect_3"], "cost": 3, "power": 2, "health": 1, "traits": ["Miner"], "keywords": {"armor": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": {"count": {"owner": "you", "trait": "Postman", "not_this": true}, "at_least": 2}, "steps": [{"may": [{"effect": "damage_hero", "target": "you", "amount": 2}], "if_you_do": [{"effect": "modify_stat", "stat": "power", "delta": 3, "duration": "this_turn", "target": "this"}]}]}], "subtitle": "Dew Collector"},
-  {"id": "C1-004", "name": "Ghost Baker", "type": "unit", "aspects": ["aspect_4"], "cost": 3, "power": 2, "health": 2, "traits": ["Baker"], "keywords": {"duelist": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_play"}, "condition": null, "steps": [{"choose_one": [[{"effect": "damage_hero", "amount": 2, "target": "opponent"}], [{"choose": {"count": 1, "filter": {"owner": "you", "not_this": true, "damaged": true}, "chooser": "random"}, "as": "it"}, {"effect": "modify_stat", "stat": "power", "delta": 1, "duration": "this_turn", "target": {"ref": "it"}}]]}]}], "subtitle": "Sour Grapes"},
-  {"id": "C1-005", "name": "Firefly Sprouting", "type": "action", "aspects": ["aspect_5"], "cost": 3, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "summon", "token": {"name": "Spore Cloud", "power": 2, "health": 1}, "amount": 2, "target": "you"}], [{"effect": "grant_keyword", "keyword": "armor", "value": 1, "duration": "until_your_next_turn", "target": {"all": {"owner": "you"}}}]]}]}], "subtitle": ""},
-  {"id": "C1-006", "name": "Ghost Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 3, "power": 2, "health": 4, "traits": ["Lamplighter"], "keywords": {"guard": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "token_summoned"}, "condition": {"count": {"owner": "you", "played_this_turn": true, "zone": "any", "type": "any", "not_this": true}, "at_least": 2}, "steps": [{"may": [{"effect": "discard", "target": "you", "amount": 1, "chosen": true}], "if_you_do": [{"effect": "heal_hero", "amount": 3, "target": "you"}]}]}], "subtitle": "Babysitter"},
-  {"id": "C1-007", "name": "Ghost Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 3, "power": 1, "health": 2, "traits": ["Chef"], "keywords": {"armor": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack"}, "condition": {"behind_on_health": true}, "steps": [{"effect": "grant_keyword", "keyword": "guard", "value": 1, "duration": "until_your_next_turn", "target": "this"}]}], "subtitle": "Spoiling for Trouble"},
-  {"id": "C1-008", "name": "Ghost Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 2, "power": 1, "health": 3, "traits": ["Postman"], "keywords": {"guard": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "ally_defeated", "filter": {"owner": "you", "zone": "discard"}}, "condition": null, "steps": [{"may": [{"effect": "discard", "target": "you", "amount": 1, "chosen": true}], "if_you_do": [{"effect": "remove_damage", "amount": "all", "target": {"all": {"owner": "you", "not_this": true}}}]}]}], "subtitle": "Grieving Friend"},
-  {"id": "C1-009", "name": "Fern Gossip", "type": "action", "aspects": ["aspect_3"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "draw", "amount": 3, "target": "you"}], [{"choose": {"count": 1, "filter": {"owner": "you"}, "chooser": "random"}, "as": "it"}, {"effect": "remove_damage", "amount": "all", "target": {"ref": "it"}}]]}]}], "subtitle": ""},
-  {"id": "C1-010", "name": "Snowcap Scholar", "type": "unit", "aspects": ["aspect_4"], "cost": 1, "power": 1, "health": 1, "traits": ["Scholar"], "keywords": {"charge": true}, "abilities": [{"kind": "static", "condition": {"this_is": "attacking"}, "modifiers": [{"subject": "this", "stat": "power", "amount": 2}]}], "subtitle": "Rises to the Occasion"},
-  {"id": "C1-011", "name": "Snowcap Miner", "type": "unit", "aspects": ["aspect_5"], "cost": 5, "power": 3, "health": 6, "traits": ["Miner"], "keywords": {"elusive": true}, "abilities": [{"kind": "static", "condition": {"this_is": "attacking"}, "modifiers": [{"subject": "this", "stat": "power", "amount": 1}]}], "subtitle": "Stands Tall"},
-  {"id": "C1-012", "name": "Snowcap Baker", "type": "unit", "aspects": ["aspect_6"], "cost": 3, "power": 5, "health": 1, "traits": ["Baker"], "keywords": {"duelist": 1}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_play"}, "condition": {"behind_on_health": true}, "steps": [{"effect": "draw", "amount": 1, "target": "you"}]}], "subtitle": "Curious Cap"},
-  {"id": "C1-013", "name": "Ember Fumble", "type": "action", "aspects": ["aspect_1"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "discard", "random": true, "amount": 3, "target": "opponent"}], [{"choose": {"count": 1, "filter": {"owner": "you"}, "chooser": "random"}, "as": "it"}, {"effect": "buff", "power": 1, "health": 1, "amount": {"per": {"owner": "any", "trait": "Lamplighter"}, "k": 1, "cap": 5}, "target": {"ref": "it"}}]]}]}], "subtitle": ""},
-  {"id": "C1-014", "name": "Snowcap Lamplighter", "type": "unit", "aspects": ["aspect_2"], "cost": 2, "power": 2, "health": 1, "traits": ["Lamplighter"], "keywords": {"elusive": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "ally_defeated", "filter": {"owner": "you", "zone": "discard"}}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 2}}, "as": "it"}, {"effect": "modify_stat", "stat": "power", "delta": -2, "duration": "this_turn", "target": {"ref": "it"}}]}], "subtitle": "Stepping Up"},
-  {"id": "C1-015", "name": "Snowcap Chef", "type": "unit", "aspects": ["aspect_3"], "cost": 4, "power": 5, "health": 4, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "action_played"}, "condition": null, "steps": [{"effect": "buff", "power": 1, "health": 0, "amount": {"per": {"owner": "you", "keyword": "guard"}, "k": 1, "cap": 3}, "target": "this"}]}], "subtitle": "Ready for Anything"},
-  {"id": "C1-016", "name": "Snowcap Postman", "type": "unit", "aspects": ["aspect_4"], "cost": 4, "power": 4, "health": 5, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "damaged"}, "modifiers": [{"subject": "this", "keyword": "armor", "value": 1}]}], "subtitle": "Light on Feet"},
-  {"id": "C1-017", "name": "Starlit Muster", "type": "action", "aspects": ["aspect_5"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "summon", "token": {"name": "Sporeling", "power": 4, "health": 1}, "amount": 1, "target": "you"}], [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 4}}, "as": "it"}, {"effect": "modify_stat", "stat": "power", "delta": -1, "duration": "this_turn", "amount": {"per": {"owner": "you", "keyword": "duelist"}, "k": 1, "cap": 5}, "target": {"ref": "it"}}]]}]}], "subtitle": ""},
-  {"id": "C1-018", "name": "Honey Scholar", "type": "unit", "aspects": ["aspect_6"], "cost": 1, "power": 1, "health": 2, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "damaged"}, "modifiers": [{"subject": "this", "keyword": "guard", "value": 1}]}], "subtitle": "Second Nature"},
-  {"id": "C1-019", "name": "Honey Miner", "type": "unit", "aspects": ["aspect_1"], "cost": 5, "power": 6, "health": 5, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "defending"}, "modifiers": [{"subject": "this", "stat": "health", "amount": 1}]}], "subtitle": "Bigger Than Looks"},
-  {"id": "C1-020", "name": "Honey Baker", "type": "unit", "aspects": ["aspect_2"], "cost": 5, "power": 8, "health": 3, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "defending"}, "modifiers": [{"subject": "this", "stat": "health", "amount": 2}]}], "subtitle": "Steady Under Pressure"},
-  {"id": "C1-021", "name": "Fern Spring Rain", "type": "action", "aspects": ["aspect_3"], "cost": 3, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "gain_crystal", "target": "you"}], [{"effect": "summon", "token": {"name": "Fruiting Bud", "power": 4, "health": 2}, "amount": 1, "target": "you"}]]}]}], "subtitle": ""},
-  {"id": "C1-022", "name": "Honey Lamplighter", "type": "unit", "aspects": ["aspect_4"], "cost": 5, "power": 4, "health": 7, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": null, "steps": [{"choose_one": [[{"effect": "gain_crystal", "target": "you"}], [{"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}, {"effect": "freeze", "target": {"ref": "it"}}]]}]}], "subtitle": "Working Late"},
-  {"id": "C1-023", "name": "Honey Chef", "type": "unit", "aspects": ["aspect_5"], "cost": 2, "power": 2, "health": 2, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": null, "steps": [{"choose_one": [[{"effect": "draw", "amount": {"per": {"owner": "you", "zone": "hand", "type": "any"}, "k": 1, "cap": 5}, "target": "you"}], [{"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}, {"effect": "freeze", "target": {"ref": "it"}}]]}]}], "subtitle": "Lights Out"},
-  {"id": "C1-024", "name": "Honey Postman", "type": "unit", "aspects": ["aspect_6"], "cost": 1, "power": 1, "health": 1, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack_hero"}, "condition": null, "steps": [{"effect": "return_to_hand", "target": {"all": {"owner": "opponent"}}}]}], "subtitle": "Do Over"},
-  {"id": "C1-025", "name": "Ember Sting", "type": "action", "aspects": ["aspect_1"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"repeat": 7, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}, "chooser": "random"}, "as": "it"}, {"effect": "deal_damage", "amount": 1, "target": {"ref": "it"}}]}]}], "subtitle": ""},
-  {"id": "C1-026", "name": "Inkcap Scholar", "type": "unit", "aspects": ["aspect_2"], "cost": 2, "power": 1, "health": 2, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "action_played"}, "condition": null, "steps": [{"effect": "return_to_hand", "target": {"all": {"owner": "opponent"}}}]}], "subtitle": "Bookkeeper"},
-  {"id": "C1-027", "name": "Inkcap Miner", "type": "unit", "aspects": ["aspect_3"], "cost": 1, "power": 1, "health": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "token_summoned"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "damaged": true}, "chooser": "random"}, "as": "it"}, {"effect": "defeat", "target": {"ref": "it"}}]}], "subtitle": "Welcome Party"},
-  {"id": "C1-028", "name": "Inkcap Baker", "type": "unit", "aspects": ["aspect_4"], "cost": 1, "power": 1, "health": 1, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "damaged": true}, "chooser": "random"}, "as": "it"}, {"effect": "defeat", "target": {"ref": "it"}}]}], "subtitle": "Grim Gardener"},
-  {"id": "C1-029", "name": "Firefly Colony", "type": "action", "aspects": ["aspect_5"], "cost": 3, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "summon", "token": {"name": "Fruiting Bud", "power": 2, "health": 4}, "amount": 1, "target": "you"}], [{"repeat": 2, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}, "chooser": "random"}, "as": "it"}, {"effect": "deal_damage", "amount": 1, "target": {"ref": "it"}}]}]]}]}], "subtitle": ""},
-  {"id": "C1-030", "name": "Inkcap Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 1, "power": 2, "health": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "opposing_defeated"}, "condition": null, "steps": [{"effect": "heal_hero", "amount": {"per": {"owner": "you", "zone": "hand", "type": "any"}, "k": 1, "cap": 3}, "target": "you"}]}], "subtitle": "Silver Lining"},
-  {"id": "C1-031", "name": "Inkcap Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 4, "power": 6, "health": 3, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Postman", "not_this": true}}, "stat": "health", "amount": 1}]}], "subtitle": "Head of the Guild"},
-  {"id": "C1-032", "name": "Inkcap Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 3, "power": 3, "health": 4, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "opponent", "damaged": true}}, "stat": "power", "amount": -1}]}], "subtitle": "Stormcloud"},
-  {"id": "C1-033", "name": "Enoki Scholar", "type": "unit", "aspects": ["aspect_3"], "cost": 1, "power": 1, "health": 2, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Baker", "not_this": true}}, "stat": "power", "amount": 1}]}], "subtitle": "Head of the Guild"},
-  {"id": "C1-034", "name": "Enoki Miner", "type": "unit", "aspects": ["aspect_4"], "cost": 1, "power": 2, "health": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Miner", "not_this": true}}, "stat": "health", "amount": 1}]}], "subtitle": "Old Hand"},
-  {"id": "C1-035", "name": "Enoki Baker", "type": "unit", "aspects": ["aspect_5"], "cost": 4, "power": 2, "health": 7, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": "Postman"}}]}], "subtitle": "Shop Keeper"},
-  {"id": "C1-036", "name": "Enoki Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 1, "power": 2, "health": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": "Scholar"}}]}], "subtitle": "Two for One"},
-  {"id": "C1-037", "name": "Enoki Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 4, "power": 7, "health": 1, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "opposing_defeated"}, "condition": null, "steps": [{"effect": "damage_hero", "amount": 1, "target": "opponent"}]}], "subtitle": "Picks Up the Pieces"},
-  {"id": "C1-038", "name": "Enoki Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 3, "power": 5, "health": 1, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack_hero"}, "condition": null, "steps": [{"effect": "discard", "random": true, "amount": 2, "target": "opponent"}]}], "subtitle": "Sneaky Swipe"},
-  {"id": "C1-039", "name": "Waxcap Scholar", "type": "unit", "aspects": ["aspect_3"], "cost": 3, "power": 3, "health": 3, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack"}, "condition": null, "steps": [{"effect": "damage_hero", "amount": 1, "target": "opponent"}]}], "subtitle": "Heckler"},
-  {"id": "C1-040", "name": "Waxcap Miner", "type": "unit", "aspects": ["aspect_4"], "cost": 3, "power": 3, "health": 4, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": null, "steps": [{"effect": "gain_crystal", "target": "you"}]}], "subtitle": "Rainmaker"},
-  {"id": "C1-041", "name": "Waxcap Baker", "type": "unit", "aspects": ["aspect_5"], "cost": 2, "power": 1, "health": 4, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "damaged"}, "condition": null, "steps": [{"effect": "draw", "amount": 2, "target": "you"}]}], "subtitle": "Tough Cookie"},
-  {"id": "C1-042", "name": "Waxcap Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 5, "power": 7, "health": 4, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "damaged"}, "condition": null, "steps": [{"effect": "draw", "amount": 3, "target": "you"}]}], "subtitle": "Hard to Squash"},
-  {"id": "C1-043", "name": "Waxcap Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 5, "power": 5, "health": 5, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "another_played", "filter": {"owner": "you", "trait": "Chef", "not_this": true}}, "condition": null, "steps": [{"effect": "damage_hero", "amount": 1, "target": "opponent"}]}], "subtitle": "Heckler"},
-  {"id": "C1-044", "name": "Waxcap Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 1, "power": 1, "health": 2, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "another_played", "filter": {"owner": "you", "trait": "Postman", "not_this": true}}, "condition": null, "steps": [{"effect": "draw", "amount": 2, "target": "you"}]}], "subtitle": "Avid Reader"},
-  {"id": "C1-045", "name": "Lichen Gossip", "type": "action", "aspects": ["aspect_3"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "draw", "amount": 4, "target": "you"}]}], "subtitle": ""},
-  {"id": "C1-046", "name": "Meadow Gathering", "type": "action", "aspects": ["aspect_4"], "cost": 4, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "summon", "token": {"name": "Sprout", "power": 1, "health": 3}, "amount": 2, "target": "you"}]}], "subtitle": ""},
-  {"id": "C1-047", "name": "Lantern Insight", "type": "action", "aspects": ["aspect_5"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "draw", "amount": 3, "target": "you"}]}], "subtitle": ""},
-  {"id": "C1-048", "name": "Rime Almanac", "type": "action", "aspects": ["aspect_6"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "draw", "amount": 5, "target": "you"}]}], "subtitle": ""},
-  {"id": "C1-049", "name": "Ember Colony", "type": "action", "aspects": ["aspect_1"], "cost": 3, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "summon", "token": {"name": "Button", "power": 1, "health": 2}, "amount": 2, "target": "you"}]}], "subtitle": ""}
+  {"id": "C1-001", "name": "Ember Volley", "type": "action", "aspects": ["aspect_1"], "cost": 4, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 2}}, "as": "it"}, {"effect": "deal_damage", "amount": {"per": {"owner": "you", "played_this_turn": true, "zone": "any", "type": "any", "not_this": true}, "k": 1, "cap": 3}, "target": {"ref": "it"}}, {"if": {"defeated": "it"}, "then": [{"effect": "summon", "token": {"name": "Sporeling", "power": 3, "health": 1}, "amount": 2, "target": "you"}]}]}], "subtitle": ""},
+  {"id": "C1-002", "name": "Button Scholar", "type": "unit", "aspects": ["aspect_2"], "cost": 3, "power": 1, "health": 1, "traits": ["Scholar"], "keywords": {"duelist": 3}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack_hero"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 4}, "chooser": "random"}, "as": "it"}, {"effect": "deal_damage", "amount": 5, "target": {"ref": "it"}}, {"if": {"defeated": "it"}, "then": [{"effect": "heal_hero", "amount": {"per": {"owner": "you", "played_this_turn": true, "zone": "any", "type": "any"}, "k": 1, "cap": 5}, "target": "you"}]}]}], "subtitle": "Storms the Castle"},
+  {"id": "C1-003", "name": "Button Miner", "type": "unit", "aspects": ["aspect_3"], "cost": 3, "power": 2, "health": 1, "traits": ["Miner"], "keywords": {"armor": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": {"count": {"owner": "you", "trait": "Postman", "not_this": true}, "at_least": 2}, "steps": [{"may": [{"effect": "damage_hero", "target": "you", "amount": 2}], "if_you_do": [{"effect": "modify_stat", "stat": "power", "delta": 3, "duration": "this_turn", "target": "this"}]}]}], "subtitle": "Bright and Early"},
+  {"id": "C1-004", "name": "Button Baker", "type": "unit", "aspects": ["aspect_4"], "cost": 2, "power": 3, "health": 1, "traits": ["Baker"], "keywords": {"guard": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "token_summoned"}, "condition": null, "steps": [{"choose_one": [[{"effect": "damage_hero", "amount": 1, "target": "opponent"}], [{"effect": "modify_stat", "stat": "power", "delta": 2, "duration": "this_turn", "target": "this"}]]}]}], "subtitle": "Heckler"},
+  {"id": "C1-005", "name": "Glow Distraction", "type": "action", "aspects": ["aspect_5"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "discard", "random": true, "amount": 3, "target": "opponent"}], [{"choose": {"count": 1, "filter": {"owner": "you"}, "chooser": "random"}, "as": "it"}, {"effect": "buff", "power": 1, "health": 1, "amount": {"per": {"owner": "any", "trait": "Lamplighter"}, "k": 1, "cap": 5}, "target": {"ref": "it"}}]]}]}], "subtitle": ""},
+  {"id": "C1-006", "name": "Button Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 2, "power": 2, "health": 1, "traits": ["Lamplighter"], "keywords": {"duelist": 2}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": null, "steps": [{"may": [{"effect": "discard", "target": "you", "amount": 1, "chosen": true}], "if_you_do": [{"effect": "grant_keyword", "keyword": "guard", "value": 1, "duration": "until_your_next_turn", "target": {"all": {"owner": "you", "not_this": true, "damaged": true}}}]}]}], "subtitle": "Back to the Soil"},
+  {"id": "C1-007", "name": "Button Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 5, "power": 8, "health": 2, "traits": ["Chef"], "keywords": {"charge": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_play"}, "condition": {"behind_on_health": true}, "steps": [{"choose": {"count": 1, "filter": {"owner": "you", "not_this": true}}, "as": "it"}, {"effect": "grant_keyword", "keyword": "armor", "value": 1, "duration": "until_your_next_turn", "target": {"ref": "it"}}]}], "subtitle": "Reporting for Duty"},
+  {"id": "C1-008", "name": "Button Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 2, "power": 2, "health": 1, "traits": ["Postman"], "keywords": {"armor": 1}, "abilities": [{"kind": "static", "condition": {"this_is": "attacking"}, "modifiers": [{"subject": "this", "stat": "power", "amount": 1}]}], "subtitle": "Rises to the Occasion"},
+  {"id": "C1-009", "name": "Fern Muster", "type": "action", "aspects": ["aspect_3"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "summon", "token": {"name": "Mycelium Mite", "power": 3, "health": 1}, "amount": 2, "target": "you"}], [{"effect": "modify_stat", "stat": "power", "delta": -2, "duration": "this_turn", "target": {"all": {"owner": "opponent", "damaged": true}}}]]}]}], "subtitle": ""},
+  {"id": "C1-010", "name": "Fly-agaric Scholar", "type": "unit", "aspects": ["aspect_4"], "cost": 1, "power": 1, "health": 1, "traits": ["Scholar"], "keywords": {"charge": true}, "abilities": [{"kind": "static", "condition": {"this_is": "attacking"}, "modifiers": [{"subject": "this", "stat": "power", "amount": 2}]}], "subtitle": "Rises to the Occasion"},
+  {"id": "C1-011", "name": "Fly-agaric Miner", "type": "unit", "aspects": ["aspect_5"], "cost": 4, "power": 4, "health": 3, "traits": ["Miner"], "keywords": {"elusive": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": {"behind_on_health": true}, "steps": [{"effect": "draw", "amount": 2, "target": "you"}]}], "subtitle": "Loose Pages"},
+  {"id": "C1-012", "name": "Fly-agaric Baker", "type": "unit", "aspects": ["aspect_6"], "cost": 4, "power": 3, "health": 4, "traits": ["Baker"], "keywords": {"guard": true}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_play"}, "condition": null, "steps": [{"choose_one": [[{"effect": "heal_hero", "amount": {"per": {"owner": "you", "zone": "hand", "type": "any"}, "k": 1, "cap": 3}, "target": "you"}], [{"effect": "draw", "amount": 3, "target": "you"}]]}]}], "subtitle": "Just Sprouted"},
+  {"id": "C1-013", "name": "Ember Nurture", "type": "action", "aspects": ["aspect_1"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "buff", "power": 1, "health": 1, "amount": {"per": {"owner": "you", "keyword": "guard"}, "k": 1, "cap": 4}, "target": {"all": {"owner": "you"}}}]}], "subtitle": ""},
+  {"id": "C1-014", "name": "Fly-agaric Lamplighter", "type": "unit", "aspects": ["aspect_2"], "cost": 5, "power": 6, "health": 3, "traits": ["Lamplighter"], "keywords": {"elusive": true}, "abilities": [{"kind": "static", "condition": {"this_is": "defending"}, "modifiers": [{"subject": "this", "stat": "health", "amount": 1}]}], "subtitle": "Stands Tall"},
+  {"id": "C1-015", "name": "Fly-agaric Chef", "type": "unit", "aspects": ["aspect_3"], "cost": 2, "power": 4, "health": 1, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "defending"}, "modifiers": [{"subject": "this", "stat": "health", "amount": {"per": {"owner": "any", "trait": "Postman"}, "k": 1, "cap": 4}}]}], "subtitle": "Stands Tall"},
+  {"id": "C1-016", "name": "Fly-agaric Postman", "type": "unit", "aspects": ["aspect_4"], "cost": 3, "power": 2, "health": 5, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "ally_defeated", "filter": {"owner": "you", "zone": "discard"}}, "condition": null, "steps": [{"effect": "remove_damage", "amount": 1, "target": "this"}]}], "subtitle": "Grieving Friend"},
+  {"id": "C1-017", "name": "Starlit Gossip", "type": "action", "aspects": ["aspect_5"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "draw", "amount": 3, "target": "you"}], [{"choose": {"count": 1, "filter": {"owner": "you"}, "chooser": "random"}, "as": "it"}, {"effect": "remove_damage", "amount": "all", "target": {"ref": "it"}}]]}]}], "subtitle": ""},
+  {"id": "C1-018", "name": "Chanterelle Scholar", "type": "unit", "aspects": ["aspect_6"], "cost": 4, "power": 4, "health": 5, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "damaged"}, "modifiers": [{"subject": "this", "keyword": "armor", "value": 1}]}], "subtitle": "Old Habits"},
+  {"id": "C1-019", "name": "Chanterelle Miner", "type": "unit", "aspects": ["aspect_1"], "cost": 4, "power": 5, "health": 4, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "static", "condition": {"this_is": "damaged"}, "modifiers": [{"subject": "this", "keyword": "duelist", "value": 1}]}], "subtitle": "Seasoned Pro"},
+  {"id": "C1-020", "name": "Chanterelle Baker", "type": "unit", "aspects": ["aspect_2"], "cost": 4, "power": 4, "health": 5, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "ally_defeated", "filter": {"owner": "you", "zone": "discard"}}, "condition": null, "steps": [{"may": [{"effect": "discard", "target": "you", "amount": 1, "chosen": true}], "if_you_do": [{"effect": "gain_crystal", "target": "you"}]}]}], "subtitle": "Keeps the Lamp Lit"},
+  {"id": "C1-021", "name": "Root Compost", "type": "action", "aspects": ["aspect_3"], "cost": 3, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"choose_one": [[{"effect": "gain_crystal", "target": "you"}], [{"effect": "summon", "token": {"name": "Sporeling", "power": 1, "health": 5}, "amount": 1, "target": "you"}]]}]}], "subtitle": ""},
+  {"id": "C1-022", "name": "Chanterelle Lamplighter", "type": "unit", "aspects": ["aspect_4"], "cost": 5, "power": 4, "health": 5, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack"}, "condition": {"count": {"owner": "you", "played_this_turn": true, "zone": "any", "type": "any", "not_this": true}, "at_least": 2}, "steps": [{"effect": "return_to_hand", "target": {"all": {"owner": "opponent"}}}]}], "subtitle": "Sends You Packing"},
+  {"id": "C1-023", "name": "Chanterelle Chef", "type": "unit", "aspects": ["aspect_5"], "cost": 3, "power": 4, "health": 3, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack_hero"}, "condition": null, "steps": [{"choose_one": [[{"effect": "draw", "amount": {"per": {"owner": "you", "keyword": "guard"}, "k": 1, "cap": 4}, "target": "you"}], [{"effect": "freeze", "target": {"all": {"owner": "opponent"}}}]]}]}], "subtitle": "Heads for Home"},
+  {"id": "C1-024", "name": "Chanterelle Postman", "type": "unit", "aspects": ["aspect_6"], "cost": 5, "power": 5, "health": 5, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "token_summoned"}, "condition": null, "steps": [{"effect": "freeze", "target": {"all": {"owner": "opponent"}}}]}], "subtitle": "Knotted Laces"},
+  {"id": "C1-025", "name": "Ember Pummel", "type": "action", "aspects": ["aspect_1"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"repeat": 7, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}, "chooser": "random"}, "as": "it"}, {"effect": "deal_damage", "amount": 1, "target": {"ref": "it"}}]}]}], "subtitle": ""},
+  {"id": "C1-026", "name": "Oyster Scholar", "type": "unit", "aspects": ["aspect_2"], "cost": 5, "power": 7, "health": 3, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "damaged"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"}, {"effect": "return_to_hand", "target": {"ref": "it"}}]}], "subtitle": "Bounces Back"},
+  {"id": "C1-027", "name": "Oyster Miner", "type": "unit", "aspects": ["aspect_3"], "cost": 2, "power": 3, "health": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_defeated"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "cost_max": 4}}, "as": "it"}, {"effect": "defeat", "target": {"ref": "it"}}]}], "subtitle": "No Second Chances"},
+  {"id": "C1-028", "name": "Oyster Baker", "type": "unit", "aspects": ["aspect_4"], "cost": 2, "power": 2, "health": 3, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": null, "steps": [{"effect": "modify_stat", "stat": "power", "delta": -1, "duration": "until_your_next_turn", "target": {"all": {"owner": "opponent"}}}]}], "subtitle": "After Hours"},
+  {"id": "C1-029", "name": "Starlit Barrage", "type": "action", "aspects": ["aspect_5"], "cost": 1, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"repeat": 5, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent"}, "chooser": "random"}, "as": "it"}, {"effect": "deal_damage", "amount": 1, "target": {"ref": "it"}}]}]}], "subtitle": ""},
+  {"id": "C1-030", "name": "Oyster Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 1, "power": 2, "health": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "opposing_defeated"}, "condition": null, "steps": [{"effect": "heal_hero", "amount": {"per": {"owner": "you", "zone": "hand", "type": "any"}, "k": 1, "cap": 3}, "target": "you"}]}], "subtitle": "Warm Blanket"},
+  {"id": "C1-031", "name": "Oyster Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 1, "power": 1, "health": 1, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "opponent", "damaged": true}, "chooser": "random"}, "as": "it"}, {"effect": "defeat", "target": {"ref": "it"}}]}], "subtitle": "Burning the Midnight Oil"},
+  {"id": "C1-032", "name": "Oyster Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 2, "power": 1, "health": 4, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "on_attack"}, "condition": null, "steps": [{"choose": {"count": 1, "filter": {"owner": "you", "not_this": true}, "chooser": "random"}, "as": "it"}, {"effect": "remove_damage", "amount": "all", "target": {"ref": "it"}}]}], "subtitle": "Mends and Minds"},
+  {"id": "C1-033", "name": "Lion's-mane Scholar", "type": "unit", "aspects": ["aspect_3"], "cost": 4, "power": 6, "health": 3, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Postman", "not_this": true}}, "stat": "health", "amount": 1}]}], "subtitle": "Inspiring Boss"},
+  {"id": "C1-034", "name": "Lion's-mane Miner", "type": "unit", "aspects": ["aspect_4"], "cost": 1, "power": 2, "health": 1, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Miner", "not_this": true}}, "stat": "health", "amount": 1}]}], "subtitle": "Grand Master"},
+  {"id": "C1-035", "name": "Lion's-mane Baker", "type": "unit", "aspects": ["aspect_5"], "cost": 3, "power": 3, "health": 4, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "opponent", "damaged": true}}, "stat": "power", "amount": -1}]}], "subtitle": "Doom and Gloom"},
+  {"id": "C1-036", "name": "Lion's-mane Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 1, "power": 1, "health": 2, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"subject": {"all": {"owner": "you", "trait": "Baker", "not_this": true}}, "stat": "power", "amount": 1}]}], "subtitle": "Old Hand"},
+  {"id": "C1-037", "name": "Lion's-mane Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 1, "power": 1, "health": 2, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": "Miner"}}]}], "subtitle": "Friends and Family Rate"},
+  {"id": "C1-038", "name": "Lion's-mane Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 1, "power": 1, "health": 2, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "static", "condition": null, "modifiers": [{"cost_reduction": 1, "filter": {"owner": "you", "trait": "Baker"}}]}], "subtitle": "Friends and Family Rate"},
+  {"id": "C1-039", "name": "Morel Scholar", "type": "unit", "aspects": ["aspect_3"], "cost": 5, "power": 4, "health": 7, "traits": ["Scholar"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "opposing_defeated"}, "condition": null, "steps": [{"effect": "draw", "amount": 1, "target": "you"}]}], "subtitle": "Rumour Mill"},
+  {"id": "C1-040", "name": "Morel Miner", "type": "unit", "aspects": ["aspect_4"], "cost": 1, "power": 1, "health": 2, "traits": ["Miner"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "action_played"}, "condition": null, "steps": [{"effect": "summon", "token": {"name": "Sprout", "power": 1, "health": 1, "trait": "Scholar"}, "amount": 1, "target": "you"}]}], "subtitle": "Keen Apprentice"},
+  {"id": "C1-041", "name": "Morel Baker", "type": "unit", "aspects": ["aspect_5"], "cost": 4, "power": 5, "health": 4, "traits": ["Baker"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "damaged"}, "condition": null, "steps": [{"effect": "heal_hero", "amount": 3, "target": "you"}]}], "subtitle": "Battle Scarred"},
+  {"id": "C1-042", "name": "Morel Lamplighter", "type": "unit", "aspects": ["aspect_6"], "cost": 3, "power": 6, "health": 1, "traits": ["Lamplighter"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "action_played"}, "condition": null, "steps": [{"effect": "summon", "token": {"name": "Sporeling", "power": 1, "health": 1, "trait": "Chef"}, "amount": 1, "target": "you"}]}], "subtitle": "Busy Bee"},
+  {"id": "C1-043", "name": "Morel Chef", "type": "unit", "aspects": ["aspect_1"], "cost": 1, "power": 1, "health": 2, "traits": ["Chef"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "another_played", "filter": {"owner": "you", "trait": "Postman", "not_this": true}}, "condition": null, "steps": [{"effect": "draw", "amount": 2, "target": "you"}]}], "subtitle": "Letter Opener"},
+  {"id": "C1-044", "name": "Morel Postman", "type": "unit", "aspects": ["aspect_2"], "cost": 5, "power": 8, "health": 3, "traits": ["Postman"], "keywords": {}, "abilities": [{"kind": "triggered", "trigger": {"event": "another_played", "filter": {"owner": "you", "trait": "Baker", "not_this": true}}, "condition": null, "steps": [{"effect": "gain_crystal", "target": "you"}]}], "subtitle": "Team Player"},
+  {"id": "C1-045", "name": "Lichen Colony", "type": "action", "aspects": ["aspect_3"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "summon", "token": {"name": "Sprout", "power": 1, "health": 3}, "amount": 1, "target": "you"}]}], "subtitle": ""},
+  {"id": "C1-046", "name": "Hayfield Letters", "type": "action", "aspects": ["aspect_4"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "draw", "amount": 5, "target": "you"}]}], "subtitle": ""},
+  {"id": "C1-047", "name": "Firefly Sprouting", "type": "action", "aspects": ["aspect_5"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "summon", "token": {"name": "Button", "power": 1, "health": 2}, "amount": 2, "target": "you"}]}], "subtitle": ""},
+  {"id": "C1-048", "name": "Frost Spore Burst", "type": "action", "aspects": ["aspect_6"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "summon", "token": {"name": "Puffling", "power": 1, "health": 2}, "amount": 2, "target": "you"}]}], "subtitle": ""},
+  {"id": "C1-049", "name": "Bonfire Gathering", "type": "action", "aspects": ["aspect_1"], "cost": 2, "power": 0, "health": 0, "traits": [], "keywords": {}, "abilities": [{"kind": "on_resolve", "steps": [{"effect": "summon", "token": {"name": "Sporeling", "power": 2, "health": 2}, "amount": 1, "target": "you"}]}], "subtitle": ""}
  ],
  "notes": {
  "costing": "rough ability values from src/cards/costing.py",
@@ -70,18 +70,18 @@
    "C1-049"
   ],
   "ability: static": [
+   "C1-008",
    "C1-010",
-   "C1-011",
-   "C1-016",
+   "C1-014",
+   "C1-015",
    "C1-018",
    "C1-019",
-   "C1-020",
-   "C1-031",
-   "C1-032",
    "C1-033",
    "C1-034",
    "C1-035",
-   "C1-036"
+   "C1-036",
+   "C1-037",
+   "C1-038"
   ],
   "ability: triggered": [
    "C1-002",
@@ -89,10 +89,10 @@
    "C1-004",
    "C1-006",
    "C1-007",
-   "C1-008",
+   "C1-011",
    "C1-012",
-   "C1-014",
-   "C1-015",
+   "C1-016",
+   "C1-020",
    "C1-022",
    "C1-023",
    "C1-024",
@@ -100,8 +100,8 @@
    "C1-027",
    "C1-028",
    "C1-030",
-   "C1-037",
-   "C1-038",
+   "C1-031",
+   "C1-032",
    "C1-039",
    "C1-040",
    "C1-041",
@@ -110,15 +110,16 @@
    "C1-044"
   ],
   "amount: all": [
-   "C1-008",
-   "C1-009"
+   "C1-017",
+   "C1-032"
   ],
   "amount: per count, capped": [
    "C1-001",
    "C1-002",
+   "C1-005",
+   "C1-012",
    "C1-013",
    "C1-015",
-   "C1-017",
    "C1-023",
    "C1-030"
   ],
@@ -177,81 +178,74 @@
   ],
   "condition: behind_on_health": [
    "C1-007",
-   "C1-012"
+   "C1-011"
   ],
   "condition: count": [
    "C1-003",
-   "C1-006"
+   "C1-022"
   ],
   "condition: defeated": [
    "C1-001",
    "C1-002"
   ],
   "condition: this_is attacking": [
-   "C1-010",
-   "C1-011"
+   "C1-008",
+   "C1-010"
   ],
   "condition: this_is damaged": [
-   "C1-016",
-   "C1-018"
+   "C1-018",
+   "C1-019"
   ],
   "condition: this_is defending": [
-   "C1-019",
-   "C1-020"
+   "C1-014",
+   "C1-015"
   ],
   "decision: choose": [
    "C1-001",
-   "C1-002",
-   "C1-014",
-   "C1-017",
-   "C1-022",
-   "C1-023"
+   "C1-007",
+   "C1-026",
+   "C1-027"
   ],
   "decision: choose (random)": [
-   "C1-004",
-   "C1-009",
-   "C1-013",
+   "C1-002",
+   "C1-005",
+   "C1-017",
    "C1-025",
-   "C1-027",
-   "C1-028",
-   "C1-029"
+   "C1-029",
+   "C1-031",
+   "C1-032"
   ],
   "decision: choose one": [
    "C1-004",
    "C1-005",
    "C1-009",
-   "C1-013",
+   "C1-012",
    "C1-017",
    "C1-021",
-   "C1-022",
-   "C1-023",
-   "C1-029"
+   "C1-023"
   ],
   "decision: may": [
    "C1-003",
    "C1-006",
-   "C1-008"
+   "C1-020"
   ],
   "duration: this_turn": [
    "C1-003",
    "C1-004",
-   "C1-014",
-   "C1-017"
+   "C1-009"
   ],
   "duration: until_your_next_turn": [
-   "C1-005",
-   "C1-007"
+   "C1-006",
+   "C1-007",
+   "C1-028"
   ],
   "effect: buff": [
-   "C1-013",
-   "C1-015"
+   "C1-005",
+   "C1-013"
   ],
   "effect: damage_hero": [
    "C1-003",
-   "C1-004",
-   "C1-037",
-   "C1-039",
-   "C1-043"
+   "C1-004"
   ],
   "effect: deal_damage": [
    "C1-001",
@@ -261,75 +255,75 @@
   ],
   "effect: defeat": [
    "C1-027",
-   "C1-028"
+   "C1-031"
   ],
   "effect: discard": [
+   "C1-005",
    "C1-006",
-   "C1-008",
-   "C1-013",
-   "C1-038"
+   "C1-020"
   ],
   "effect: draw": [
-   "C1-009",
+   "C1-011",
    "C1-012",
+   "C1-017",
    "C1-023",
-   "C1-041",
-   "C1-042",
-   "C1-044",
-   "C1-045",
-   "C1-047",
-   "C1-048"
+   "C1-039",
+   "C1-043",
+   "C1-046"
   ],
   "effect: freeze": [
-   "C1-022",
-   "C1-023"
+   "C1-023",
+   "C1-024"
   ],
   "effect: gain_crystal": [
+   "C1-020",
    "C1-021",
-   "C1-022",
-   "C1-040"
+   "C1-044"
   ],
   "effect: grant_keyword": [
-   "C1-005",
+   "C1-006",
    "C1-007"
   ],
   "effect: heal_hero": [
    "C1-002",
-   "C1-006",
-   "C1-030"
+   "C1-012",
+   "C1-030",
+   "C1-041"
   ],
   "effect: modify_stat": [
    "C1-003",
    "C1-004",
-   "C1-014",
-   "C1-017"
+   "C1-009",
+   "C1-028"
   ],
   "effect: remove_damage": [
-   "C1-008",
-   "C1-009"
+   "C1-016",
+   "C1-017",
+   "C1-032"
   ],
   "effect: return_to_hand": [
-   "C1-024",
+   "C1-022",
    "C1-026"
   ],
   "effect: summon": [
    "C1-001",
-   "C1-005",
-   "C1-017",
+   "C1-009",
    "C1-021",
-   "C1-029",
-   "C1-046",
+   "C1-040",
+   "C1-042",
+   "C1-045",
+   "C1-047",
+   "C1-048",
    "C1-049"
   ],
   "filter owner: any": [
-   "C1-002",
-   "C1-013"
+   "C1-005",
+   "C1-015"
   ],
   "filter owner: opponent": [
    "C1-001",
    "C1-002",
-   "C1-014",
-   "C1-017",
+   "C1-009",
    "C1-022",
    "C1-023",
    "C1-024",
@@ -337,124 +331,128 @@
    "C1-026",
    "C1-027",
    "C1-028",
-   "C1-029"
+   "C1-029",
+   "C1-031"
   ],
   "filter owner: you": [
    "C1-001",
    "C1-002",
    "C1-003",
-   "C1-004",
    "C1-005",
    "C1-006",
-   "C1-008",
-   "C1-009",
+   "C1-007",
+   "C1-012",
    "C1-013",
-   "C1-014",
-   "C1-015",
+   "C1-016",
    "C1-017",
+   "C1-020",
+   "C1-022",
    "C1-023",
    "C1-030",
+   "C1-032",
    "C1-043",
    "C1-044"
   ],
   "filter zone: any": [
    "C1-001",
-   "C1-006"
+   "C1-002",
+   "C1-022"
   ],
   "filter zone: discard": [
-   "C1-008",
-   "C1-014"
+   "C1-016",
+   "C1-020"
   ],
   "filter zone: hand": [
-   "C1-023",
+   "C1-012",
    "C1-030"
   ],
   "filter: cost_max": [
    "C1-001",
-   "C1-014",
-   "C1-017"
+   "C1-002",
+   "C1-027"
   ],
   "filter: damaged": [
-   "C1-002",
-   "C1-004",
-   "C1-027",
-   "C1-028"
+   "C1-006",
+   "C1-009",
+   "C1-031"
   ],
   "filter: keyword": [
-   "C1-015",
-   "C1-017"
+   "C1-013",
+   "C1-023"
   ],
   "filter: not_this": [
    "C1-001",
    "C1-003",
-   "C1-004",
    "C1-006",
-   "C1-008",
+   "C1-007",
+   "C1-022",
+   "C1-032",
    "C1-043",
    "C1-044"
   ],
   "filter: played_this_turn": [
    "C1-001",
-   "C1-006"
+   "C1-002",
+   "C1-022"
   ],
   "filter: trait": [
-   "C1-002",
    "C1-003",
-   "C1-013",
+   "C1-005",
+   "C1-015",
    "C1-043",
    "C1-044"
   ],
   "keyword: armor": [
    "C1-003",
-   "C1-007"
+   "C1-008"
   ],
   "keyword: charge": [
-   "C1-002",
+   "C1-007",
    "C1-010"
   ],
   "keyword: duelist": [
-   "C1-004",
-   "C1-012"
+   "C1-002",
+   "C1-006"
   ],
   "keyword: elusive": [
    "C1-011",
    "C1-014"
   ],
   "keyword: guard": [
-   "C1-006",
-   "C1-008"
+   "C1-004",
+   "C1-012"
   ],
   "stat change: power +": [
    "C1-003",
    "C1-004"
   ],
   "stat change: power \u2212": [
-   "C1-014",
-   "C1-017"
+   "C1-009",
+   "C1-028"
   ],
   "static: cost reduction": [
-   "C1-035",
-   "C1-036"
+   "C1-037",
+   "C1-038"
   ],
   "static: health for all(\u2026)": [
-   "C1-031",
+   "C1-033",
    "C1-034"
   ],
   "static: health for this card": [
-   "C1-019",
-   "C1-020"
+   "C1-014",
+   "C1-015"
   ],
   "static: keyword for this card": [
-   "C1-016",
-   "C1-018"
+   "C1-018",
+   "C1-019"
   ],
   "static: power for all(\u2026)": [
-   "C1-032",
-   "C1-033"
+   "C1-035",
+   "C1-036"
   ],
   "static: power for this card": [
-   "C1-010",
-   "C1-011"
+   "C1-008",
+   "C1-010"
   ],
   "step: if": [
    "C1-001",
@@ -465,57 +463,54 @@
    "C1-029"
   ],
   "target: all(\u2026)": [
-   "C1-005",
-   "C1-008",
+   "C1-006",
+   "C1-009",
+   "C1-013",
+   "C1-022",
+   "C1-023",
    "C1-024",
-   "C1-026"
+   "C1-028"
   ],
   "target: an earlier choice": [
    "C1-001",
    "C1-002",
-   "C1-004",
-   "C1-009",
-   "C1-013",
-   "C1-014",
+   "C1-005",
+   "C1-007",
    "C1-017",
-   "C1-022",
-   "C1-023",
    "C1-025",
+   "C1-026",
    "C1-027",
-   "C1-028",
-   "C1-029"
+   "C1-029",
+   "C1-031",
+   "C1-032"
   ],
   "target: opponent": [
    "C1-004",
-   "C1-013",
-   "C1-037",
-   "C1-038",
-   "C1-039",
-   "C1-043"
+   "C1-005"
   ],
   "target: this card": [
    "C1-003",
-   "C1-007",
-   "C1-015"
+   "C1-004",
+   "C1-016"
   ],
   "target: you": [
    "C1-001",
    "C1-002",
    "C1-003",
-   "C1-005",
    "C1-006",
-   "C1-008",
    "C1-009",
+   "C1-011",
    "C1-012",
    "C1-017",
+   "C1-020",
    "C1-021",
-   "C1-022",
    "C1-023",
-   "C1-029",
    "C1-030",
+   "C1-039",
    "C1-040",
    "C1-041",
    "C1-042",
+   "C1-043",
    "C1-044",
    "C1-045",
    "C1-046",
@@ -524,52 +519,52 @@
    "C1-049"
   ],
   "trigger: action_played": [
-   "C1-015",
-   "C1-026"
+   "C1-040",
+   "C1-042"
   ],
   "trigger: ally_defeated": [
-   "C1-008",
-   "C1-014"
+   "C1-016",
+   "C1-020"
   ],
   "trigger: another_played": [
    "C1-043",
    "C1-044"
   ],
   "trigger: damaged": [
-   "C1-041",
-   "C1-042"
+   "C1-026",
+   "C1-041"
   ],
   "trigger: end_of_turn": [
-   "C1-022",
-   "C1-023"
+   "C1-028",
+   "C1-031"
   ],
   "trigger: on_attack": [
-   "C1-007",
-   "C1-039"
+   "C1-022",
+   "C1-032"
   ],
   "trigger: on_attack_hero": [
-   "C1-024",
-   "C1-038"
+   "C1-002",
+   "C1-023"
   ],
   "trigger: on_defeated": [
-   "C1-028",
-   "C1-040"
+   "C1-006",
+   "C1-027"
   ],
   "trigger: on_play": [
-   "C1-004",
+   "C1-007",
    "C1-012"
   ],
   "trigger: opposing_defeated": [
    "C1-030",
-   "C1-037"
+   "C1-039"
   ],
   "trigger: start_of_turn": [
-   "C1-002",
-   "C1-003"
+   "C1-003",
+   "C1-011"
   ],
   "trigger: token_summoned": [
-   "C1-006",
-   "C1-027"
+   "C1-004",
+   "C1-024"
   ]
  },
  "generator": "coverage",

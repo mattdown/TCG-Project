@@ -78,8 +78,9 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/agents/   random, heuristic, neural and search (within a turn) agents; match runner;
                 tactical puzzles (positions with a sure lethal)
   src/training/ PPO self-play (ppo.py), self-play worker processes (workers.py)
+  src/deck_search/ MAP-Elites over decks (map_elites.py): the archive of elite decks
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
-  scripts/      generate_cards, experiments, train, benchmark, server (run as `python -m scripts.<name>`)
+  scripts/      generate_cards, experiments, train, benchmark, map_elites, server (run as `python -m scripts.<name>`)
   cardsets/     generated card sets (JSON, one card per line)
   models/       trained checkpoints (gitignored); models/tcgnet.pt is the server's AI
   tests/        pytest
@@ -109,6 +110,8 @@ uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/held
     --models models/a.pt models/b.pt    # paired games; --search adds each model with search within a turn;
                                             # --mirror, --hide-aspects (ablations)
 uv run python -m scripts.puzzles --model models/a.pt   # does it find lethal? puzzles from its own games
+uv run python -m scripts.map_elites --cards cardsets/set_1000_g2.json   # deck search (heuristic agent, ~12 min);
+                                            # writes data/elites/<set>.json; --rescore ARCHIVE --agent MODEL
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client; the AI searches its turn (--no-search: raw policy)
 ```
 

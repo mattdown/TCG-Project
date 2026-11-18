@@ -222,6 +222,73 @@ Head to head, v6b scores 50.7% against v7g2 and 52.5% against v7g2_best on `held
 
 Log: `PythonServer/data/bench_v7g2_repriced.log`.
 
+## Deck search
+
+### MAP-Elites on `set_1000_g2` (2026-11-18, heuristic agent)
+
+`scripts.map_elites`: 20,000 evaluations, a 10 × 10 map over average cost and the share of damage
+dealt to the enemy hero (sliding boundaries every 100 evaluations), fitness the average
+hero-health difference against a field of random decks in both seats. The heuristic plays both
+sides. Every run filled all 100 cells.
+
+How well the elites do against a fresh field (16 other random decks, other seeds), where random
+decks average −1.3:
+
+| Run | Games | Time (8 workers) | Elites on the search field | On a fresh field | Correlation |
+|---|---|---|---|---|---|
+| 8 field decks, the same game seeds for every deck | 320,000 | 376 s | +27.7 | +18.2 | −0.09 |
+| 8 field decks, new seeds each evaluation | 320,000 | 403 s | +26.4 | +18.8 | 0.24 |
+| 16 field decks, new seeds each evaluation (default) | 640,000 | 689 s | +27.6 | **+22.0** | 0.38 |
+
+- **The elites are far stronger than random decks**, but overfit the field: a bigger field helps
+  most; fixed seeds let the search fit the deals. Search scores are also a maximum over noisy
+  evaluations, so they overstate the elites.
+- **v6b agrees they're strong:** re-scored with v6b playing both sides, the elites average +23.6.
+  But neither agent's order of the elites matches the other's (correlation 0.06): they're all
+  close, and the differences between elites are mostly noise.
+- **One core of underpriced cards:** 246 cards appear in any elite, but about a dozen are in 85–99
+  of the 100, mostly cheap removal and draw: 1-mana actions that deal 5–7 damage to a unit or
+  draw 3–4 cards, and 2-mana units that deal 3–5 damage to a random enemy unit. None are the
+  deliberately mis-costed cards (those are only in the vanilla and keyword sets); the rough costing
+  prices them too low.
+- **The map is narrow:** across the elites the hero-damage share is only 0.36–0.51 and the average
+  cost 2.4–3.9, since every elite plays the same core.
+- **Speed:** about 850–930 games a second with the heuristic (8 workers); the GNN 6.9 (8 workers,
+  not batched), so it can re-score an archive (3,200 games in 8 minutes) but not search.
+
+Archives: `PythonServer/data/elites/` (`set_1000_g2_before_groups.json` is the 16-deck run).
+
+### Group prices re-measured with v6b (2026-11-18, `set_1000_g2`)
+
+`experiments.py effects`: decks with 10 cards of a group against the same decks with them refunded
+(units) or swapped for vanilla units (actions), v6b on both sides, 300 games per point. The real
+deck's win rate at each scale of the price of the time:
+
+| Group | Cards | 0.5 | 1.0 | 1.5 | 2.5 | Fair |
+|---|---|---|---|---|---|---|
+| unit, deal_damage | 124 | 76.7% | 64.0% | 56.3% | 48.0% | 2.26 |
+| unit, discard | 16 | 77.3% | 66.7% | 63.7% | 44.7% | 2.22 |
+| unit, return_to_hand | 9 | 71.0% | 60.0% | 54.7% | 43.0% | 1.90 |
+| action, deal_damage | 111 | 84.7% | 64.0% | 50.0% | 38.7% | 1.50 |
+| action, summon | 66 | 68.0% | 34.7% | 26.3% | 31.3% | 0.77 |
+| action, draw | 30 | 62.3% | 31.0% | 25.0% | 14.7% | 0.70 |
+| action, buff | 16 | 53.3% | 39.0% | 29.0% | 23.0% | 0.62 |
+| unit, damage_hero | 27 | 50.0% | 38.0% | 38.0% | 27.7% | 0.50 |
+| unit, buff | 27 | 57.7% | 49.7% | 48.7% | 44.0% | 0.98 |
+| unit, draw / summon / gain_crystal / heal_hero | 48 / 54 / 14 / 47 | 63–68% | 56–67% | 55–65% | 55–62% | — |
+| unit, grant_keyword / modify_stat / remove_damage / statics | 11–32 | 44–53%, flat | | | | — |
+
+- **Removal was priced for a weak agent:** damage is worth 1.5× (actions) to 2.3× (units) the
+  price measured with v3. `GROUP_SCALE` now multiplies each crossing group's scale by its fair
+  value, and the `_g2` and coverage sets were regenerated.
+- **Action draw disagrees:** in average decks it loses to vanilla units (fair 0.7), but the elites
+  use it twice as often as random decks. It keeps its price: the first group where average decks
+  and the best decks point opposite ways.
+- **Units whose abilities are nearly free** (draw, summon, gain_crystal, heal_hero: group scales
+  0.15–0.35) still win 55–68% even at 2.5×: their prices are too small to move a unit's stats.
+
+Log: `PythonServer/data/effects_v6b_g2.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
