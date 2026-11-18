@@ -18,10 +18,8 @@ art and a GNN overlay. Blog part 1 is published.
   it's compute: more threads, MPS and bigger minibatches don't help. Options: a CUDA GPU, a
   smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
   the model is the bottleneck.
-- [ ] **P2, after the first batch:** fine-tune on `set_1000_g2` (the new triggers, counts, "played
-  this turn" and random targets; v6b has never seen their features) and judge on `heldout_200_g2`
-  and `armor_heavy_g2`. Then measure the new triggers' fire rates (`experiments.py fire`) to
-  replace their guessed use rates in `costing.py`.
+- [ ] **P2, after the first batch:** measure the new triggers' fire rates (`experiments.py fire`,
+  with v7g2, the fine-tune on `set_1000_g2`) to replace their guessed use rates in `costing.py`.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
   frozen agent (the cost model) → MAP-Elites deck search (move `map_elites()` from `Blog/` into
   PythonServer) → a fixed benchmark. The cost model work below is part of it.

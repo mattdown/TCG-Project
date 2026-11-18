@@ -151,6 +151,26 @@ targets it has never seen (their features load with zero weights): 73.2% on `hel
 69.8% on `armor_heavy_g2`, against 80.5% and 74.8% on the old sets. So it still plays, but loses
 6–7 points on the richer cards: a fine-tune on `set_1000_g2` is the next step.
 
+### v7g2: v6b fine-tuned on `set_1000_g2` (2026-11-18, 400 paired games, seed 0)
+
+300 iterations from v6b on `set_1000_g2` (seed 2, 4 workers, about 65 minutes). Win rate against
+the heuristic:
+
+| Model | `heldout_200_g2` | `armor_heavy_g2` |
+|---|---|---|
+| v6b | 73.2% | 69.8% |
+| v7g2 (final) | 76.5% | 73.8% |
+| v7g2_best (iteration 50) | 76.8% | 75.0% |
+
+- **It wins back about half the drop** (3–5 points of the 6–7), each gain just above the noise.
+- **Head to head it isn't clearly stronger:** v6b scores 51.0% and 49.0% against the two v7g2
+  checkpoints on `heldout_200_g2`, 47.5% against both on `armor_heavy_g2`; final against best is
+  49.2% and 47.8%. All within the noise.
+- The 100-game evals were flat from iteration 50 on (73–80%), so most of the gain came early:
+  the zero-weight features for the new constructs learn quickly, then it plateaus as v6b did.
+
+Logs: `PythonServer/data/train_v7g2.log`, `bench_v7g2.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
