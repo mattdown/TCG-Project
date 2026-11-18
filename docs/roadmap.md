@@ -68,8 +68,6 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 - [ ] Fits the cost curve: reject cards worth more than the top cost can pay for.
 - [ ] Job reachability: keep job conditions that a deck from the set can meet.
 - [ ] More varied "you may" costs (only 4 kinds, so they repeat).
-- [ ] Health buffs that last through the opponent's turn (a "this turn" health buff at the start
-  of your turn does nothing).
 - [ ] Later: automate the group-price loop (measure → partial update → regenerate → fine-tune).
 
 ## Engine and graph
