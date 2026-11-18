@@ -18,8 +18,9 @@ art and a GNN overlay. Blog part 1 is published.
   it's compute: more threads, MPS and bigger minibatches don't help. Options: a CUDA GPU, a
   smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
   the model is the bottleneck.
-- [ ] **P2, after the first batch:** measure the new triggers' fire rates (`experiments.py fire`,
-  with v7g2, the fine-tune on `set_1000_g2`) to replace their guessed use rates in `costing.py`.
+- [ ] **P2, after the repricing:** the `_g2` sets were regenerated with measured use rates
+  (2026-11-18), so v7g2 was trained on the earlier prices. Re-benchmark it on the new sets, and
+  fine-tune again if it drops.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
   frozen agent (the cost model) → MAP-Elites deck search (move `map_elites()` from `Blog/` into
   PythonServer) → a fixed benchmark. The cost model work below is part of it.
@@ -60,7 +61,7 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 - [ ] **Second grammar batch:** interacting with abilities and making cards (ability-generation.md,
   "What's missing" 8 and 9), and what's left of 2, 3, 5 and 10 (split damage that can hit the
   hero, a draw trigger).
-- [ ] Split damage is rare (5 in `set_1000_g2`): the variety stage keeps few of one shape. Raise
+- [ ] Split damage is rare (7 in `set_1000_g2`): the variety stage keeps few of one shape. Raise
   its weight if deck search needs more of it.
 
 - [ ] Keyword equivalence: write keywords in the DSL; an ability that compiles to a keyword becomes

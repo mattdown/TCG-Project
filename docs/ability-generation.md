@@ -138,7 +138,7 @@ ability twice.
 
 The grammar in technical-plan.md section 3 is the full design space. The generator covers only
 part of it, and the engine runs a little more than the generator makes. Counts are from
-`cardsets/set_200.json` (139 of its 200 cards have an ability), or `set_1000_g2` (723 of 1,000,
+`cardsets/set_200.json` (139 of its 200 cards have an ability), or `set_1000_g2` (716 of 1,000,
 the grammar since P2's first batch) where marked.
 
 **Generated now:**
@@ -146,7 +146,7 @@ the grammar since P2's first batch) where marked.
 - **Kinds:** triggered (12 triggers: when played, when it attacks, when it attacks the enemy hero,
   when it's defeated, start and end of your turn, when you play another unit of a job, when an
   enemy unit is defeated, and since P2: when another of your units (of a job) is defeated, when
-  this unit takes damage and survives, when you play an action, when you summon a token; 81 of
+  this unit takes damage and survives, when you play an action, when you summon a token; 79 of
   the newer ones in `set_1000_g2`), static, and on-resolve for actions. One ability per card.
 - **Effects (14):** deal damage, remove damage, defeat, return to hand, freeze, a "this turn"
   **power** bonus or penalty (never health: health only changes for good, through buffs), a
@@ -159,8 +159,8 @@ the grammar since P2's first batch) where marked.
   with a count, up to a cap of 3–5: units of a job (yours or everyone's), damaged units, your
   units with a keyword, cards in your hand, or cards you played this turn. A static "while
   attacking" bonus can scale with units of a job: "+1 power for each other Miner you control".
-  Health never scales with damaged units. 16 in `set_200`; in `set_1000_g2`, 17 count damaged
-  units, 19 a keyword, 8 your hand and 26 buffs or power bonuses scale.
+  Health never scales with damaged units. 16 in `set_200`; in `set_1000_g2`, 22 count damaged
+  units, 24 a keyword, 8 your hand and 22 buffs or power bonuses scale.
 - **Conditions:** "if you have 2 or 3 other units of a job", "if you've played 2 or 3 other cards
   this turn" (45 abilities mention cards played this turn in `set_1000_g2`), "if your hero has
   less health", "if it was defeated", and for statics "while attacking / defending / damaged".
@@ -169,7 +169,7 @@ the grammar since P2's first batch) where marked.
   damaged enemy units.
 - **Targets:** a chosen unit, a **random** unit (94 in `set_1000_g2`), all units matching a filter,
   this unit, you or your opponent, and **damage split at random** among enemy units ("deal 4
-  damage split at random among enemy units": a `repeat` of a random choice and 1 damage; 5 in
+  damage split at random among enemy units": a `repeat` of a random choice and 1 damage; 7 in
   `set_1000_g2`, since the variety stage keeps few of one shape). Filters: whose, a job (your
   side only), damaged, cost at most 2–4. Random choices are made by the engine's random numbers,
   never a player; previews stop at them, so neither the network nor the client sees how they'll
@@ -455,3 +455,10 @@ for checking the engine and client. It uses the same pipeline.
     old ones); the old sets stay for comparisons. The coverage set was regenerated.
   - The card lab, generation visualiser and design loop keep `set_200`'s cards (the ones with
     painted art) from a snapshot of their draws made with the grammar of the time.
+- **2026-11-18, measured use rates.** `experiments.py fire` with tcgnet_v7g2 on `set_1000_g2`
+  (results.md): every trigger's use rate in `costing.TRIGGER_USES` is now the measured one. The
+  four new guesses were all too high (`damaged` 0.8 → 0.43, `token_summoned` 0.5 → 0.32), and
+  so were most of the 2026-10-22 rates (start of turn 1.1 → 0.64, end of turn 2.0 → 1.31); only
+  an enemy unit being defeated went up (1.0 → 1.26). The `_g2` and coverage sets were
+  regenerated with the same seeds; the new prices change which draws are kept, so most cards
+  differ. The fire check's narrowing test no longer mistakes the `damaged` trigger for a filter.

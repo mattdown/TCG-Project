@@ -17,7 +17,7 @@ games it's about ±4–5, so single 100-game evals can't separate checkpoints.
 | `set_200` | The first 200 cards of `set_1000` (same seed), so **not** unseen by models trained on `set_1000` |
 | `heldout_200` | 200 cards from seed 7: never trained on. The fair test of unseen cards |
 | `armor_heavy` | 276 cards from seed 8 with plenty of Armor, which the agent used to play badly |
-| `set_1000_g2`, `heldout_200_g2`, `armor_heavy_g2` | The same seeds and recipes with P2's first grammar batch (2026-11-17): new triggers, counts, "played this turn", random targets (`armor_heavy_g2` has 228 cards) |
+| `set_1000_g2`, `heldout_200_g2`, `armor_heavy_g2` | The same seeds and recipes with P2's first grammar batch (2026-11-17): new triggers, counts, "played this turn", random targets. Regenerated 2026-11-18 with measured trigger use rates (`armor_heavy_g2` has 220 cards; 228 before); numbers dated 2026-11-17 and v7g2's are on the first version |
 | `keywords_200`, `vanilla_200`, `coverage` | Older and special-purpose sets |
 
 Before 2026-11-15 the docs and blog part 1 called `set_200` "unseen". It isn't: v4's "69% on
@@ -170,6 +170,37 @@ the heuristic:
   the zero-weight features for the new constructs learn quickly, then it plateaus as v6b did.
 
 Logs: `PythonServer/data/train_v7g2.log`, `bench_v7g2.log`.
+
+### Fire rates on P2's grammar (2026-11-18, v7g2, `set_1000_g2`, 800 games)
+
+`experiments.py fire`: hits per card played, relative to an un-narrowed "when played" unit (1.20
+hits a play), next to `costing.TRIGGER_USES`. Narrowed rows are relative to narrowed "when played"
+(0.88).
+
+| Trigger | Measured | Narrowed | In `TRIGGER_USES` |
+|---|---|---|---|
+| ally_defeated | 0.87 (103 played) | 0.43 | 1.0 (guess) |
+| damaged | 0.43 | 0.31 | 0.8 (guess) |
+| action_played | 0.51 | 0.48 | 0.6 (guess) |
+| token_summoned | 0.32 | 0.28 | 0.5 (guess) |
+| on_defeated | 0.77 | 0.53 | 0.85 |
+| on_attack | 0.79 | 0.49 | 1.2 |
+| on_attack_hero | 0.43 | 0.24 | 0.7 |
+| start_of_turn | 0.64 | 0.63 | 1.1 |
+| end_of_turn | 1.31 | 1.65 | 2.0 |
+| opposing_defeated | 1.26 | 0.70 | 1.0 |
+| another_played | — | 0.24 | 0.8 |
+
+- All four guesses were too high, `damaged` and `token_summoned` most (about 0.5× and 0.6×).
+- The 2026-10-22 rates (league model, `set_200`) are mostly too high now as well: attacks, start
+  and end of turn are about 0.6–0.65× of the table; only `opposing_defeated` is higher.
+- Narrowing costs less than `NARROW_FACTOR` (0.5) assumes for most triggers: narrowed "when
+  played" is 0.73× un-narrowed.
+
+`costing.TRIGGER_USES` now uses all of the un-narrowed rates (`another_played` 0.24 / 0.73 =
+0.33), and the `_g2` sets were regenerated with them; `NARROW_FACTOR` stays 0.5.
+
+Log: `PythonServer/data/fire_v7g2.log`.
 
 ## Training findings
 

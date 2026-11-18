@@ -21,13 +21,13 @@ BUFF_VALUE = 1.0  # per lasting point: a unit's own stats are one point each
 ALL_TARGETS = 2.0  # hitting everything that matches, instead of one chosen card
 REMOVE_ALL_DAMAGE = 3  # treated as removing this much
 
-# How often an ability gets used per card played, relative to "when played". Measured in self-play
-# (`scripts/experiments.py fire`, 2026-10-22, league model): most triggers fire far less often than
-# first guessed (start of turn was 2.5, attacking the hero 1.5).
-TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.85, "on_attack_hero": 0.7, "on_attack": 1.2, "start_of_turn": 1.1,
-                "end_of_turn": 2.0, "another_played": 0.8, "opposing_defeated": 1.0,
-                # Guesses (2026-11-17), not yet measured with `experiments.py fire`.
-                "ally_defeated": 1.0, "damaged": 0.8, "action_played": 0.6, "token_summoned": 0.5}
+# How often an ability gets used per card played, relative to "when played": hits per card played
+# in self-play (`scripts/experiments.py fire`, 2026-11-18, tcgnet_v7g2 on set_1000_g2). The
+# 2026-10-22 rates (league model, set_200) were mostly higher; "another played" was only measured
+# narrowed (its rate here is that divided by narrowed "when played", 0.73).
+TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.77, "on_attack_hero": 0.43, "on_attack": 0.79,
+                "start_of_turn": 0.64, "end_of_turn": 1.31, "another_played": 0.33, "opposing_defeated": 1.26,
+                "ally_defeated": 0.87, "damaged": 0.43, "action_played": 0.51, "token_summoned": 0.32}
 NARROW_FACTOR = 0.5  # per condition or restriction (quality.narrowing): each about halved the hits measured
 IF_FACTOR = 0.5  # "if it was defeated, …"
 RANDOM_TARGET = 0.65  # a random target instead of a chosen one: you can't pick the best (a guess)

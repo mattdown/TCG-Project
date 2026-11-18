@@ -180,7 +180,7 @@ def ability_job(cards: Path, agent_spec: str, variant: str, pairs: int, seed: in
             "changed": changed / len(card_set.cards), "scale": scale}
 
 
-NARROW = ('"damaged"', '"cost_max"', '"trait"', '"per"')
+NARROW = ('"damaged": true', '"cost_max"', '"trait"', '"per"')
 
 
 def fire_group(card: Card) -> str | None:

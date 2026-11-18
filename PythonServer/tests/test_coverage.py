@@ -37,6 +37,6 @@ def test_ability_values_are_positive_and_scale():
         return {"kind": "on_resolve", "steps": [{"effect": "draw", "target": "you", "amount": n}]}
 
     assert ability_value(draw(2)) == 2 * ability_value(draw(1))
-    repeatable = {"kind": "triggered", "trigger": {"event": "start_of_turn"}, "condition": None,
+    repeatable = {"kind": "triggered", "trigger": {"event": "end_of_turn"}, "condition": None,
                   "steps": draw(1)["steps"]}
     assert ability_value(repeatable) > ability_value(draw(1))
