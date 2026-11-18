@@ -366,6 +366,51 @@ that deal 5–6 damage to a unit, Guard units and hero healing.
 
 Archive: `PythonServer/data/elites/set_1000_g2.json`; log `rerun_after_features.log`.
 
+### MAP-Elites on the class set, `set_1000_c` (2026-11-18, heuristic agent)
+
+**Cost and hero-damage axes, one shared map** (20,000 evaluations): Bog took all 100 cells. Its
+top 10% of decks averaged +24.2 against the field, the other classes +11 to +16. The measures
+already split the classes as their styles predict: Meadow and Glow dealt the most damage to the
+hero in the shortest games (hero share 0.49 / 0.47, 14.7 / 15.4 turns), Bog the least in the
+longest (0.38, 18.3 turns, the most actions).
+
+**The ring map, one shared map** (30,000 evaluations, 960,000 games in 895 s): all 96 cells filled
+(mean elite +25.0), but by two classes. Ember took the half of the ring from fortress/control
+round through spells to aggro (51 elites, mean angle 289°), Moss the half from aggro/swarm to
+fortress (42 elites, 109°); Bog kept 2 cells, Glow 1, Meadow and Frost none.
+
+- Each class's elites sit on its side of the ring (Ember near spells/aggro, Moss near
+  swarm/growth), so the angle does track play style.
+- The elites' fitness is within a couple of points everywhere (+24.6 to +25.5 by class), so the
+  takeover is a founder effect more than a strength gap: a mutation can't change a deck's class,
+  so the classes that did well among the first random decks colonise the map and the others
+  never get cells to improve in. A shared map can't compare classes; an archive per class can.
+
+Archives: `PythonServer/data/elites/set_1000_c_shared.json` (cost and hero share),
+`set_1000_c_ring_shared.json` (ring).
+
+**The ring map, an archive per class** (`--per-class`, 30,000 evaluations, 1,149 s): 556 of 576
+cells (96%); every class reaches every sector (with its neutrals). Each class's top 10 elites:
+
+| Class | Own styles | Top-10 mean | Their mean angle | Its best sectors |
+|---|---|---|---|---|
+| Moss | growth, fortress (120–180°) | +23.2 | 117° | growth +25.4, fortress +25.1 |
+| Frost | fortress, control (180–240°) | +23.0 | 288° | control +24.8, spells/aggro +23.8 |
+| Glow | aggro, swarm (0–60°) | +22.5 | 63° | aggro/swarm +23.7, swarm +23.6 |
+| Bog | control, spells (240–300°) | +21.8 | 272° | fort/control +22.8, spells/aggro +22.7 |
+| Meadow | swarm, growth (60–120°) | +21.0 | 69° | aggro/swarm +22.5, swarm +21.8 |
+| Ember | spells, aggro (300–360°) | +20.0 | **206°** | fort/control +20.6, growth/fort +20.5 |
+
+- **Most classes win in their own styles:** Moss, Glow, Bog and Meadow's best decks sit in or next
+  to their sectors, and Frost's best is control.
+- **Ember doesn't:** its best decks are on the far side of the ring, using its burn as removal
+  behind neutral Guard units, and it's the weakest class. Its aggro plan isn't paying off (the
+  heuristic may play aggro badly, or Ember's hero damage is too weak for its price).
+- **Class balance:** the top-10 means span 3.2 points (Moss +23.2 to Ember +20.0); by mean elite
+  over all cells Meadow is lowest (+14.5, the others +17.7 to +19.9).
+
+Archive: `set_1000_c_per_class.json`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
