@@ -32,10 +32,19 @@ ones in [client-design.md](client-design.md).
 | `aspect_6` | **Frost** | `#22BCC9` | snowcaps of the winter woods: ice, pine needles, frost |
 
 **Neutral cards** have no habitat (shown in grey, `#8A93AD`): any deck can use them. Vanilla and
-keyword-only units are neutral. What each habitat is *good at* isn't decided yet. It will be
-designed as a generation vector per habitat: weights that tilt what the generator makes, with a
-few things a habitat never does (docs/stage-2-research-plan.md, 4G). Letting identities emerge
-from clustering the generated cards is left for later. For now ability cards get a habitat at random.
+keyword-only units are neutral. In sets generated with classes, each habitat is a class made
+of two neighbouring play styles on a ring (docs/stage-2-research-plan.md, 4G):
+
+| Habitat | Styles | The deck it makes | Never |
+|---|---|---|---|
+| Glow | Aggro + Swarm | firefly swarms: cheap units and tokens, Charge, going for the hero | healing, removal |
+| Meadow | Swarm + Growth | harvest: go wide with tokens and jobs, then pump with lords and buffs | removal, draw, spells' tricks |
+| Moss | Growth + Fortress | old growth: ramp into big Guard and Armor bodies that heal | hero damage, Charge, draw |
+| Frost | Fortress + Control | freeze, removal, Armor and healing; win late | tokens, Charge, hero damage |
+| Bog | Control + Spells | removal and bounce spells, discard, card draw | tokens, buffs, ramp |
+| Ember | Spells + Aggro | burn: damage spells, Charge, hits to the hero | healing, Guard, Armor, buffs |
+
+Older sets (`_g2` and before) give ability cards a habitat at random.
 
 ## Jobs (traits)
 

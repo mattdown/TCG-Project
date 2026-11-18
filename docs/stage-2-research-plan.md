@@ -73,7 +73,13 @@ generation, so it needs a cheap evaluator (D).
 first results in results.md):
 - **Fitness:** the hero health difference summed over a deck's games against a fixed field, not
   the win rate, so the margin counts and the signal is smoother.
-- **Behaviour descriptors:** the paper's are deck statistics known before any game (mean and
+- **Behaviour descriptors (built 2026-11-18: the ring map):** one measure per play style from the
+  games (hero-damage share, board width, stat bonuses and crystals, healing and damage to your
+  Guard units, enemy units removed by abilities, actions and cards drawn), each in standard
+  deviations from the first random decks, summed as vectors 60 degrees apart in the ring's order:
+  the angle is the play style, the radius how strongly a deck leans to it. Cells are 12 fixed
+  sectors times 8 sliding radius bands. The paper's descriptors are deck statistics known before
+  any game (mean and
   variance of cost). Keep mean cost for comparison, and add at least one measured from play
   (share of damage to the hero rather than units, game length, board width), so the archive
   maps play-styles, not mana curves.
@@ -185,6 +191,22 @@ Aspects become classes by changing what the generator makes, not what cards cost
 - **Set-level checks:** quotas (or over-generate and select) so each class hits its targets, and
   enough enablers for every payoff. Measure the distribution that comes out (the derivation
   traces), not the input weights: the validator's rejections skew it.
+
+**Built (2026-11-18): a ring of play styles.** Six play styles on a ring, Aggro - Swarm - Growth - Fortress - Control - Spells, and each class
+takes two neighbouring styles: Glow {Aggro, Swarm}, Meadow {Swarm, Growth}, Moss {Growth,
+Fortress}, Frost {Fortress, Control}, Bog {Control, Spells}, Ember {Spells, Aggro}.
+Neighbouring classes share a style and opposite classes share none, so a class's weaknesses
+come from the structure: it never makes the signatures (offset ×4) of its two opposite styles
+(hard zeros), and the signatures of the two styles next to its own are damped (×0.5), so the
+grammar's heaviest generic options (damage, draw) don't drown its identity. A class card takes
+one of its styles (40% each) or both (20%, bridge cards, where its synergy lives); actions are a
+style-dependent share (Spells 60% down to Growth and Fortress 20%). Themes became the styles.
+Neutrals are 30% of the set, units only: 70% vanilla (keywords allowed), the rest a single style's
+ability with a one-stat-point tax (half a mana), a weaker version of a class card. The offsets,
+ring and rules are data in `src/cards/classes.py`; the tracer applies them to the sampler's
+labelled choices, and a class check throws away anything a forced grammar path still reaches.
+The variety stage only compares draws in the same price group in class mode, so it evens out
+shapes without undoing a class's mix of effects.
 
 ### H. A play-style space
 

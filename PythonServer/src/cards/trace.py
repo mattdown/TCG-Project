@@ -13,7 +13,17 @@ from contextlib import contextmanager
 class Tracer:
     def __init__(self, rng: random.Random):
         self.rng = rng
+        self.tilt: dict[str, dict] = {}  # label -> option -> weight multiplier (a class's style, src/cards/classes.py)
         self.reset()
+
+    def _tilted(self, label: str, options: dict) -> dict:
+        """The options' weights times the tilt for this label. If the tilt closes every open option,
+        the untilted weights are used (the class check then throws the card away)."""
+        factors = self.tilt.get(label)
+        if not factors:
+            return options
+        tilted = {o: w * factors.get(o, 1.0) for o, w in options.items()}
+        return tilted if any(tilted.values()) else options
 
     def reset(self):
         self.root = {"section": "card", "children": []}
@@ -38,6 +48,7 @@ class Tracer:
 
     def weighted(self, label: str, options: dict, note: str = ""):
         """Options with weight 0 are shown as closed at this point but can't be chosen."""
+        options = self._tilted(label, options)
         open_ = {o: w for o, w in options.items() if w}
         chosen = self.rng.choices(list(open_), list(open_.values()))[0]
         self.record(label, list(options.items()), chosen, note)
@@ -50,6 +61,8 @@ class Tracer:
 
     def choice(self, label: str, seq, note: str = ""):
         seq = list(seq)
+        if label in self.tilt and all(isinstance(o, (str, int)) for o in seq):
+            return self.weighted(label, {o: 1 for o in seq}, note)
         chosen = self.rng.choice(seq)
         self.record(label, [(o, 1) for o in seq], chosen, note)
         return chosen
@@ -63,6 +76,8 @@ class Tracer:
         return chosen
 
     def randint(self, label: str, lo: int, hi: int, note: str = "") -> int:
+        if label in self.tilt:
+            return self.weighted(label, {v: 1 for v in range(lo, hi + 1)}, note)
         chosen = self.rng.randint(lo, hi)
         self.record(label, [(v, 1) for v in range(lo, hi + 1)], chosen, note)
         return chosen

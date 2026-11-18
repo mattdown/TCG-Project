@@ -12,8 +12,9 @@ import random
 from collections import Counter
 from dataclasses import dataclass, field, replace
 
+from src.cards import classes as cls
 from src.cards.abilities import AbilitySampler, render, validate
-from src.cards.costing import price, round_points
+from src.cards.costing import price, price_group, round_points
 from src.cards.names import Namer
 from src.cards.quality import ACTION_COMPLEXITY, MAX_COMPLEXITY, complexity, quality_problems, skeleton
 from src.cards.schema import Card, CardSet
@@ -69,7 +70,7 @@ class CardGenerator:
 
     def __init__(self, rng: random.Random, jobs: tuple[str, ...] = JOBS, action_share: float = 0.25,
                  variety: int = 1, max_complexity: int = MAX_COMPLEXITY, vanilla_share: float = 0.0,
-                 keyword_share: float = 0.0, neutral_share: float = 0.1):
+                 keyword_share: float = 0.0, neutral_share: float = 0.1, classes: bool = False):
         self.rng = rng
         self.jobs = jobs
         self.shares = {"vanilla": vanilla_share, "keywords": keyword_share, "action": action_share,
@@ -77,6 +78,9 @@ class CardGenerator:
         if self.shares["unit"] < 0:
             raise ValueError("the shares of vanilla, keyword-only and action cards add up to more than 1")
         self.neutral_share = neutral_share
+        self.classes = classes  # aspects as classes (src/cards/classes.py); the shares above are then unused
+        self.current: tuple[tuple[str, ...], tuple[str, ...]] = ((), ())  # the card's aspect and styles
+        self.class_counts = Counter({a: 0 for a in cls.CLASSES})
         self.variety = variety
         self.max_complexity = max_complexity
         self.sampler = AbilitySampler(rng, traits=jobs)
@@ -94,6 +98,10 @@ class CardGenerator:
         kind = kind or self.rng.choices(list(self.shares), list(self.shares.values()))[0]
         card_type = "action" if kind == "action" else "unit"
         self._record_kind(kind, card_type, note)
+        if self.classes:
+            aspect, styles = self.current
+            t.fixed("Class", (aspect[0] if aspect else "neutral") + (f" ({' + '.join(styles)})" if styles else ""),
+                    "decided once per card, before its kind")
         if kind in PLAIN:
             a = Attempt(self._next, card_type, None, "", 0, 0.0, kind)
             self._register(a)
@@ -153,6 +161,8 @@ class CardGenerator:
 
     def card(self, kind: str | None = None) -> Attempt:
         """The next kept card (after the duplicate or variety stage)."""
+        if self.classes and kind is None:
+            kind = self._pick_class()
         kind = kind or self.rng.choices(list(self.shares), list(self.shares.values()))[0]
         if kind in PLAIN:
             best = self.good(kind, limit=MAX_DUPLICATES)
@@ -161,7 +171,11 @@ class CardGenerator:
             self.identities.add(identity(best.card))
         else:
             options = [self.good(kind) for _ in range(self.variety)]
-            best = min(options, key=lambda a: self.shapes[skeleton(a.ability, abstract_traits=True)])
+            pool = options
+            if self.classes:  # even out shapes within the first draw's group, so a class keeps its mix of effects
+                first = price_group(options[0].ability, options[0].card_type)
+                pool = [a for a in options if price_group(a.ability, a.card_type) == first]
+            best = min(pool, key=lambda a: self.shapes[skeleton(a.ability, abstract_traits=True)])
             for a in options:
                 if a is not best:
                     a.stopped_at, a.problems = "variety", ["kept a draw whose shape had been used less instead"]
@@ -169,8 +183,31 @@ class CardGenerator:
         self.namer.reserve(best.card)
         return best
 
+    def _pick_class(self) -> str:
+        """Class mode: neutral (NEUTRAL_SHARE) or the class with fewest cards so far; then the card's
+        kind and styles, and the sampler's tilt for them. Returns the kind."""
+        rng, t = self.rng, self.sampler.trace
+        if rng.random() < cls.NEUTRAL_SHARE:
+            if rng.random() < cls.NEUTRAL_PLAIN:
+                self.current, t.tilt = ((), ()), {}
+                return "vanilla" if rng.random() < cls.PLAIN_VANILLA else "keywords"
+            style = rng.choice(cls.STYLES)
+            self.current, t.tilt = ((), (style,)), cls.tilt((style,))
+            return "unit"
+        fewest = min(self.class_counts.values())
+        aspect = rng.choice(sorted(a for a, n in self.class_counts.items() if n == fewest))
+        self.class_counts[aspect] += 1
+        a, b = cls.CLASSES[aspect]
+        r = rng.random()
+        styles = (a, b) if r < cls.BRIDGE else (a,) if r < (1 + cls.BRIDGE) / 2 else (b,)
+        self.current, t.tilt = ((aspect,), styles), cls.tilt(styles, aspect)
+        share = sum(cls.ACTION_SHARE[s] for s in styles) / len(styles)
+        return "action" if rng.random() < share else "unit"
+
     def _aspect(self) -> tuple[str, ...]:
         t = self.sampler.trace
+        if self.classes:
+            return self.current[0]
         if t.chance("Neutral?", self.neutral_share, "any deck can use a neutral card"):
             return ()
         return (t.choice("Aspect", ASPECTS, "at random: aspects have no identity yet"),)
@@ -214,7 +251,9 @@ class CardGenerator:
                 raise ValueError(f"gen-{index}: worth less than 1 mana (price {value:g}): too weak to be a card")
             cost = round_points(value / 2)
             t.fixed("Cost", cost, f"half the ability's price ({value:g}), to the nearest")
-            return Card(f"gen-{index}", name, "action", aspect, cost, 0, 0, abilities=(ability,)), None
+            card = Card(f"gen-{index}", name, "action", aspect, cost, 0, 0, abilities=(ability,))
+            self._check_class(index, card)
+            return card, None
 
         name, job, subtitle = self._name(ability, job=self.sampler.own_job)
         archetype = t.choice("Archetype", list(ARCHETYPES))
@@ -223,7 +262,10 @@ class CardGenerator:
             keyword = t.weighted("Keyword", ARCHETYPE_KEYWORDS[archetype], f"weighted for a {archetype}")
             lo, hi = KEYWORD_RANGE.get(keyword, (1, 1))
             keywords[keyword] = t.randint("Keyword value", lo, hi)
-        spend = round_points(value) + keyword_value(keywords)
+        tax = cls.NEUTRAL_TAX if self.classes and not aspect else 0
+        spend = round_points(value) + keyword_value(keywords) + tax
+        if tax:
+            t.fixed("Neutral tax", f"{tax} stat point", "a neutral ability unit is a weaker version of a class card")
         cost = t.randint("Starting cost", 1, 5)
         start = cost
         while stat_budget(cost) - spend < MIN_STATS_VALUE and cost < 10:
@@ -235,20 +277,26 @@ class CardGenerator:
         t.fixed("Stats", f"{stats['power']} power, {stats['health']} health",
                 f"stat budget {stat_budget(cost)} for cost {cost}, minus {spend} for the ability and "
                 f"keywords, spread at random with {archetype} weights")
-        return Card(f"gen-{index}", name, "unit", aspect, cost, **stats, traits=(job,),
-                    keywords=tuple(sorted(keywords.items())), abilities=(ability,), subtitle=subtitle), archetype
+        card = Card(f"gen-{index}", name, "unit", aspect, cost, **stats, traits=(job,),
+                    keywords=tuple(sorted(keywords.items())), abilities=(ability,), subtitle=subtitle)
+        self._check_class(index, card)
+        return card, archetype
+
+    def _check_class(self, index: int, card: Card):
+        if self.classes and card.aspects and (problems := cls.class_problems(card, card.aspects[0])):
+            raise ValueError(f"gen-{index}: " + "; ".join(problems))
 
 
 def generate_card_set(count: int, seed: int = 0, jobs: int = 6, action_share: float = 0.25,
                       vanilla_share: float = 0.04, keyword_share: float = 0.25, variety: int = 4,
-                      prefix: str = "S1") -> CardSet:
+                      prefix: str = "S1", classes: bool = False) -> CardSet:
     """`count` cards through the whole pipeline: vanilla, keyword-only, and ability units and
     actions in the given shares. As in the coverage set, abilities only refer to `jobs` jobs and
     the units use the same jobs, so job conditions can be met."""
     rng = random.Random(seed)
     job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
     generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety,
-                              vanilla_share=vanilla_share, keyword_share=keyword_share)
+                              vanilla_share=vanilla_share, keyword_share=keyword_share, classes=classes)
     kept = [generator.card() for _ in range(count)]
     cards = [replace(a.card, id=f"{prefix}-{n + 1:03d}") for n, a in enumerate(kept)]
     stopped = Counter(a.stopped_at for a in generator.attempts if a.stopped_at)
@@ -256,4 +304,7 @@ def generate_card_set(count: int, seed: int = 0, jobs: int = 6, action_share: fl
              "shares": {"vanilla": vanilla_share, "keywords": keyword_share, "action": action_share},
              "kinds": dict(Counter(a.kind for a in kept)), "variety": variety, "draws": len(generator.attempts),
              "stopped_at": dict(stopped), "costing": "ability prices from src/cards/costing.py (price)"}
+    if classes:
+        notes["classes"] = {a: list(s) for a, s in cls.CLASSES.items()}
+        notes["shares"] = {"neutral": cls.NEUTRAL_SHARE, "neutral plain": cls.NEUTRAL_PLAIN, "bridge": cls.BRIDGE}
     return CardSet(f"set_{count}", cards, notes)

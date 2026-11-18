@@ -63,9 +63,10 @@ module (`src/game/terms.py`), so a rename is a single change.
 
 ## 2. Rules scope (v2)
 
-- **Players and decks.** Two players, 30-card decks (up to 2 copies of a card). Planned: one
-  aspect's cards plus neutral cards, the hero taking the deck's aspect. For now aspects are only
-  colours and decks draw from the whole set (`ONE_ASPECT` in `src/game/decks.py`). Each deck
+- **Players and decks.** Two players, 30-card decks (up to 2 copies of a card). With a class
+  set, a deck is one aspect's cards plus neutral cards, the hero taking the deck's aspect; older
+  sets' aspects are only colours and their decks draw from the whole set (`one_aspect` in
+  `src/game/decks.py`, automatic by set). Each deck
   focuses on two jobs: 70% of its units have one of them (`FOCUS_JOBS`, `FOCUS_SHARE`), so job
   synergies come up; actions are drawn as often as without the focus.
   Each player has a hero with 30 health. A hero at 0 health loses; if both reach 0 at once,
@@ -111,9 +112,11 @@ module (`src/game/terms.py`), so a rename is a single change.
 jobs are tribes that cross aspects (the synergies abilities refer to). Vanilla and keyword-only
 units are neutral. Aspect identity is designed (decided 2026-11-15): each aspect gets a
 generation vector, a shared base grammar plus sparse per-aspect weight offsets, so the
-generator makes different kinds of cards for each (stage-2 research plan, 4G). Clustering the
-cards by what they do, so identities emerge instead, is left for later. Until then ability cards
-get a random aspect and the deck rule is off, so aspects are only colours.
+generator makes different kinds of cards for each (stage-2 research plan, 4G): Six play styles on a ring, Aggro - Swarm - Growth - Fortress - Control - Spells, and each class
+takes two neighbouring styles: Glow {Aggro, Swarm}, Meadow {Swarm, Growth}, Moss {Growth,
+Fortress}, Frost {Fortress, Control}, Bog {Control, Spells}, Ember {Spells, Aggro}.
+Clustering the cards by what they do, so identities emerge instead, is left for later. Sets
+before the class sets give ability cards a random aspect.
 
 **Layered rollout.** Each layer adds DSL building blocks and engine support, and is
 followed by a bootstrapping round (section 10). Done: vanilla units, keywords, triggered and
@@ -323,7 +326,8 @@ Why this form works for both consumers:
 - **Training and evaluation sets:** `set_1000` to train on; `heldout_200` and `armor_heavy` for
   cards the agent has never seen (results.md). The `_g2` versions (`set_1000_g2`,
   `heldout_200_g2`, `armor_heavy_g2`) are the same seeds and recipes with P2's first grammar
-  batch; the old ones stay for comparisons with earlier models.
+  batch; the old ones stay for comparisons with earlier models. The `_c` versions (`set_1000_c`,
+  `heldout_200_c`, `armor_heavy_c`) are the same seeds and recipes with classes.
 - **Generated sets:** the output of part c.
 
 ## 4. Rules engine (`src/game/`, `src/cards/`)

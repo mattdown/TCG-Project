@@ -45,13 +45,14 @@ Decisions already made (don't re-open without a reason):
   mirror-deck training (deck luck doesn't cap the win rate). Aspects are a player feature only,
   not a card feature, until they mean something.
 - **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;
-  aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost). For now they are only colours:
-  assigned at random, and decks draw from the whole set (`ONE_ASPECT = False` in
-  `src/game/decks.py`). Later they become Hearthstone-style classes (a deck is one aspect plus
-  neutral cards). Class identity is designed: each aspect gets its own generation vector (a
-  shared base grammar plus sparse per-class weight offsets, hard zeros and themes; one cost
-  model for all), [docs/stage-2-research-plan.md](docs/stage-2-research-plan.md) 4G. Emergent
-  classes (clustering, a synergy graph) are future work. Traits are jobs
+  aspects are habitats (Ember, Bog, Moss, Meadow, Glow, Frost) and, in sets generated with
+  classes (`set_1000_c`, `src/cards/classes.py`), Hearthstone-style classes: a deck is one class
+  plus neutral cards. Six play styles sit on a ring and each class takes two neighbouring ones
+  (decided 2026-11-18); a class never makes its two opposite styles' signatures. Neutrals are 30%
+  of the set, units only, 70% of them vanilla (keywords allowed), and the rest pay a 1-stat-point
+  tax. One cost model for all classes ([docs/stage-2-research-plan.md](docs/stage-2-research-plan.md)
+  4G). Older sets (`_g2` and before) keep random aspects and decks that draw from the whole set.
+  Emergent classes (clustering, a synergy graph) are future work. Traits are jobs
   (tribes that cross aspects). Decks focus on two jobs (70% of their units, `FOCUS_JOBS` in
   `src/game/decks.py`), so abilities about your own jobs have something to work with; enemy-side
   job filters aren't generated.
@@ -70,7 +71,8 @@ Decisions already made (don't re-open without a reason):
 PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/cards/    card schema (pure data), generators (vanilla, keywords, coverage), ability
                 sampler / validator / card text, quality tests, the card pipeline
-                (generate.py), derivation traces (trace.py), rough costing
+                (generate.py), derivation traces (trace.py), rough costing, classes
+                (classes.py: the ring of play styles)
   src/game/     rules engine, decks, terms.py (every player-facing name)
   src/graph/    encode.py (state → NumPy; abilities.py: ability nodes and edges) → builder.py (PyG) /
                 dense.py (padded tensors)

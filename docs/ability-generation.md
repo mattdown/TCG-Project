@@ -462,3 +462,17 @@ for checking the engine and client. It uses the same pipeline.
   an enemy unit being defeated went up (1.0 → 1.26). The `_g2` and coverage sets were
   regenerated with the same seeds; the new prices change which draws are kept, so most cards
   differ. The fire check's narrowing test no longer mistakes the `damaged` trigger for a filter.
+- **2026-11-18, pricing from v6b.** `experiments.py effects` re-measured with v6b: removal was
+  priced for a weak agent (`GROUP_SCALE` for unit and action damage up 1.5–2.3×), random targets
+  were too cheap (`RANDOM_TARGET` 0.65 → 0.85), and unit groups priced at a floor (draw, summon,
+  heal_hero, gain_crystal) take measured scales. `--groups` tests feature groups (random target,
+  choose one). Deck search still finds over-used groups each round (results.md, deck search).
+- **2026-11-18, classes.** `generate_card_set(classes=True)` (`src/cards/classes.py`): six play
+  styles on a ring, each aspect two neighbouring ones; a style is a set of multipliers on the
+  sampler's labelled choices, applied by the tracer (`Tracer.tilt`). A class never makes its
+  opposite styles' signatures (a class check throws away what a forced path reaches) and damps
+  its neighbours'. Class cards take one style or both (bridge, 20%); actions are a per-style
+  share. Neutrals: 30%, units only, 70% vanilla (keywords allowed), the rest one style's ability
+  with a one-stat-point tax. In class mode the variety stage compares only draws in the first
+  draw's price group, since comparing across groups favoured damage (it has the most shapes).
+  New sets `set_1000_c`, `heldout_200_c`, `armor_heavy_c` (194 cards: Armor is now Fortress only).

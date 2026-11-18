@@ -15,13 +15,14 @@ from pathlib import Path
 import numpy as np
 
 from src.cards.schema import load_card_set
+from src.game.decks import deck_class
 from src.deck_search.map_elites import MEASURES, Config, Evaluator, field_decks, map_elites
 
 
 def search(args):
     card_set = load_card_set(args.cards)
     cfg = Config(budget=args.budget, initial=args.initial, opponents=args.opponents, axes=tuple(args.axes),
-                 grid=args.grid, slide_every=args.slide_every, batch=args.batch, fixed_seeds=args.fixed_seeds, seed=args.seed)
+                 grid=args.grid, per_class=args.per_class, slide_every=args.slide_every, batch=args.batch, fixed_seeds=args.fixed_seeds, seed=args.seed)
     field = field_decks(card_set, cfg.opponents, cfg.seed)
     start = time.perf_counter()
     with Evaluator(card_set, field, args.agent, args.workers, cfg.seed) as evaluate:
@@ -29,6 +30,9 @@ def search(args):
     seconds = time.perf_counter() - start
     games = len(result.history) * 2 * cfg.opponents
     out = result.to_json()
+    by_id = {c.id: c for c in card_set.cards}
+    for e in out["elites"]:
+        e["class"] = deck_class([by_id[i] for i in e["deck"]])
     out.update(cards=str(args.cards), agent=args.agent, field=[list(d) for d in field],
                seconds=round(seconds, 1), games_per_second=round(games / seconds, 1))
     args.out = args.out or Path("data/elites") / f"{card_set.name}.json"
@@ -76,7 +80,9 @@ def main():
     parser.add_argument("--budget", type=int, default=Config.budget)
     parser.add_argument("--initial", type=int, default=Config.initial)
     parser.add_argument("--opponents", type=int, default=Config.opponents)
-    parser.add_argument("--axes", nargs="+", choices=MEASURES, default=list(Config.axes))
+    parser.add_argument("--axes", nargs="+", choices=("ring", *MEASURES), default=list(Config.axes),
+                        help='"ring" (the six style measures on the ring of play styles) or measures for a grid')
+    parser.add_argument("--per-class", action="store_true", help="class sets: an archive per class")
     parser.add_argument("--grid", type=int, default=Config.grid)
     parser.add_argument("--slide-every", type=int, default=Config.slide_every)
     parser.add_argument("--batch", type=int, default=Config.batch)

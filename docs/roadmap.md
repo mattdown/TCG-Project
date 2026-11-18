@@ -50,13 +50,19 @@ art and a GNN overlay. Blog part 1 is published.
 - [ ] **M1, what's left:** the planted-synergy test (does the search find planted combos within a
   known budget?). Re-evaluate elites on fresh games (their search scores are a maximum over noisy
   evaluations) and try other axes (`turns`, `action_share` are recorded).
-- [ ] **Class generation vectors** (plan 4G): a shared base plus sparse per-class offsets on the
-  sampler's weights, hard zeros, themes as bundles, one cost model for all; quotas and enabler
-  checks per class. Then turn on `ONE_ASPECT` and put the class on the hero only. Decide the
-  share of neutral cards first (35% in `set_1000_g2`, where aspects are random). Order (decided
-  2026-11-18): MAP-Elites in PythonServer over all cards first, then classes, then P3's training
-  rounds on the class set.
+- [ ] **Classes, what's left** (the ring is built, plan 4G): enabler checks per class (every payoff
+  has enough enablers, e.g. token payoffs and summoners, action_played and actions); put the
+  class on the hero only (cards keep their aspect as data, not a network feature); the client
+  (class on the hero, neutral grey). Then P3's training rounds on `set_1000_c`.
+- [ ] **Train on the class sets:** v6b has never seen one-class decks; fine-tune on `set_1000_c`
+  and judge on `heldout_200_c` and `armor_heavy_c` (the `_g2` benchmarks predate today's
+  repricing too).
 - [ ] MAP-Elites over a class-weighted set: do classes land in different regions of the map?
+- [ ] **Check the ring map's measures** (built 2026-11-18: six style measures projected onto the
+  ring, `--axes ring`, the default): do classes land in their sectors? The fortress measure is
+  noisy (neutral Guard units take hits in every class) and Ember's aggro reads low; refine them
+  if classes overlap. A CVT archive over all six measures is the fallback if different decks share
+  cells.
 - [ ] Play-style space (plan 4H): generation → card statistics → play style; a synergy graph
   and community detection for emergent archetypes.
 - [ ] A proper literature search before claiming play-style-conditioned generation is new.

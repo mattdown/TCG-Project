@@ -4,9 +4,10 @@ Each deck focuses on FOCUS_JOBS jobs: FOCUS_SHARE of its units come from them, s
 about your own jobs ("your Bakers get +1 power") have something to work with. Cards without a
 job (actions) are drawn as often as without a focus.
 
-With ONE_ASPECT a deck is one aspect's cards plus neutral cards (no aspect), like a Hearthstone
-class. It's off while aspects are only colours (assigned at random, no identity yet): decks
-then draw from the whole set. The hero takes the deck's most common aspect either way (Game
+With one_aspect a deck is one aspect's cards plus neutral cards (no aspect), like a Hearthstone
+class. By default that's on for sets generated with classes (src/cards/classes.py) and off for
+older sets, whose aspects are only colours (assigned at random): their decks draw from the
+whole set. The hero takes the deck's most common aspect either way (Game
 infers it)."""
 import random
 from collections import Counter
@@ -16,18 +17,35 @@ from src.game.terms import ASPECTS
 
 DECK_SIZE = 30
 MAX_COPIES = 2
-ONE_ASPECT = False  # turn on once aspects have an identity (docs/technical-plan.md section 2)
+ONE_ASPECT = None  # None: one aspect for sets made with classes, the whole set otherwise
 FOCUS_JOBS = 2  # 0 for no focus
 FOCUS_SHARE = 0.7  # of a deck's units with a job
 
 
+def has_classes(card_set: CardSet) -> bool:
+    return "classes" in card_set.notes
+
+
+def class_pool(card_set: CardSet, aspect: str | None) -> list[Card]:
+    """What a deck of this class can use: its cards and the neutral ones."""
+    return [c for c in card_set.cards if c.aspects in ((), (aspect,))]
+
+
+def deck_class(deck) -> str | None:
+    """A deck's class: its most common aspect (None if it has only neutral cards)."""
+    counts = Counter(c.aspects[0] for c in deck if c.aspects)
+    return counts.most_common(1)[0][0] if counts else None
+
+
 def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZE,
-                max_copies: int = MAX_COPIES, one_aspect: bool = ONE_ASPECT, focus_jobs: int = FOCUS_JOBS,
+                max_copies: int = MAX_COPIES, one_aspect: bool | None = ONE_ASPECT, focus_jobs: int = FOCUS_JOBS,
                 focus_share: float = FOCUS_SHARE) -> list[Card]:
     """Cards drawn with a mild preference for cheap ones: from one aspect plus neutral cards
     when `one_aspect` (every card if the set is too small), otherwise from the whole set, and
     with `focus_share` of the units from `focus_jobs` jobs."""
     pool = list(card_set.cards)
+    if one_aspect is None:
+        one_aspect = has_classes(card_set)
     if one_aspect:
         aspect = rng.choice(ASPECTS)
         pool = [c for c in card_set.cards if c.aspects in ((), (aspect,))]
