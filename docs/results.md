@@ -337,6 +337,35 @@ the price of the time:
 
 Log: `PythonServer/data/effects_v6b_g2_features.log`. The `_g2` and coverage sets were regenerated.
 
+**MAP-Elites on these prices** (20,000 evaluations, 626 s): elites +26.4 on the search field and
++23.6 on the fresh one (random decks +0.1; correlation 0.20), so they generalise better than
+before, but the over-used groups moved rather than went away:
+
+| Group | First run | After group scales | After this |
+|---|---|---|---|
+| action, deal_damage | 2.0× | 1.64× | **2.52×** |
+| action, buff | 1.17× | 0.29× | 2.08× |
+| unit, keywords | 1.07× | 0.91× | 1.42× |
+| unit, heal_hero | 0.87× | 2.31× | 1.35× |
+| action, draw | 2.0× | 1.36× | 1.14× |
+| unit, deal_damage | 2.0× | 1.25× | 0.38× |
+| unit, draw | 0.14× | 0.96× | 0.40× |
+| unit, summon | 0.22× | 1.14× | 0.42× |
+
+253 cards appear in some elite, 11 in 80 or more. The elites are control decks: 2-mana actions
+that deal 5–6 damage to a unit, Guard units and hero healing.
+
+- **Average-deck prices and the best decks keep disagreeing.** Each re-measure moved the
+  over-use somewhere else: `action, deal_damage` was measured fair at 1.5× its old price and
+  still leads, and unit damage went from over-used to under-used. Removal is worth more in a
+  deck built around it (Guard bodies, healing) than in an average deck, which is what the effects
+  test measures. Fixing that is P3's job (pricing from the decks that are good), not more
+  average-deck measurements.
+- The search agent is the heuristic, which trades readily; control may suit it more than it
+  would v6b.
+
+Archive: `PythonServer/data/elites/set_1000_g2.json`; log `rerun_after_features.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
