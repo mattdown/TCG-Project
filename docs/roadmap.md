@@ -18,9 +18,6 @@ art and a GNN overlay. Blog part 1 is published.
   it's compute: more threads, MPS and bigger minibatches don't help. Options: a CUDA GPU, a
   smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
   the model is the bottleneck.
-- [ ] **P2, after the repricing:** the `_g2` sets were regenerated with measured use rates
-  (2026-11-18), so v7g2 was trained on the earlier prices. Re-benchmark it on the new sets, and
-  fine-tune again if it drops.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
   frozen agent (the cost model) → MAP-Elites deck search (move `map_elites()` from `Blog/` into
   PythonServer) → a fixed benchmark. The cost model work below is part of it.

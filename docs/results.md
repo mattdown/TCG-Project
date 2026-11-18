@@ -202,6 +202,26 @@ hits a play), next to `costing.TRIGGER_USES`. Narrowed rows are relative to narr
 
 Log: `PythonServer/data/fire_v7g2.log`.
 
+### v6b and v7g2 on the repriced `_g2` sets (2026-11-18, 400 paired games, seed 0)
+
+Against the heuristic (in brackets: on the first `_g2` sets):
+
+| Model | `heldout_200_g2` | `armor_heavy_g2` |
+|---|---|---|
+| v6b | 78.2% (73.2%) | 73.2% (69.8%) |
+| v7g2 (final) | 79.5% (76.5%) | 69.5% (73.8%) |
+| v7g2_best (iteration 50) | 79.8% (76.8%) | 75.2% (75.0%) |
+
+Head to head, v6b scores 50.7% against v7g2 and 52.5% against v7g2_best on `heldout_200_g2`, and
+56.2% and 47.0% on `armor_heavy_g2`; v7g2 against v7g2_best: 53.2% and 47.8%.
+
+- **The repriced cards suit the agents:** v6b gains 3–5 points against the heuristic.
+- **The fine-tune's lead is gone:** v7g2_best is level with v6b, and the final v7g2 loses to it
+  on `armor_heavy_g2` (56.2%, about 2.5 standard errors). No model clearly beats v6b on the new
+  sets, so there's nothing a re-fine-tune for the new prices would recover.
+
+Log: `PythonServer/data/bench_v7g2_repriced.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
