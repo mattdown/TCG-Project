@@ -30,7 +30,8 @@ TRIGGER_USES = {"on_play": 1.0, "on_defeated": 0.77, "on_attack_hero": 0.43, "on
                 "ally_defeated": 0.87, "damaged": 0.43, "action_played": 0.51, "token_summoned": 0.32}
 NARROW_FACTOR = 0.5  # per condition or restriction (quality.narrowing): each about halved the hits measured
 IF_FACTOR = 0.5  # "if it was defeated, …"
-RANDOM_TARGET = 0.65  # a random target instead of a chosen one: you can't pick the best (a guess)
+RANDOM_TARGET = 0.85  # a random target instead of a chosen one (0.65 guessed; cards with one measured 1.23-1.38x
+                      # underpriced at that, experiments.py effects, 2026-11-18)
 
 
 def _amount(amount) -> float:
@@ -136,13 +137,15 @@ STAT_RATE = ("buff", "summon")
 # weak agent: damage now costs about 1.5x (actions) and 2.3x (units) what it did. Action draw
 # measured 0.7 but stays: deck search puts it in elites twice as often as random decks do
 # (results.md), the first group where average decks and the best decks disagree. Groups whose
-# win rate didn't cross 50% keep their scale. Groups not listed keep 1.
+# win rate didn't cross 50% keep their scale; units whose scale was a floor (draw, summon,
+# heal_hero, gain_crystal) were then tested at up to 8x and take their crossing too. "Choose one"
+# needed no change of its own once those were fixed (actions measured 0.94). Groups not listed keep 1.
 GROUP_SCALE: dict[str, float] = {
     "action, deal_damage": 3.45, "action, draw": 1.7, "action, buff": 0.62, "action, summon": 0.77,
     "unit, deal_damage": 3.28, "unit, discard": 3.44, "unit, return_to_hand": 2.47, "unit, damage_hero": 0.6,
     "unit, freeze": 2.0,  # won 58% even at the lowest price in 2026-10: worth at least double
-    "unit, draw": 0.35, "unit, summon": 0.15,
-    **{f"unit, {g}": 0.3 for g in ("buff", "gain_crystal", "heal_hero", "grant_keyword", "modify_stat",
+    "unit, draw": 1.23, "unit, summon": 0.57, "unit, heal_hero": 0.82, "unit, gain_crystal": 0.91,
+    **{f"unit, {g}": 0.3 for g in ("buff", "grant_keyword", "modify_stat",
                                     "remove_damage", "static self_keyword", "static self_situational")},
 }
 

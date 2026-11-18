@@ -21,11 +21,12 @@ art and a GNN overlay. Blog part 1 is published.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
   frozen agent (the cost model) → MAP-Elites deck search (`scripts.map_elites`) → a fixed
   benchmark. The cost model work below is part of it.
-- [ ] **Underpriced cards found by deck search** (results.md, MAP-Elites, 2026-11-18): about a dozen
-  cards are in 85–99 of the 100 elites, mostly cheap removal and draw (1-mana actions that deal 5–7
-  damage or draw 3–4, 2-mana units that deal 3–5). Re-price them (the cost model, or a look at
-  `GROUP_SCALE` and `RANDOM_TARGET` first), then search again: the map shows variety only once
-  the elites stop sharing one core.
+- [ ] **Underpriced cards, what's left after the group re-measure** (results.md, deck search,
+  2026-11-18): removal is down from 2× to 1.25–1.6× its share in random decks, but units that heal
+  your hero are 2.3×, and the top card is a 1-mana split-damage action (`RANDOM_TARGET` 0.65 and
+  `repeat` pricing look cheap), with 1-mana "choose one" actions behind it. The effects test can't
+  price unit groups whose scale is a floor (0.15–0.35: heal_hero, draw, summon, gain_crystal):
+  their prices barely move a unit's stats, so they need a different test or the cost model.
 - [ ] **P4, search in training** (expert iteration), once P3 runs.
 - [ ] **Merge `part2-agent` into `main`** once the Unity client is checked against it (v6b needs
   this branch's code). Optionally restore the Unity 6000.3.28 upgrade on `main` first.

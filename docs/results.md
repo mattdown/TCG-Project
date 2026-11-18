@@ -289,6 +289,54 @@ deck's win rate at each scale of the price of the time:
 
 Log: `PythonServer/data/effects_v6b_g2.log`.
 
+**MAP-Elites again on the repriced set** (same settings, 20,000 evaluations, 1,060 s): elites +26.0
+on the search field, +19.4 on the fresh one (random decks −2.0; correlation 0.31). How much more
+the elites use each group than random decks do, before and after:
+
+| Group | Before | After |
+|---|---|---|
+| unit, deal_damage | 2.0× | 1.25× |
+| action, deal_damage | 2.0× | 1.64× |
+| action, draw | 2.0× | 1.36× |
+| unit, heal_hero | 0.87× | **2.31×** |
+| action, summon | 0.17× | 1.27× |
+| unit, summon | 0.22× | 1.14× |
+| unit, draw | 0.14× | 0.96× |
+
+- **The core broke up:** 307 cards appear in some elite (246 before), and 6 are in 80 or more of
+  the 100 (12 before). The map widened a little (hero-damage share 0.38–0.56, action share
+  0.15–0.48).
+- **Removal still leads, less:** the most shared card is a 1-mana action that deals 6 damage split
+  at random among enemy units (95 elites); random targets and split damage may be too cheap.
+- **New outliers:** units that heal your hero (2.3×; their group scale is 0.3, and they won 55–63%
+  at every price in the effects test), and 1-mana "choose one" actions.
+
+Archive: `PythonServer/data/elites/set_1000_g2_after_groups.json`; log `rerun_after_groups.log`.
+
+### Random targets, "choose one" and floor-priced units (2026-11-18, v6b, `set_1000_g2`)
+
+The effects test on feature groups (`--groups`; random targets include split damage), at 0.5–8×
+the price of the time:
+
+| Group | Cards | 0.5 | 1 | 2 | 4 | 8 | Fair |
+|---|---|---|---|---|---|---|---|
+| action, random target | 49 | 82.7% | 55.3% | 32.0% | 29.7% | 44.0% | 1.23 |
+| unit, random target | 59 | 63.0% | 54.3% | 43.0% | 36.0% | 28.3% | 1.38 |
+| action, choose one | 81 | 83.7% | 45.0% | 22.7% | 29.3% | 47.0% | 0.94 |
+| unit, choose one | 62 | 77.0% | 68.7% | 62.7% | 48.3% | 38.7% | 3.77 |
+| unit, heal_hero | 38 | 56.3% | 56.7% | 56.0% | 39.7% | 36.3% | 2.73 |
+| unit, draw | 61 | 70.7% | 71.0% | 56.3% | 48.0% | 34.7% | 3.52 |
+| unit, summon | 48 | 73.3% | 69.3% | 63.3% | 48.7% | 31.0% | 3.82 |
+| unit, gain_crystal | 13 | 65.0% | 65.0% | 60.7% | 40.0% | 33.0% | 3.03 |
+
+- `RANDOM_TARGET` 0.65 → 0.85 (about 1.3× for both card types).
+- The floor groups take their crossings (unit draw 1.23, summon 0.57, heal_hero 0.82,
+  gain_crystal 0.91). 48 of the 62 unit "choose one" cards are in those groups, so "choose one"
+  got no factor of its own; actions measured 0.94.
+- Actions at 8× win more again: their cost goes past what the deck can play, a quirk of the test.
+
+Log: `PythonServer/data/effects_v6b_g2_features.log`. The `_g2` and coverage sets were regenerated.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and

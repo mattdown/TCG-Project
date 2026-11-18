@@ -12,7 +12,8 @@ scale: the "refunded" and "no actions" tests with ability prices scaled: units p
 effects: the scale test per group of cards with the same type and main effect ("unit,
     deal_damage", "action, summon", "unit, static lord"). Decks get 10 of their 30 cards from
     the group, and only the group's cards are re-priced and swapped, so each group gets its own
-    fair scale.
+    fair scale. --groups picks groups, including feature groups that cut across effects
+    ("action, random target" (split damage included), "unit, choose one"; FEATURES).
 fire: how often abilities do something. For every ability card played: did any of its
     effects hit a target (fired), and how many effects that hit did it resolve (uses)?
 first: mirror matches under different compensations for the second player, each deck pair
@@ -121,13 +122,26 @@ def effect_group(card: Card) -> str | None:
     return price_group(card.abilities[0], card.type) if card.abilities else None
 
 
+FEATURES = {"random target": '"chooser": "random"', "choose one": '"choose_one"'}
+
+
+def in_group(card: Card, group: str) -> bool:
+    """A price group ("unit, deal_damage") or a feature group ("action, random target")."""
+    if not card.abilities:
+        return False
+    kind, _, what = group.partition(", ")
+    if what in FEATURES:
+        return card.type == kind and FEATURES[what] in json.dumps(card.abilities[0])
+    return effect_group(card) == group
+
+
 def effect_job(cards: Path, agent_spec: str, group: str, scale: float, pairs: int, seed: int) -> dict:
     """Decks with GROUP_CARDS cards from the group, re-priced by `scale`, against the same decks
     with those cards refunded (units) or swapped for vanilla units (actions)."""
     torch.set_num_threads(1)
     card_set = load_card_set(cards)
-    members = [rescaled(c, scale) for c in card_set.cards if effect_group(c) == group]
-    rest = CardSet("rest", [c for c in card_set.cards if effect_group(c) != group])
+    members = [rescaled(c, scale) for c in card_set.cards if in_group(c, group)]
+    rest = CardSet("rest", [c for c in card_set.cards if not in_group(c, group)])
     alter = no_actions if group.startswith("action") else refunded
     agent = make_agent(agent_spec)
     rng = random.Random(seed)
@@ -326,6 +340,7 @@ def main():
     parser.add_argument("--chunks", type=int, default=4, help="parallel chunks per experiment")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--scales", type=float, nargs="+", default=[0.25, 0.5, 0.75, 1.0])
+    parser.add_argument("--groups", nargs="+", default=None, help="effects: these groups only (see in_group)")
     args = parser.parse_args()
 
     if args.experiment == "abilities":
@@ -351,6 +366,9 @@ def main():
         card_set = load_card_set(args.cards)
         sizes = Counter(effect_group(c) for c in card_set.cards if effect_group(c))
         groups = sorted(g for g, n in sizes.items() if n >= MIN_GROUP)
+        if args.groups:
+            groups = args.groups
+            sizes = {g: sum(in_group(c, g) for c in card_set.cards) for g in groups}
         jobs = [(args.cards, agent, group, scale, n, 1000 * i) for agent in args.agents for group in groups
                 for scale in args.scales for i, n in enumerate(split(args.pairs, args.chunks))]
         results = run_parallel(effect_job, jobs, args.workers)
