@@ -496,6 +496,97 @@ spells sectors fill least, 29–36 cells).
 
 Archive: `set_1000_c_share.json`.
 
+### The metagame between class elites: matchup table and Nash equilibrium (2026-11-19, heuristic)
+
+The 10 fittest elites per class (60 decks) from each per-class archive, every pair played 40 times
+(20 deals, each with the decks in both seats; 70,800 games in about a minute). The equilibrium is
+the symmetric zero-sum Nash mix of the table (regret matching): the mix of decks no deck beats.
+One matchup's standard error is about 7.9 points.
+
+| | `set_1000_c` (`set_1000_c_share.json`) | `heldout_200_c` (`heldout_200_c.json`) |
+|---|---|---|
+| Decks in the mix | 3 of 60 | 5 of 60 |
+| Class weight | Bog 100% | Bog 68%, Frost 28%, Ember 4% |
+| Best deck on average | Bog, 72.6% against the other 59 | Bog, 66.9% |
+
+Class against class (the row's mean win rate over its decks' pairings, `set_1000_c`; held-out in
+brackets):
+
+| | Ember | Bog | Moss | Meadow | Glow | Frost |
+|---|---|---|---|---|---|---|
+| **Bog** | 56.6 (55.6) | – | 78.0 (69.2) | 73.3 (66.6) | 61.0 (70.7) | 62.9 (56.0) |
+| **Ember** | – | 43.4 (44.4) | 79.7 (65.5) | 71.3 (61.6) | 58.0 (64.7) | 52.9 (55.3) |
+| **Frost** | 47.1 (44.7) | 37.1 (44.0) | 67.9 (63.1) | 68.6 (61.0) | 58.5 (60.9) | – |
+| **Glow** | 42.0 (35.4) | 39.0 (29.3) | 59.0 (53.4) | 58.1 (46.3) | – | 41.5 (39.1) |
+| **Meadow** | 28.7 (38.4) | 26.7 (33.4) | 51.3 (53.4) | – | 41.9 (53.7) | 31.4 (39.0) |
+| **Moss** | 20.3 (34.5) | 22.0 (30.8) | – | 48.7 (46.6) | 41.0 (46.5) | 32.1 (36.9) |
+
+- **The classes form a ladder, not rock-paper-scissors:** Bog > Ember > Frost > Glow > Meadow ≈ Moss
+  on both sets; on the training set every class beats every class below it (held out, Meadow
+  edges Glow, 53.7%). Bog (control, spells) beats every
+  class, so the equilibrium is nearly all Bog: the "no dominant deck" and "diverse metagame"
+  targets both fail.
+- **The control and spells half of the ring beats the growth half.** Moss and Meadow, which fill
+  the swarm-to-fortress sectors, lose to everything above them by 20–30 points on the training set.
+- **The random field hid this.** Against random decks the top-10 elites were within 5 points of
+  each other (Moss's best was +20.5, Bog's +21.3); against each other Bog's decks win 70–78% of
+  matchups with Moss. Fitness against weak decks rewards beating weak decks.
+- **Caveats:** the heuristic plays every deck, and it may favour control (it plays removal and
+  trades well but doesn't plan a growth curve); the elites were picked for beating random decks;
+  and a Nash mix over noisy matchups favours the luckiest decks, so its exact decks mean less than
+  the class ladder, which averages 100 pairings per cell. The over-used groups from the first
+  deck search (action removal, action draw) are Bog's and Ember's tools.
+
+Tables: `PythonServer/data/nash_<archive>.npz`, log `nash.log`.
+
+**Played by v7c_best** (`heldout_200_c`, the same 60 decks and deals; 70,800 games in 7,576 s): the
+ladder isn't the heuristic's. It gets steeper with the stronger player, and the mix is one Bog deck.
+
+| Class | Mean win rate against all 60, heuristic | v7c_best |
+|---|---|---|
+| Ember | 56.9% | 71.4% |
+| Bog | 61.4% | 70.7% |
+| Frost | 53.9% | 52.5% |
+| Glow | 42.3% | 40.4% |
+| Moss | 40.9% | 33.8% |
+| Meadow | 44.7% | 31.1% |
+
+- Ember and Bog beat Moss, Meadow and Glow 82–90% with the model (62–71% with the heuristic), and
+  Bog still edges Ember (55.5%). The two tables agree well (deck means correlate 0.85, single
+  matchups 0.68 at about ±8 points each).
+- So the imbalance is in the cards, not the heuristic: a better player gets more out of the
+  control and spells classes' removal and draw. The growth classes' decks were still found by the
+  heuristic, so a model-found archive could do better for them, but not by 40 points.
+
+Table: `nash_heldout_200_c_v7c_best.npz`, log `nash_v7c_best.log`.
+
+**What the winning decks lean on** (the same 60 elites; a deck's score is its mean win rate in the
+tables). Correlation of a deck's cards of each group with its score, held-out (both tables
+averaged) and training set (heuristic):
+
+| Group | Held-out | Training |
+|---|---|---|
+| action, draw | +0.81 | +0.55 |
+| action, deal_damage | +0.76 | +0.74 |
+| unit, static self_situational | +0.55 | – |
+| unit, damage_hero | +0.46 | +0.44 |
+| unit, static lord | −0.57 | −0.50 |
+| action, summon | −0.56 | −0.64 |
+| action, buff | −0.61 | −0.56 |
+
+- **Action draw is far too cheap:** draw is priced at about a third of a mana a card (2 points ×
+  0.2 × 1.7), so "Draw 3 cards" and "Draw 4 cards" cost 1 mana, and so do choose-ones like "Draw 4
+  cards or deal 6 damage to a unit". 8 of Bog's and 9 of Ember's 10 decks play one. Average-deck
+  pricing measured action draw at 0.7 of its price; the best decks turn the extra cards into
+  removal and threats, so average decks undervalue it. The same goes for removal that draws
+  ("Deal 5 damage to a unit; if it was defeated, draw 2", 2 mana).
+- **Self-situational units are cheap** (the 0.3 floor): a 1-mana 2/1 that attacks as a 4/1 is in
+  all 10 Bog decks, a neutral 1/1 that defends as a 1/3 in 9 of Ember's.
+- **The growth classes have none of these:** Meadow and Glow have no action removal and almost no
+  draw (classes never make their opposite styles' signatures), so they rely on summons, buffs and
+  lords, and those go with losing decks. Underpriced removal and draw lift the classes that have
+  them; whether the growth groups are also overpriced is unclear until those are fixed.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and

@@ -5,67 +5,93 @@ Open work only. When something lands, delete its item (git history keeps it), pu
 design doc it belongs to. The design is [technical-plan.md](technical-plan.md); part 2's plan is
 [stage-2-research-plan.md](stage-2-research-plan.md).
 
-Where things stand (2026-11-17): the engine runs rules v2 with generated ability cards, priced from
-measurements on random decks (stage 1). The agent (`tcgnet_v6b`) beats the heuristic player 79% on
-cards it has never seen, 89% with search within a turn, which the server's AI now uses. Part 2 has
-started with a stronger agent, and P2's first grammar batch (new triggers, counts, memory and
-randomness) is in, with new `_g2` card sets. The Unity client plays all of it, with painted
-art and a GNN overlay. Blog part 1 is published.
+Where things stand (2026-11-19): the engine runs rules v2 with generated ability cards. The
+agent (`tcgnet_v6b`, fine-tuned for classes as `v7c_best`) beats the heuristic player 79% on cards
+it has never seen, 89% with search within a turn, which the server's AI now uses. P2's first
+grammar batch is in, and the class set `set_1000_c` has six classes on a ring of play styles.
+MAP-Elites finds the best decks of each class, and the first metagame (a matchup table and its
+Nash equilibrium) shows the prices are the problem: Bog and Ember win on underpriced draw and
+removal (results.md, 2026-11-19). The Unity client plays all of it, with painted art and a GNN
+overlay. Blog part 1 is published.
 
-## Now: a stronger agent (part 2, plan section 6, P1–P4)
+**The order (decided 2026-11-19):** the agent, the prices and the metagame depend on each other,
+so they're iterated together, with the cheap parts inside and the expensive part outside. Prices
+and the metagame (minutes a round with the heuristic) loop many times with a fixed agent; the
+agent (hours a round) is retrained rarely, and since it sees card features, not IDs, a fine-tune
+adapts it to repriced cards. Pricing comes from the equilibrium, not from average decks, and
+repricing and double-oracle deck building are one loop. Steps 1–5 below, in order.
 
+## Now: prices from the metagame (plan F2 and 3B)
+
+- [ ] **1. The metagame as a module** (`src/deck_search/metagame.py`, from the scratch script
+  behind results.md's matchup tables): the matchup table between decks (worker processes, any
+  agent), the Nash mix, and a smoothed equilibrium (quantal response, or entropy-regularised) so
+  the mix changes smoothly with prices instead of jumping with noise (the plain mix was one Bog
+  deck). Section 2's balance targets as code over it: decks and classes in the mix, the top
+  class's share, cards used.
+- [ ] **2. Reprice a set in place:** the same abilities and cards, new costs and stats from new
+  group scales (today a new price means regenerating the set). Each card keeps its
+  `budget_delta`.
+- [ ] **3. The combined loop, with the heuristic:** solve the mix → update the group scales by each
+  group's over- or under-use in the mix against a target (prices as a market: raise what the mix
+  over-buys) → reprice → re-play the table → add the best response (MAP-Elites with the mix as
+  its field: double oracle) → repeat. About 15–20 minutes a round. Start from the worst groups
+  (action draw, removal that draws, self-situational units), then see whether the growth groups
+  (action summon and buff, lords) need cheaper prices. Every few rounds, re-play the table with
+  v7c_best: a price the heuristic likes but the model doesn't is the heuristic's bias.
+- [ ] **4. The learned cost model** (card features → the price the loop settled on), so new
+  generated sets start near balance. Checks: does it find the deliberately mis-costed cards
+  (`notes.budget_delta`, ±1 on ~30% of cards)? Is it self-consistent (a stable value for +1 power
+  or health)? Does it rediscover "a fair vanilla unit has about 2 × mana + 1 stats"? Then it
+  replaces the hand-written value table.
+- [ ] **5. Per-card fixes** (worst-case pricing, plan 3C / M4) for the outliers the group scales
+  leave, then P3's agent training on the settled set: about half random and half elite decks,
+  judged with `scripts.benchmark --decks` on `heldout_200_c`'s elites (v7c2, fine-tuned on
+  random decks only, lost its lead there; results.md, 2026-11-19). Re-search or re-score that
+  archive with the model (`--agent`), since heuristic-found elites suit the heuristic.
+- [ ] Literature check before the blog claims the combined loop is new: "Metagame Autobalancing
+  for Competitive Multiplayer Games" (Hernandez et al., about 2020) tunes game parameters to a
+  target metagame, and "Evolving the Hearthstone meta" changes card stats by simulation. Ours adds
+  generated cards, prices that carry to the generator, and double-oracle deck search in the loop.
+  The same search covers play-style-conditioned generation.
+
+## Later: a stronger and faster agent (part 2, plan section 6)
+
+- [ ] **P4, search in training** (expert iteration), once step 5 has trained on elite decks.
 - [ ] **Faster learning:** the PPO update is now about 85% of an iteration (results.md, speed), and
   it's compute: more threads, MPS and bigger minibatches don't help. Options: a CUDA GPU, a
   smaller or cheaper model (fewer edge types or layers), or fewer epochs. No TPU / JAX work until
   the model is the bottleneck.
-- [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
-  frozen agent (the cost model) → MAP-Elites deck search (`scripts.map_elites`) → a fixed
-  benchmark. The cost model work below is part of it. The fixed benchmark is
-  `scripts.benchmark --decks` on `heldout_200_c`'s elites: v7c2, fine-tuned on random decks only,
-  lost its lead there (results.md, 2026-11-19). Re-search or re-score that archive with the model
-  (`--agent`), since heuristic-found elites suit the heuristic.
-- [ ] **Price from the best decks, not average ones** (results.md, deck search, 2026-11-18): after
-  three rounds of average-deck re-measuring (`experiments.py effects`) the elites still over-use
-  some groups (action removal 2.5×, action buffs 2.1×, Guard units 1.4×), and the over-use moves
-  each round. Use elite over-use as the pricing signal in P3 (or worst-case pricing, plan 4C),
-  and search with v6b as well as the heuristic, which may favour control.
-- [ ] **P4, search in training** (expert iteration), once P3 runs.
+- [ ] **Search with the GNN** (M2): the GNN plays about 0.9 games a second per process (6.9 with
+  8 workers), about 120× slower than the heuristic, so today it can only re-score archives and
+  tables. Batch its inference across games, and follow Deep Surrogate Assisted MAP-Elites (Zhang
+  et al., GECCO 2022, arXiv 2112.03534): a surrogate trained on the decks played so far predicts
+  fitness and the measures, MAP-Elites runs on the surrogate, and only its elites are played for
+  real. The paper's input is a bag of cards (one count per card), which works within one set;
+  card features pooled over the deck would also carry to unseen sets. The same surrogate can
+  screen matchups for the table.
+- [ ] Actions are still a little weak (37% against vanilla swaps before v4; v4 50%): re-check
+  once the loop prices them.
 - [ ] **Merge `part2-agent` into `main`** once the Unity client is checked against it (v6b needs
   this branch's code). Optionally restore the Unity 6000.3.28 upgrade on `main` first.
 
-### The learned cost model (part of P3)
+## Deck search and classes, alongside
 
-- [ ] Each card's effect on win rate from self-play (win rate when played, adjusted for turn).
-- [ ] Cost model: card embedding → fair cost.
-- [ ] Does it find the deliberately mis-costed cards (`notes.budget_delta`, ±1 on ~30% of cards)?
-- [ ] Is it self-consistent (a stable value for +1 power or health)? Does it rediscover "a fair
-  vanilla unit has about 2 × mana + 1 stats"?
-- [ ] Re-cost, retrain, repeat until stable; then it replaces the rough value table.
-- [ ] Actions are still a little weak (37% against vanilla swaps before v4; v4 50%): re-check
-  once the cost model prices them.
-
-## Next: stage 2, deck search and classes
-
-- [ ] **M0:** planted-synergy benchmark, and section 2's balance targets as code.
-- [ ] **Batched GNN play:** the GNN plays about 0.9 games a second per process (6.9 with 8 workers),
-  about 120× slower than the heuristic, so it can only re-score archives. Batch its inference
-  across games to search with it.
-- [ ] **M1, what's left:** the planted-synergy test (does the search find planted combos within a
-  known budget?). Re-evaluate elites on fresh games (their search scores are a maximum over noisy
-  evaluations) and try other axes (`turns`, `action_share` are recorded).
 - [ ] **Classes, what's left** (the ring is built, plan 4G): enabler checks per class (every payoff
   has enough enablers, e.g. token payoffs and summoners, action_played and actions); put the
   class on the hero only (cards keep their aspect as data, not a network feature); the client
-  (class on the hero, neutral grey). Then P3's training rounds on `set_1000_c`.
+  (class on the hero, neutral grey).
 - [ ] **Check the ring map's measures** (built 2026-11-18: six style measures projected onto the
   ring, `--axes ring`, the default): with 65% class decks every class's best decks land in or
   next to its own sectors (results.md, 2026-11-19). The fortress measure is still noisy (neutral
   Guard units take hits in every class) and the spells sectors fill least; refine them if classes
   overlap. A CVT archive over all six measures is the fallback if different decks share
   cells.
+- [ ] **M0 / M1, planted synergies:** a planted-synergy benchmark, and does the search find the
+  planted combos within a known budget? Re-evaluate elites on fresh games (their search scores
+  are a maximum over noisy evaluations).
 - [ ] Play-style space (plan 4H): generation → card statistics → play style; a synergy graph
   and community detection for emergent archetypes.
-- [ ] A proper literature search before claiming play-style-conditioned generation is new.
 
 ## Card generation
 
@@ -82,7 +108,6 @@ Rule: general tests on the tree's shape, never rules about particular cards.
 - [ ] Fits the cost curve: reject cards worth more than the top cost can pay for.
 - [ ] Job reachability: keep job conditions that a deck from the set can meet.
 - [ ] More varied "you may" costs (only 4 kinds, so they repeat).
-- [ ] Later: automate the group-price loop (measure → partial update → regenerate → fine-tune).
 
 ## Engine and graph
 
@@ -163,7 +188,7 @@ Rule: general tests on the tree's shape, never rules about particular cards.
   results on stats and flags, not as nodes.
 - The `for_each` step and items aren't in the engine ("for each" amounts are).
 - Ability prices come from a hand-written value table scaled by measured factors per effect group,
-  not from a learned cost model, and only for average random decks.
+  measured on average random decks, not from the metagame or a learned cost model.
 - Dominated "choose one" options are only caught when both options have the same shape; abilities
   equal to a keyword aren't caught.
 - Training runs on the CPU of one machine (self-play in up to 4 worker processes).

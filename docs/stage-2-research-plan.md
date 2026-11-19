@@ -169,7 +169,14 @@ first, so alternate in short rounds:
 4. **Check** against a fixed benchmark (held-out cards, the heuristic agent, later the planted
    combos), since with every part moving, progress is otherwise hard to see.
 
-The cost model prices single cards on average, which is what this loop needs. The deck model
+**Revised 2026-11-19:** the first metagame showed average-deck pricing misses what the best decks
+exploit (draw measured overpriced on average decks; the equilibrium was nearly all Bog, built on
+it). So prices now come from the equilibrium, in an inner loop with a fixed agent: solve the mix,
+move each group's price by its over- or under-use in the mix, reprice, add the best response
+(double oracle, B), repeat. The agent is retrained in the outer loop, rarely, and the learned
+cost model distils the prices the loop settles on. The roadmap has the steps.
+
+The cost model prices single cards. The deck model
 (D, M2) prices combinations; the loop's games are its training data, but the loop doesn't need it.
 
 ### G. Class identity: generation vectors
