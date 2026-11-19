@@ -24,7 +24,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from src.cards.schema import Card, CardSet
-from src.game.decks import MAX_COPIES, class_pool, deck_class, has_classes, random_deck
+from src.game.decks import MAX_COPIES, deck_class, has_classes, random_deck
 from src.game.terms import ASPECTS
 from src.game.engine import Game
 from src.game.state import Zone
@@ -98,8 +98,10 @@ def deck_of(cards: list[Card]) -> Deck:
     return tuple(sorted(c.id for c in cards))
 
 
-def mutate(deck: Deck, ids: list[str], rng: random.Random) -> tuple[Deck, int]:
-    """Swaps k cards for k others from `ids`, k geometric (1 half the time), keeping MAX_COPIES."""
+def mutate(deck: Deck, pools: list[list[str]], rng: random.Random) -> tuple[Deck, int]:
+    """Swaps k cards for k others, k geometric (1 half the time), keeping MAX_COPIES. Each new card
+    comes from one of `pools` picked evenly (a class's cards or the neutrals), so the search isn't
+    pushed towards whichever group is bigger."""
     k = 1
     while rng.random() < 0.5 and k < len(deck):
         k += 1
@@ -107,7 +109,7 @@ def mutate(deck: Deck, ids: list[str], rng: random.Random) -> tuple[Deck, int]:
     out = {cards.pop(rng.randrange(len(cards))) for _ in range(k)}
     copies = Counter(cards)
     while len(cards) < len(deck):
-        c = rng.choice(ids)
+        c = rng.choice(rng.choice(pools))
         if copies[c] < MAX_COPIES and c not in out:
             cards.append(c)
             copies[c] += 1
@@ -326,10 +328,12 @@ def map_elites(card_set: CardSet, evaluate, cfg: Config, log=print) -> Result:
     """Runs the search; `evaluate` maps a list of decks (and game seeds) to (fitness, measures) for each."""
     rng = random.Random(cfg.seed)
     ids = [c.id for c in card_set.cards]
-    pool, group = (lambda deck: ids), None
-    if has_classes(card_set):  # a deck keeps to its class: swaps come from its class and the neutrals
+    pool, group = (lambda deck: [ids]), None
+    if has_classes(card_set):  # a deck keeps to its class: swaps come from its class or the neutrals, evenly
         by_id = {c.id: c for c in card_set.cards}
-        pools = {a: [c.id for c in class_pool(card_set, a)] for a in (*ASPECTS, None)}
+        neutral = [c.id for c in card_set.cards if not c.aspects]
+        pools = {a: [[c.id for c in card_set.cards if c.aspects == (a,)], neutral] for a in ASPECTS}
+        pools[None] = [neutral]
         aspect = lambda deck: deck_class([by_id[i] for i in deck])
         pool = lambda deck: pools[aspect(deck)]
         if cfg.per_class:  # one archive per class: cells are (class, *cell)

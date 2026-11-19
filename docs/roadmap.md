@@ -54,14 +54,11 @@ art and a GNN overlay. Blog part 1 is published.
   has enough enablers, e.g. token payoffs and summoners, action_played and actions); put the
   class on the hero only (cards keep their aspect as data, not a network feature); the client
   (class on the hero, neutral grey). Then P3's training rounds on `set_1000_c`.
-- [ ] **Train on the class sets:** v6b has never seen one-class decks; fine-tune on `set_1000_c`
-  and judge on `heldout_200_c` and `armor_heavy_c` (the `_g2` benchmarks predate today's
-  repricing too).
-- [ ] MAP-Elites over a class-weighted set: do classes land in different regions of the map?
 - [ ] **Check the ring map's measures** (built 2026-11-18: six style measures projected onto the
-  ring, `--axes ring`, the default): do classes land in their sectors? The fortress measure is
-  noisy (neutral Guard units take hits in every class) and Ember's aggro reads low; refine them
-  if classes overlap. A CVT archive over all six measures is the fallback if different decks share
+  ring, `--axes ring`, the default): with 65% class decks every class's best decks land in or
+  next to its own sectors (results.md, 2026-11-19). The fortress measure is still noisy (neutral
+  Guard units take hits in every class) and the spells sectors fill least; refine them if classes
+  overlap. A CVT archive over all six measures is the fallback if different decks share
   cells.
 - [ ] Play-style space (plan 4H): generation → card statistics → play style; a synergy graph
   and community detection for emergent archetypes.

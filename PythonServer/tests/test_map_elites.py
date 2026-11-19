@@ -16,7 +16,7 @@ def test_mutation_swaps_cards_and_keeps_the_deck_legal():
     rng = random.Random(0)
     deck = deck_of(random_deck(cards, rng))
     for _ in range(200):
-        child, k = mutate(deck, ids, rng)
+        child, k = mutate(deck, [ids], rng)
         assert len(child) == DECK_SIZE and child == tuple(sorted(child))
         assert max(Counter(child).values()) <= MAX_COPIES
         assert 1 <= k and sum((Counter(deck) - Counter(child)).values()) <= k
@@ -97,3 +97,14 @@ def test_a_ring_search_fills_sectors_and_rings():
     assert len({tuple(e["cell"]) for e in out["elites"]}) == len(out["elites"]) > 3
     assert all(0 <= e["cell"][0] < 12 and 0 <= e["cell"][1] < 3 for e in out["elites"])
     assert set(out["reference"]) == set(STYLE_MEASURES) and "angle" in out["elites"][0]
+
+
+def test_mutation_draws_from_each_pool_evenly():
+    rng = random.Random(0)
+    small, big = [f"s{i}" for i in range(10)], [f"b{i}" for i in range(90)]
+    added = Counter()
+    for _ in range(400):
+        deck = tuple(sorted(rng.sample(big, 15) * 2))
+        child, _ = mutate(deck, [small, big], rng)
+        added.update(c[0] for c in (Counter(child) - Counter(deck)).elements())
+    assert 0.4 < added["s"] / sum(added.values()) < 0.6  # not 10%, as one pool of 100 would give

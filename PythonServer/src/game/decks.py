@@ -18,6 +18,7 @@ from src.game.terms import ASPECTS
 DECK_SIZE = 30
 MAX_COPIES = 2
 ONE_ASPECT = None  # None: one aspect for sets made with classes, the whole set otherwise
+CLASS_SHARE = 0.65  # one-aspect decks: share of the draw weight on the class's own cards (neutrals the rest)
 FOCUS_JOBS = 2  # 0 for no focus
 FOCUS_SHARE = 0.7  # of a deck's units with a job
 
@@ -39,10 +40,12 @@ def deck_class(deck) -> str | None:
 
 def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZE,
                 max_copies: int = MAX_COPIES, one_aspect: bool | None = ONE_ASPECT, focus_jobs: int = FOCUS_JOBS,
-                focus_share: float = FOCUS_SHARE) -> list[Card]:
+                focus_share: float = FOCUS_SHARE, class_share: float = CLASS_SHARE) -> list[Card]:
     """Cards drawn with a mild preference for cheap ones: from one aspect plus neutral cards
     when `one_aspect` (every card if the set is too small), otherwise from the whole set, and
-    with `focus_share` of the units from `focus_jobs` jobs."""
+    with `focus_share` of the units from `focus_jobs` jobs. A one-aspect deck puts `class_share`
+    of its draw weight on the class's cards: neutrals outnumber a class's cards about 2.5 to 1,
+    so drawing them alike gave decks only a third class cards."""
     pool = list(card_set.cards)
     if one_aspect is None:
         one_aspect = has_classes(card_set)
@@ -56,6 +59,12 @@ def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZ
     weights = [1 / (c.cost ** 0.5 + 1) for c in pool]
     if focus_jobs:
         weights = _focus(pool, weights, rng, focus_jobs, focus_share)
+    if one_aspect:
+        own = sum(w for c, w in zip(pool, weights) if c.aspects)
+        neutral = sum(w for c, w in zip(pool, weights) if not c.aspects)
+        if own and neutral:
+            weights = [w * (class_share / own if c.aspects else (1 - class_share) / neutral)
+                       for c, w in zip(pool, weights)]
     copies = Counter()
     deck = []
     while len(deck) < deck_size:

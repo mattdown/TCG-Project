@@ -40,8 +40,9 @@ Decisions already made (don't re-open without a reason):
 - **TPUs:** no TPU / JAX work until profiling shows the model is the bottleneck.
 - **Training:** on the CPU (faster than MPS for these small graphs). Judge models with
   `scripts.benchmark` (400 paired games) on `heldout_200` and `armor_heavy` (their `_g2` versions
-  for models trained on `set_1000_g2`, P2's grammar), not `set_200`, which is part of the
-  training set; a 100-game training eval is too noisy to pick a checkpoint. No
+  for models trained on `set_1000_g2`, P2's grammar; for models trained on the class set
+  `set_1000_c`, `heldout_200_c` only: with classes, Armor is one style's, so an Armor-heavy set
+  no longer tests keywords evenly), not `set_200`, which is part of the training set; a 100-game training eval is too noisy to pick a checkpoint. No
   mirror-deck training (deck luck doesn't cap the win rate). Aspects are a player feature only,
   not a card feature, until they mean something.
 - **Theme:** mushrooms with jobs ([docs/theme.md](docs/theme.md)). Game terms and keywords stay generic;

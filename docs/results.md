@@ -222,6 +222,30 @@ Head to head, v6b scores 50.7% against v7g2 and 52.5% against v7g2_best on `held
 
 Log: `PythonServer/data/bench_v7g2_repriced.log`.
 
+### v7c: v6b fine-tuned on the class set `set_1000_c` (2026-11-18, 400 paired games, seed 0)
+
+300 iterations from v6b (seed 2, 4 workers); decks are one class plus neutrals. Against the
+heuristic on `heldout_200_c`: v6b 68.8%, v7c (final) 71.5%, v7c_best 72.0%. Head to head v7c_best
+beats v6b 54.8% (219–181, about two standard errors); the final v7c is even with v6b (50.5%).
+(`armor_heavy_c`, no longer a judging set for class models: v6b 62.2%, v7c 64.8%, v7c_best
+63.0%; v7c_best beats v6b 54.2%.)
+
+- **One-class decks are harder to beat the heuristic with:** v6b wins 68.8% here, 78% on the
+  `_g2` sets.
+- **Random class decks are only 33% class cards**: the pool has 290 neutrals and about 118 cards
+  per class, and `random_deck` weights them alike. So training and the field mostly see neutral
+  cards, and the MAP-Elites elites stayed at 28–40% class cards: mutation draws from the same
+  pool, and the plain neutrals (half of each deck) aren't taxed.
+
+Logs: `PythonServer/data/train_v7c.log`, `bench_v7c.log`.
+
+**v7c2, with the class share** (2026-11-19): 300 iterations from v7c_best (seed 3) on decks with 65%
+class cards. Against the heuristic on `heldout_200_c`, with the same deck mix: v6b 74.2%, v7c_best
+76.5%, v7c2 (final) 77.0%, v7c2_best 77.8%. Head to head, v7c2_best beats v6b 53.5% and v7c_best
+53.2%, and v7c_best beats v6b 54.2%: each step is about one to two standard errors. Every model wins
+more against the heuristic with more class cards (v6b 68.8% → 74.2%). Logs: `train_v7c2.log`,
+`class_share_runs.log`.
+
 ## Deck search
 
 ### MAP-Elites on `set_1000_g2` (2026-11-18, heuristic agent)
@@ -410,6 +434,33 @@ cells (96%); every class reaches every sector (with its neutrals). Each class's 
   over all cells Meadow is lowest (+14.5, the others +17.7 to +19.9).
 
 Archive: `set_1000_c_per_class.json`.
+
+**With the class share** (2026-11-19, `--per-class`, 30,000 evaluations, 1,080 s): random decks now
+draw 65% class cards (`CLASS_SHARE`), so the field changed too and fitness isn't comparable with the
+run above, and mutation picks class or neutral evenly before the card. 475 of 576 cells (82%; the
+spells sectors fill least, 29–36 cells).
+
+| Class | Own styles | Top-10 mean | Their mean angle | Class / plain neutral / taxed neutral (top 10) |
+|---|---|---|---|---|
+| Ember | spells, aggro (300–360°) | +23.7 | 278° | 63% / 33% / 4% |
+| Frost | fortress, control (180–240°) | +22.7 | 171° | 72% / 20% / 8% |
+| Bog | control, spells (240–300°) | +21.3 | 238° | 59% / 29% / 13% |
+| Glow | aggro, swarm (0–60°) | +20.9 | 55° | 54% / 41% / 5% |
+| Moss | growth, fortress (120–180°) | +20.5 | 156° | 65% / 26% / 9% |
+| Meadow | swarm, growth (60–120°) | +18.5 | 94° | 63% / 29% / 7% |
+
+- **Every class's best decks now sit in or next to its own styles,** Ember included (278°, between
+  control and spells, where before it was 206°). Over all elites the classes split the ring:
+  Glow, Meadow and Moss on the aggro-to-growth half, Frost, Bog and Ember on the fortress-to-spells
+  half.
+- **Elites keep more class cards:** 48–69% over all elites (54–72% in the top 10), up from
+  28–40%. Even mutation alone would drift a deck towards half and half, so selection favours class
+  cards a little, but plain neutrals still make up 20–41% of the best decks. They aren't
+  dominant, and taxed neutrals are rare (4–13%): the tax prices them out.
+- **Class balance:** the top-10 means span 5.2 points. Meadow is weakest, as before by mean elite;
+  Ember has gone from weakest to strongest now that its decks are mostly Ember cards.
+
+Archive: `set_1000_c_share.json`.
 
 ## Training findings
 

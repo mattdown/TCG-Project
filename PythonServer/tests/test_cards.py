@@ -62,3 +62,13 @@ def test_decks_focus_on_two_jobs():
         return sum(shares) / len(shares)
 
     assert top_two_share(2) > 0.6 > top_two_share(0)
+
+
+def test_one_class_decks_are_mostly_class_cards():
+    import random
+    from src.cards.generate import generate_card_set
+    from src.game.decks import CLASS_SHARE, random_deck
+    cards = generate_card_set(400, seed=3, classes=True, prefix="T")
+    rng = random.Random(0)
+    share = sum(sum(bool(c.aspects) for c in random_deck(cards, rng)) for _ in range(100)) / 3000
+    assert abs(share - CLASS_SHARE) < 0.08
