@@ -162,6 +162,7 @@ def price_group(ability: dict, card_type: str) -> str:
     return f"{card_type}, {what}"
 
 
-def price(ability: dict, card_type: str) -> float:
-    """What a card with this ability pays for it, in budget points."""
-    return ability_value(ability, card_type) * GROUP_SCALE.get(price_group(ability, card_type), 1.0)
+def price(ability: dict, card_type: str, scales: dict[str, float] | None = None) -> float:
+    """What a card with this ability pays for it, in budget points; `scales` replaces GROUP_SCALE."""
+    scales = GROUP_SCALE if scales is None else scales
+    return ability_value(ability, card_type) * scales.get(price_group(ability, card_type), 1.0)

@@ -72,8 +72,8 @@ Decisions already made (don't re-open without a reason):
 PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/cards/    card schema (pure data), generators (vanilla, keywords, coverage), ability
                 sampler / validator / card text, quality tests, the card pipeline
-                (generate.py), derivation traces (trace.py), rough costing, classes
-                (classes.py: the ring of play styles)
+                (generate.py), derivation traces (trace.py), rough costing, repricing a set
+                in place (reprice.py), classes (classes.py: the ring of play styles)
   src/game/     rules engine, decks, terms.py (every player-facing name)
   src/graph/    encode.py (state → NumPy; abilities.py: ability nodes and edges) → builder.py (PyG) /
                 dense.py (padded tensors)

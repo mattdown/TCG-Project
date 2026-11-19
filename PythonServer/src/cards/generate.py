@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, replace
 
 from src.cards import classes as cls
 from src.cards.abilities import AbilitySampler, render, validate
-from src.cards.costing import price, price_group, round_points
+from src.cards.costing import GROUP_SCALE, price, price_group, round_points
 from src.cards.names import Namer
 from src.cards.quality import ACTION_COMPLEXITY, MAX_COMPLEXITY, complexity, quality_problems, skeleton
 from src.cards.schema import Card, CardSet
@@ -303,7 +303,8 @@ def generate_card_set(count: int, seed: int = 0, jobs: int = 6, action_share: fl
     notes = {"generator": "set", "seed": seed, "jobs": list(job_list),
              "shares": {"vanilla": vanilla_share, "keywords": keyword_share, "action": action_share},
              "kinds": dict(Counter(a.kind for a in kept)), "variety": variety, "draws": len(generator.attempts),
-             "stopped_at": dict(stopped), "costing": "ability prices from src/cards/costing.py (price)"}
+             "stopped_at": dict(stopped), "costing": "ability prices from src/cards/costing.py (price)",
+             "group_scale": dict(GROUP_SCALE)}
     if classes:
         notes["classes"] = {a: list(s) for a, s in cls.CLASSES.items()}
         notes["shares"] = {"neutral": cls.NEUTRAL_SHARE, "neutral plain": cls.NEUTRAL_PLAIN, "bridge": cls.BRIDGE}

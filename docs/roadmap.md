@@ -19,18 +19,16 @@ so they're iterated together, with the cheap parts inside and the expensive part
 and the metagame (minutes a round with the heuristic) loop many times with a fixed agent; the
 agent (hours a round) is retrained rarely, and since it sees card features, not IDs, a fine-tune
 adapts it to repriced cards. Pricing comes from the equilibrium, not from average decks, and
-repricing and double-oracle deck building are one loop. Steps 2–5 below, in order (step 1, the
-metagame module `src/deck_search/metagame.py`, is done).
+repricing and double-oracle deck building are one loop. Steps 3–5 below, in order; steps 1 and 2
+are built: the metagame (`src/deck_search/metagame.py`) and repricing a set in place
+(`src/cards/reprice.py`: each card's cost or stats move by the change in its price).
 
 ## Now: prices from the metagame (plan F2 and 3B)
 
-- [ ] **2. Reprice a set in place:** the same abilities and cards, new costs and stats from new
-  group scales (today a new price means regenerating the set). Each card keeps its
-  `budget_delta`.
 - [ ] **3. The combined loop, with the heuristic:** solve the smoothed mix (`metagame.qre`; the
   plain Nash mix jumps with noise) → update the group scales by each
   group's over- or under-use in the mix against a target (prices as a market: raise what the mix
-  over-buys) → reprice → re-play the table → add the best response (MAP-Elites with the mix as
+  over-buys) → reprice (`reprice.reprice`) → re-play the table → add the best response (MAP-Elites with the mix as
   its field: double oracle; `Matchups.extend` plays only its new pairs) → repeat. About 15–20 minutes a round. Start from the worst groups
   (action draw, removal that draws, self-situational units), then see whether the growth groups
   (action summon and buff, lords) need cheaper prices. Every few rounds, re-play the table with
