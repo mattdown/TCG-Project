@@ -595,6 +595,89 @@ averaged) and training set (heuristic):
   lords, and those go with losing decks. Underpriced removal and draw lift the classes that have
   them; whether the growth groups are also overpriced is unclear until those are fixed.
 
+### Prices from the metagame: the combined loop (2026-11-19, heuristic, `set_1000_c`)
+
+`scripts.price_loop data/elites/set_1000_c_share.json --rounds 8` (`src/deck_search/price_loop.py`;
+about 6 minutes a round, 8 workers). Each round: the matchup table of the population (40 games a
+pair) → its smoothed equilibrium (QRE, temperature 0.02) → each class's best response (MAP-Elites,
+3,000 evaluations, field drawn from the mix, started from the population: double oracle) → the
+price step → reprice the set in place. The price step: across the decks, the correlation of a
+group's card count with the deck's win rate against the mix; the group's log scale moves by 0.5 ×
+that correlation (at most ±0.2 a round, dead band 0.15). Started from the top 10 elites per class.
+
+A first signal, the mix's use of a group against the set's supply, failed and was replaced: it
+made action draw cheaper, because draw belongs to classes then out of the mix, and a class out of
+the mix never gets a signal.
+
+| Round | Effective decks | Effective classes | Top class | Best deck vs field | Cards used | Cards repriced |
+|---|---|---|---|---|---|---|
+| 1 | 5.1 | 2.0 | Bog 65% | 73.5% | 7% | 112 |
+| 2 | 7.0 | 2.2 | Bog 68% | 72.8% | 10% | 104 |
+| 3 | 5.4 | 1.5 | Bog 90% | 71.3% | 12% | 59 |
+| 4 | 19.3 | 4.1 | Bog 41% | 63.0% | 22% | 32 |
+| 5 | 24.1 | 4.0 | Glow 38% | 61.8% | 24% | 31 |
+| 6 | 23.2 | 3.6 | Glow 35% | 61.2% | 21% | 58 |
+| 7 | 17.1 | 4.6 | Bog 37% | 64.6% | 22% | 15 |
+| 8 | 11.0 | 4.3 | Meadow 40% | 63.5% | 15% | 9 |
+| final table | 11.0 | 4.3 | | 62.4% | | |
+
+Class means went from 36.0–63.5% (round 1) to 48.1–51.6% (round 8). Final scales against the
+generator's (`costing.GROUP_SCALE`):
+
+| Group | Before | After | | Group | Before | After |
+|---|---|---|---|---|---|---|
+| action, deal_damage | 3.45 | 6.09 | | unit, static debuff | 1 | 2.02 |
+| action, draw | 1.7 | 1.62 | | unit, draw | 1.23 | 2.16 |
+| action, buff | 0.62 | 0.49 | | unit, summon | 0.57 | 0.90 |
+| action, summon | 0.77 | 0.58 | | unit, modify_stat | 0.3 | 0.57 |
+| unit, deal_damage | 3.28 | 2.18 | | unit, static self_keyword | 0.3 | 0.37 |
+| unit, heal_hero | 0.82 | 0.29 | | unit, static discount | 1 | 0.65 |
+| unit, damage_hero | 0.6 | 0.48 | | unit, static lord | 1 | 0.71 |
+| unit, grant_keyword | 0.3 | 0.11 | | unit, static self_situational | 0.3 | 0.18 |
+| unit, buff | 0.3 | 0.19 | | | | |
+
+- **Action removal was the culprit, not draw:** it got 1.77× dearer (it includes removal that
+  draws); once it moved, action draw went up in rounds 1–3 and back down in 4–7, ending where it
+  started. Self-situational units got cheaper, not dearer as the deck correlations suggested.
+- The growth groups (summons on units, lords, discounts, heals) got cheaper or the same, and
+  Meadow went from the bottom of the ladder to the top of the mix.
+- Rounds 1–3 are slow: the mix stays one class until the removal price has moved three times.
+
+Rounds: `data/price_loop/set_1000_c_share/round_XX.json`, `final.json` and the repriced set; log
+`data/price_loop_set_1000_c.log`.
+
+**On cards the loop never saw** (`heldout_200_c` repriced with the final scales: 51 cards change;
+a new per-class archive, `heldout_200_c_p1`, 20,000 evaluations; then the 60-deck table with each
+agent). Class means (the row's mean win rate in the class table), before and after:
+
+| Class | Heuristic, before | after | v7c_best, before | after |
+|---|---|---|---|---|
+| Bog | 61.4% | 50.0% | 70.7% | 62.5% |
+| Ember | 56.9% | 48.6% | 71.4% | 61.5% |
+| Frost | 53.9% | 55.8% | 52.5% | 61.1% |
+| Glow | 42.3% | 53.6% | 40.4% | 52.2% |
+| Meadow | 44.7% | 50.1% | 31.1% | 35.2% |
+| Moss | 40.9% | 41.8% | 33.8% | 27.5% |
+
+| Smoothed mix | Heuristic, before | after | v7c_best, after |
+|---|---|---|---|
+| Effective decks | 6.4 | 12.4 | 1.6 |
+| Effective classes | 2.2 | 4.2 | 1.5 (Bog 91%) |
+| Best deck against the field | 67.2% | 64.2% | 81.1% |
+| Cards used | 40% | 67% | 30% |
+
+- **With the heuristic the prices carry to new cards:** the spread of class means fell from 20.5
+  to 14 points and the mix spreads over four classes. Moss is still last (41.8%).
+- **With v7c_best they only half do:** the top three classes level out (61–63%) and Glow rises 12
+  points, but Meadow and Moss still lose 77–85% to Bog, Ember and Frost, and the mix is one Bog
+  deck. A better player still gets more out of removal and draw than the heuristic does, so prices
+  set by the heuristic under-price them for the model. This is the bias the loop's model check was
+  meant to catch; the archive was also searched by the heuristic, so the growth classes' decks may
+  suit it.
+
+Tables: `data/metagame/heldout_200_c_p1.heuristic.json`, `heldout_200_c_p1.tcgnet_v7c_best.json`;
+log `data/price_loop_validation.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and

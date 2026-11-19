@@ -21,18 +21,20 @@ agent (hours a round) is retrained rarely, and since it sees card features, not 
 adapts it to repriced cards. Pricing comes from the equilibrium, not from average decks, and
 repricing and double-oracle deck building are one loop. Steps 3–5 below, in order; steps 1 and 2
 are built: the metagame (`src/deck_search/metagame.py`) and repricing a set in place
-(`src/cards/reprice.py`: each card's cost or stats move by the change in its price).
+(`src/cards/reprice.py`: each card's cost or stats move by the change in its price), and step 3's
+loop runs with the heuristic.
 
 ## Now: prices from the metagame (plan F2 and 3B)
 
-- [ ] **3. The combined loop, with the heuristic:** solve the smoothed mix (`metagame.qre`; the
-  plain Nash mix jumps with noise) → update the group scales by each
-  group's over- or under-use in the mix against a target (prices as a market: raise what the mix
-  over-buys) → reprice (`reprice.reprice`) → re-play the table → add the best response (MAP-Elites with the mix as
-  its field: double oracle; `Matchups.extend` plays only its new pairs) → repeat. About 15–20 minutes a round. Start from the worst groups
-  (action draw, removal that draws, self-situational units), then see whether the growth groups
-  (action summon and buff, lords) need cheaper prices. Every few rounds, re-play the table with
-  v7c_best: a price the heuristic likes but the model doesn't is the heuristic's bias.
+- [ ] **3. The combined loop, with the model in it.** The loop is built (`scripts.price_loop`,
+  `src/deck_search/price_loop.py`) and balanced the classes for the heuristic: on `set_1000_c` the
+  class means went from 36–64% to 48–52%, and the prices carry to `heldout_200_c` (results.md,
+  2026-11-19). Played by v7c_best they only half carry: the top three classes level out, but Meadow
+  and Moss still lose 77–85% to them. Next: run the price step on tables played by the model every
+  few rounds (about 70 minutes for a 60-deck table at 20 games a pair; fewer decks, or the
+  surrogate from M2, would cut that), starting from the loop's scales; then re-search the growth
+  classes' decks with the model before blaming their prices. If the model and heuristic disagree
+  for good, the prices follow the model.
 - [ ] **4. The learned cost model** (card features → the price the loop settled on), so new
   generated sets start near balance. Checks: does it find the deliberately mis-costed cards
   (`notes.budget_delta`, ±1 on ~30% of cards)? Is it self-consistent (a stable value for +1 power

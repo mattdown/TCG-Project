@@ -324,8 +324,9 @@ def build_archive(history: list[Evaluation], key) -> dict:
     return archive
 
 
-def map_elites(card_set: CardSet, evaluate, cfg: Config, log=print) -> Result:
-    """Runs the search; `evaluate` maps a list of decks (and game seeds) to (fitness, measures) for each."""
+def map_elites(card_set: CardSet, evaluate, cfg: Config, log=print, start: list[Deck] = ()) -> Result:
+    """Runs the search; `evaluate` maps a list of decks (and game seeds) to (fitness, measures) for each.
+    `start` decks are evaluated first, in place of that many of the initial random decks."""
     rng = random.Random(cfg.seed)
     ids = [c.id for c in card_set.cards]
     pool, group = (lambda deck: [ids]), None
@@ -347,7 +348,7 @@ def map_elites(card_set: CardSet, evaluate, cfg: Config, log=print) -> Result:
         for d, p, k, (f, m) in zip(decks, parents, swaps, evaluate(decks, seeds)):
             history.append(Evaluation(d, f, m, p, k))
 
-    first = [deck_of(random_deck(card_set, rng)) for _ in range(cfg.initial)]
+    first = list(start) + [deck_of(random_deck(card_set, rng)) for _ in range(max(0, cfg.initial - len(start)))]
     for start in range(0, len(first), cfg.batch):
         part = first[start:start + cfg.batch]
         add(part, [None] * len(part), [0] * len(part))
