@@ -20,7 +20,10 @@ art and a GNN overlay. Blog part 1 is published.
   the model is the bottleneck.
 - [ ] **P3, the joint loop:** train on about half random and half elite decks → price with the
   frozen agent (the cost model) → MAP-Elites deck search (`scripts.map_elites`) → a fixed
-  benchmark. The cost model work below is part of it.
+  benchmark. The cost model work below is part of it. The fixed benchmark is
+  `scripts.benchmark --decks` on `heldout_200_c`'s elites: v7c2, fine-tuned on random decks only,
+  lost its lead there (results.md, 2026-11-19). Re-search or re-score that archive with the model
+  (`--agent`), since heuristic-found elites suit the heuristic.
 - [ ] **Price from the best decks, not average ones** (results.md, deck search, 2026-11-18): after
   three rounds of average-deck re-measuring (`experiments.py effects`) the elites still over-use
   some groups (action removal 2.5×, action buffs 2.1×, Guard units 1.4×), and the over-use moves

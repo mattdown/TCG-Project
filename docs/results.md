@@ -246,6 +246,40 @@ class cards. Against the heuristic on `heldout_200_c`, with the same deck mix: v
 more against the heuristic with more class cards (v6b 68.8% → 74.2%). Logs: `train_v7c2.log`,
 `class_share_runs.log`.
 
+### Class models on elite decks (2026-11-19, 400 paired games, seed 0)
+
+`scripts.benchmark --decks`: the 10 fittest elites per class (60 decks) from a MAP-Elites archive,
+on the archive's own set: elite against elite, or with `--vs-random` an elite against a random
+deck. The training set's archive is `set_1000_c_share.json`; for a held-out test, a new per-class
+search on `heldout_200_c` (20,000 evaluations, 752 s: 427 elites, 74% of cells, best +23.1,
+archive `heldout_200_c.json`). Win rates against the heuristic:
+
+| Model | Random decks, `heldout_200_c` | Elites, `set_1000_c` | Elite vs random, `set_1000_c` | Elites, `heldout_200_c` | Elite vs random, `heldout_200_c` |
+|---|---|---|---|---|---|
+| v6b | 74.2% | 67.2% | 66.2% | 68.0% | 66.2% |
+| v7c_best | 76.5% | 68.2% | 68.2% | 71.0% | 70.2% |
+| v7c2_best | 77.8% | 67.5% | 66.2% | 71.5% | 70.5% |
+
+Head to head (the first model's win rate):
+
+| Match | Elites, `set_1000_c` | Elite vs random, `set_1000_c` | Elites, `heldout_200_c` | Elite vs random, `heldout_200_c` |
+|---|---|---|---|---|
+| v7c_best vs v6b | 52.0% | 50.0% | 53.0% | 51.8% |
+| v7c2_best vs v6b | 51.2% | 49.8% | 46.0% | 48.8% |
+| v7c_best vs v7c2_best | 52.8% | 52.2% | 52.5% | 52.0% |
+
+- **v7c2's lead doesn't carry over to tuned decks.** On random decks it beat both older models; on
+  elite decks v7c_best beats it in all four runs (52–53%, together about 2.5 standard errors), and
+  it is level with v6b or behind it. Fine-tuning only on random decks seems to fit the model to how
+  random decks play. P3's plan to train on half elite decks is the fix to try.
+- **Every model's lead over the heuristic shrinks by 6–10 points with elite decks.** More games are
+  decided by the decks, and the elites were found by the heuristic, so they suit how it plays.
+  Archives searched or re-scored with a model would be the fairer test.
+- **Elite against random** doesn't widen the gap over the heuristic: the elite deck wins most of
+  those games whoever plays it.
+
+Logs: `bench_elites_train.log`, `bench_elites_heldout.log`, `elites/heldout_200_c.log`.
+
 ## Deck search
 
 ### MAP-Elites on `set_1000_g2` (2026-11-18, heuristic agent)

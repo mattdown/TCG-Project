@@ -111,7 +111,8 @@ uv run python -m scripts.train --eval-cards cardsets/heldout_200.json cardsets/a
                                             # evals on held-out sets during training; logs to W&B
 uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/heldout_200.json cardsets/armor_heavy.json \
     --models models/a.pt models/b.pt    # paired games; --search adds each model with search within a turn;
-                                            # --mirror, --hide-aspects (ablations)
+                                            # --mirror, --hide-aspects (ablations);
+                                            # --decks ARCHIVE [--vs-random]: MAP-Elites elites instead of random decks
 uv run python -m scripts.puzzles --model models/a.pt   # does it find lethal? puzzles from its own games
 uv run python -m scripts.map_elites --cards cardsets/set_1000_g2.json   # deck search (heuristic agent, ~12 min);
                                             # writes data/elites/<set>.json; --rescore ARCHIVE --agent MODEL

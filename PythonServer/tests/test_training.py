@@ -106,6 +106,25 @@ def test_paired_matches_are_mirrored_and_repeatable():
     assert runs[0] == runs[1]
 
 
+
+def test_matches_can_deal_from_a_pool_of_decks(monkeypatch):
+    from src.agents import match
+    from src.agents.heuristic_agent import HeuristicAgent
+    from src.agents.random_agent import RandomAgent
+    from src.game.decks import random_deck
+    cards = generate_vanilla_set()
+    pool = [random_deck(cards, random.Random(s)) for s in range(2)]
+    ids = [sorted(c.id for c in d) for d in pool]
+    dealt = []
+    real = match.Game
+    monkeypatch.setattr(match, "Game", lambda a, b, **kw: dealt.append((a, b)) or real(a, b, **kw))
+    match.play_match(RandomAgent(1), HeuristicAgent(), cards, 6, decks=pool)
+    assert all(sorted(c.id for c in d) in ids for pair in dealt for d in pair)
+    dealt.clear()
+    match.play_match(RandomAgent(1), HeuristicAgent(), cards, 6, decks=pool, vs_random=True)
+    assert all(sorted(c.id for c in a) in ids for a, _ in dealt)
+    assert not any(sorted(c.id for c in b) in ids for _, b in dealt)
+
 def test_hiding_aspects_zeroes_only_the_players_aspect_features():
     from src.game.decks import random_deck
     from src.game.engine import Game
