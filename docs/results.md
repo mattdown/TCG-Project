@@ -539,6 +539,14 @@ brackets):
 
 Tables: `PythonServer/data/nash_<archive>.npz`, log `nash.log`.
 
+Re-played with `scripts.metagame` (the module, new deals; heldout_200_c, heuristic, 78 s): the
+same ladder (Bog 55.6–69.7% against every class, Moss and Glow at the bottom). The Nash mix moved
+with the deals (Bog 92%, Ember 4%, Frost 4%; before, Bog 68%, Frost 28%), which is why prices will
+follow the smoothed mix (temperature 0.02): Bog 70%, Ember 24%, Frost 6%, 6.4 effective decks,
+2.2 effective classes. Balance targets on that mix: the best deck wins 67.2% against the other 59,
+40% of the set's cards are used, and one card is in decks holding 94% of the mix (must-play).
+Table: `data/metagame/heldout_200_c.heuristic.json`.
+
 **Played by v7c_best** (`heldout_200_c`, the same 60 decks and deals; 70,800 games in 7,576 s): the
 ladder isn't the heuristic's. It gets steeper with the stronger player, and the mix is one Bog deck.
 

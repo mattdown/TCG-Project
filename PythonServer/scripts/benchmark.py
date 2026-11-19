@@ -11,7 +11,6 @@ tuned deck against a tuned deck, or with --vs-random against a random one."""
 import argparse
 import itertools
 import json
-from collections import defaultdict
 from pathlib import Path
 
 from src.agents.heuristic_agent import HeuristicAgent
@@ -20,17 +19,14 @@ from src.agents.neural_agent import NeuralAgent
 from src.agents.random_agent import RandomAgent
 from src.agents.search_agent import SearchAgent
 from src.cards.schema import CardSet, load_card_set
+from src.deck_search.metagame import top_elites
 from src.paths import CARDSET_PATH, MODEL_PATH, ROOT
 
 
 def elite_decks(archive: dict, card_set: CardSet, top: int) -> list[list]:
     """The `top` fittest elites of each class (or of the whole archive), as card lists."""
-    groups = defaultdict(list)
-    for e in archive["elites"]:
-        groups[e.get("class")].append(e)
     by_id = {c.id: c for c in card_set.cards}
-    best = [e for es in groups.values() for e in sorted(es, key=lambda e: -e["fitness"])[:top]]
-    return [[by_id[i] for i in e["deck"]] for e in best]
+    return [[by_id[i] for i in e["deck"]] for e in top_elites(archive, top)]
 
 
 def main():

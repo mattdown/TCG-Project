@@ -81,7 +81,8 @@ PythonServer/   Python 3.12, managed with uv. Run everything from here.
   src/agents/   random, heuristic, neural and search (within a turn) agents; match runner;
                 tactical puzzles (positions with a sure lethal)
   src/training/ PPO self-play (ppo.py), self-play worker processes (workers.py)
-  src/deck_search/ MAP-Elites over decks (map_elites.py): the archive of elite decks
+  src/deck_search/ MAP-Elites over decks (map_elites.py): the archive of elite decks; the metagame
+                (metagame.py): matchup tables, Nash and smoothed equilibria, balance targets
   src/server/   GameSession: JSON requests → engine (used by scripts/server.py)
   scripts/      generate_cards, experiments, train, benchmark, map_elites, server (run as `python -m scripts.<name>`)
   cardsets/     generated card sets (JSON, one card per line)
@@ -116,6 +117,8 @@ uv run python -m scripts.benchmark --games 400 --no-random --cards cardsets/held
 uv run python -m scripts.puzzles --model models/a.pt   # does it find lethal? puzzles from its own games
 uv run python -m scripts.map_elites --cards cardsets/set_1000_g2.json   # deck search (heuristic agent, ~12 min);
                                             # writes data/elites/<set>.json; --rescore ARCHIVE --agent MODEL
+uv run python -m scripts.metagame data/elites/heldout_200_c.json   # matchup table of the top elites per class,
+                                            # its equilibria and balance targets (~1 min; --agent MODEL, --load)
 uv run python -m scripts.server            # tcp://*:5555 for the Unity client; the AI searches its turn (--no-search: raw policy)
 ```
 
