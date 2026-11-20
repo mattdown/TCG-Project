@@ -20,6 +20,8 @@ def main():
     parser.add_argument("--vanilla-share", type=float, default=0.04, help="--kind set: share of stats-only units")
     parser.add_argument("--keyword-share", type=float, default=0.25, help="--kind set: share of keyword-only units")
     parser.add_argument("--action-share", type=float, default=0.25, help="--kind set: share of action cards")
+    parser.add_argument("--classes", action="store_true", help="--kind set: classes on the ring of play styles")
+    parser.add_argument("--no-home-jobs", action="store_true", help="--classes: jobs drawn evenly, not two per class")
     parser.add_argument("--out", type=Path, default=None, help="defaults to cardsets/<kind>_<count>.json")
     args = parser.parse_args()
 
@@ -27,7 +29,8 @@ def main():
         card_set = generate_coverage_set(args.seed)
     elif args.kind == "set":
         card_set = generate_card_set(args.count, args.seed, vanilla_share=args.vanilla_share,
-                                     keyword_share=args.keyword_share, action_share=args.action_share)
+                                     keyword_share=args.keyword_share, action_share=args.action_share,
+                                     classes=args.classes, home_jobs=not args.no_home_jobs)
     else:
         generate = generate_keyword_set if args.kind == "keywords" else generate_vanilla_set
         card_set = generate(args.count, args.seed)

@@ -115,6 +115,10 @@ generation vector, a shared base grammar plus sparse per-aspect weight offsets, 
 generator makes different kinds of cards for each (stage-2 research plan, 4G): Six play styles on a ring, Aggro - Swarm - Growth - Fortress - Control - Spells, and each class
 takes two neighbouring styles: Glow {Aggro, Swarm}, Meadow {Swarm, Growth}, Moss {Growth,
 Fortress}, Frost {Fortress, Control}, Bog {Control, Spells}, Ember {Spells, Aggro}.
+Jobs follow the ring too (home jobs, the default since 2026-11-20): style k has the set's job k, so
+each class has two home jobs, one shared with each neighbour; its cards' jobs and job references
+lean 4× to them and its decks focus on them, while neutrals stay even. Without them a class's job
+payoffs scattered over all six jobs. `home_jobs=False` turns it off.
 Clustering the cards by what they do, so identities emerge instead, is left for later. Sets
 before the class sets give ability cards a random aspect.
 

@@ -54,7 +54,9 @@ Decisions already made (don't re-open without a reason):
   tax. One cost model for all classes ([docs/stage-2-research-plan.md](docs/stage-2-research-plan.md)
   4G). Older sets (`_g2` and before) keep random aspects and decks that draw from the whole set.
   Emergent classes (clustering, a synergy graph) are future work. Traits are jobs
-  (tribes that cross aspects). Decks focus on two jobs (70% of their units, `FOCUS_JOBS` in
+  (tribes that cross aspects). In class sets each class has two home jobs, shared one each with
+  its ring neighbours (decided 2026-11-20, `home_jobs` in `src/cards/classes.py`), and leans to
+  them. Decks focus on two jobs (a class deck on its home jobs; 70% of their units, `FOCUS_JOBS` in
   `src/game/decks.py`), so abilities about your own jobs have something to work with; enemy-side
   job filters aren't generated.
 - **Client:** the Unity client is a thin view. The Python server owns all rules and state.

@@ -70,7 +70,8 @@ class CardGenerator:
 
     def __init__(self, rng: random.Random, jobs: tuple[str, ...] = JOBS, action_share: float = 0.25,
                  variety: int = 1, max_complexity: int = MAX_COMPLEXITY, vanilla_share: float = 0.0,
-                 keyword_share: float = 0.0, neutral_share: float = 0.1, classes: bool = False):
+                 keyword_share: float = 0.0, neutral_share: float = 0.1, classes: bool = False,
+                 home_jobs: bool = True):
         self.rng = rng
         self.jobs = jobs
         self.shares = {"vanilla": vanilla_share, "keywords": keyword_share, "action": action_share,
@@ -79,6 +80,7 @@ class CardGenerator:
             raise ValueError("the shares of vanilla, keyword-only and action cards add up to more than 1")
         self.neutral_share = neutral_share
         self.classes = classes  # aspects as classes (src/cards/classes.py); the shares above are then unused
+        self.home_jobs = home_jobs  # class mode: each class leans to two jobs (cls.home_jobs)
         self.current: tuple[tuple[str, ...], tuple[str, ...]] = ((), ())  # the card's aspect and styles
         self.class_counts = Counter({a: 0 for a in cls.CLASSES})
         self.variety = variety
@@ -200,7 +202,7 @@ class CardGenerator:
         a, b = cls.CLASSES[aspect]
         r = rng.random()
         styles = (a, b) if r < cls.BRIDGE else (a,) if r < (1 + cls.BRIDGE) / 2 else (b,)
-        self.current, t.tilt = ((aspect,), styles), cls.tilt(styles, aspect)
+        self.current, t.tilt = ((aspect,), styles), cls.tilt(styles, aspect, self.jobs if self.home_jobs else ())
         share = sum(cls.ACTION_SHARE[s] for s in styles) / len(styles)
         return "action" if rng.random() < share else "unit"
 
@@ -289,14 +291,16 @@ class CardGenerator:
 
 def generate_card_set(count: int, seed: int = 0, jobs: int = 6, action_share: float = 0.25,
                       vanilla_share: float = 0.04, keyword_share: float = 0.25, variety: int = 4,
-                      prefix: str = "S1", classes: bool = False) -> CardSet:
+                      prefix: str = "S1", classes: bool = False, home_jobs: bool = True) -> CardSet:
     """`count` cards through the whole pipeline: vanilla, keyword-only, and ability units and
     actions in the given shares. As in the coverage set, abilities only refer to `jobs` jobs and
-    the units use the same jobs, so job conditions can be met."""
+    the units use the same jobs, so job conditions can be met. With classes, each class leans to two
+    home jobs unless `home_jobs` is off (results.md, 2026-11-20: payoffs find their jobs)."""
     rng = random.Random(seed)
     job_list = tuple(rng.sample(JOBS, min(jobs, len(JOBS))))
     generator = CardGenerator(rng, job_list, action_share=action_share, variety=variety,
-                              vanilla_share=vanilla_share, keyword_share=keyword_share, classes=classes)
+                              vanilla_share=vanilla_share, keyword_share=keyword_share, classes=classes,
+                              home_jobs=home_jobs)
     kept = [generator.card() for _ in range(count)]
     cards = [replace(a.card, id=f"{prefix}-{n + 1:03d}") for n, a in enumerate(kept)]
     stopped = Counter(a.stopped_at for a in generator.attempts if a.stopped_at)
@@ -308,4 +312,6 @@ def generate_card_set(count: int, seed: int = 0, jobs: int = 6, action_share: fl
     if classes:
         notes["classes"] = {a: list(s) for a, s in cls.CLASSES.items()}
         notes["shares"] = {"neutral": cls.NEUTRAL_SHARE, "neutral plain": cls.NEUTRAL_PLAIN, "bridge": cls.BRIDGE}
+        if home_jobs:
+            notes["home_jobs"] = {a: list(cls.home_jobs(a, job_list)) for a in cls.CLASSES}
     return CardSet(f"set_{count}", cards, notes)

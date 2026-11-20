@@ -11,7 +11,9 @@ are damped (NEIGHBOUR), so the generic grammar's heaviest options (damage, draw)
 class's identity. Neutral cards fill the gaps.
 
 A class card takes one of its styles, or both for a bridge card (where the class's own synergy
-lives). Neutral cards are mostly vanilla (keywords allowed); the rest are units with one
+lives). With home jobs, each style also has one of the set's jobs, so a class has two (one shared
+with each neighbour): its units' jobs and the jobs its abilities name lean to them (HOME_JOB), so
+its job payoffs find units of the same job instead of spreading over all six. Neutral cards are mostly vanilla (keywords allowed); the rest are units with one
 style's ability, taxed NEUTRAL_TAX stat points. Prices are the same for every class: a style
 changes what is made, never what it costs.
 """
@@ -90,6 +92,8 @@ assert set(CLASSES) == set(ASPECTS)
 BRIDGE = 0.2  # share of a class's cards that take both its styles
 NEUTRAL_SHARE = 0.3  # of all cards
 NEUTRAL_PLAIN = 0.7  # of neutral cards: vanilla units, keywords allowed
+HOME_JOB = 4.0  # on a class's home jobs: two of six get about two thirds of its job choices
+JOB_LABELS = ("Job", "Which job", "Count which job")  # the sampler's job choices
 NEUTRAL_TAX = 1  # stat points (half a mana) a neutral ability unit pays on top of its price
 PLAIN_VANILLA = 0.14  # of plain units, no keywords at all (the rest have a keyword or two)
 
@@ -120,8 +124,14 @@ def zeros(aspect: str) -> dict[str, set]:
     return out
 
 
-def tilt(styles: tuple[str, ...], aspect: str | None = None) -> dict[str, dict]:
-    """The multipliers for a card of these styles (both for a bridge card), with the class's zeros."""
+def home_jobs(aspect: str, jobs: tuple[str, ...]) -> tuple[str, str]:
+    """A class's two jobs: style k on the ring has the set's job k (wrapping if the set has fewer)."""
+    return tuple(jobs[STYLES.index(s) % len(jobs)] for s in CLASSES[aspect])
+
+
+def tilt(styles: tuple[str, ...], aspect: str | None = None, jobs: tuple[str, ...] = ()) -> dict[str, dict]:
+    """The multipliers for a card of these styles (both for a bridge card), with the class's zeros
+    and, given the set's jobs, its lean to its home jobs."""
     out: dict[str, dict] = {}
     for style in styles:
         for label, options in OFFSETS[style].items():
@@ -137,6 +147,9 @@ def tilt(styles: tuple[str, ...], aspect: str | None = None) -> dict[str, dict]:
         for label, options in zeros(aspect).items():
             for option in options:
                 out.setdefault(label, {})[option] = 0.0
+        if jobs:
+            for label in JOB_LABELS:
+                out[label] = {j: HOME_JOB for j in home_jobs(aspect, jobs)}
     # The follow-up pattern ("deal damage; if it was defeated, …") always starts with damage.
     if "deal_damage" in out.get("Effect", {}):
         out.setdefault("Step pattern", {})["follow_up"] = out["Effect"]["deal_damage"]

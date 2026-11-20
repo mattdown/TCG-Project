@@ -482,3 +482,10 @@ for checking the engine and client. It uses the same pipeline.
   override Elusive, so the one or two such cards in the saved sets play as plain Guards (their
   Elusive is wasted cost); the saved sets aren't regenerated, since any change to the draws
   reshuffles a whole set.
+- **2026-11-20, home jobs.** `generate_card_set(home_jobs=True)`: each style on the ring has one
+  of the set's jobs, so a class has two, shared one each with its neighbours. A class card's job
+  choices (its own job, and the jobs its ability names: labels in `classes.JOB_LABELS`) lean 4× to
+  them (`HOME_JOB`), and class decks focus on them (`notes["home_jobs"]`). Neutrals stay even.
+  On by default for class sets (`home_jobs=False` turns it off): over three seeds payoffs find
+  more of their job (5.2 → 6.9 units) and the spread between classes fell on two of three
+  (docs/results.md).

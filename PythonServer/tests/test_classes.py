@@ -1,9 +1,11 @@
+import random
 from collections import Counter
 
 import pytest
 
 from src.cards import classes as cls
 from src.cards.generate import generate_card_set
+from src.game.decks import random_deck
 
 
 @pytest.fixture(scope="module")
@@ -67,3 +69,16 @@ def test_classes_lean_towards_their_styles(class_set):
         return sum(f'"effect": "{effect}"' in str(c.abilities).replace("'", '"') for c in cards) / len(cards)
     assert share("aspect_5", "summon") > share("aspect_2", "summon")  # Glow (swarm) vs Bog
     assert share("aspect_2", "draw") > share("aspect_3", "draw")  # Bog (spells) vs Moss
+
+
+def test_home_jobs_share_a_job_with_each_neighbour_and_lean_class_cards_to_them():
+    jobs = ("A", "B", "C", "D", "E", "F")
+    homes = {a: set(cls.home_jobs(a, jobs)) for a in cls.CLASSES}
+    assert all(len(h) == 2 for h in homes.values()) and len(set().union(*homes.values())) == 6
+    cards = generate_card_set(400, seed=2, classes=True, prefix="T")
+    home = {a: set(j) for a, j in cards.notes["home_jobs"].items()}
+    units = [c for c in cards.cards if c.aspects and c.type == "unit"]
+    assert sum(c.traits[0] in home[c.aspects[0]] for c in units) / len(units) > 0.55  # 1/3 without
+    deck = random_deck(cards, random.Random(0), aspect="aspect_3")
+    jobs_in_deck = Counter(c.traits[0] for c in deck if c.traits)
+    assert {j for j, _ in jobs_in_deck.most_common(2)} == home["aspect_3"]

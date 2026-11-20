@@ -2,7 +2,8 @@
 
 Each deck focuses on FOCUS_JOBS jobs: FOCUS_SHARE of its units come from them, so abilities
 about your own jobs ("your Bakers get +1 power") have something to work with. Cards without a
-job (actions) are drawn as often as without a focus.
+job (actions) are drawn as often as without a focus. A class deck of a set made with home jobs
+focuses on its class's two (src/cards/classes.py); otherwise the jobs are picked at random.
 
 With one_aspect a deck is one aspect's cards plus neutral cards (no aspect), like a Hearthstone
 class. By default that's on for sets generated with classes (src/cards/classes.py) and off for
@@ -62,7 +63,8 @@ def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZ
         raise ValueError(f"not enough cards for a {deck_size}-card deck")
     weights = [1 / (c.cost ** 0.5 + 1) for c in pool]
     if focus_jobs:
-        weights = _focus(pool, weights, rng, focus_jobs, focus_share)
+        home = card_set.notes.get("home_jobs", {}).get(aspect) if one_aspect else None
+        weights = _focus(pool, weights, rng, focus_jobs, focus_share, home)
     if one_aspect:
         own = sum(w for c, w in zip(pool, weights) if c.aspects)
         neutral = sum(w for c, w in zip(pool, weights) if not c.aspects)
@@ -79,14 +81,15 @@ def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZ
     return deck
 
 
-def _focus(pool: list[Card], weights: list[float], rng: random.Random, jobs: int, share: float) -> list[float]:
-    """Re-weights units so `share` of the unit weight is on `jobs` jobs, picked in proportion to
-    how many units have them. The total unit weight stays the same, so cards without a job keep
-    their share of the deck."""
+def _focus(pool: list[Card], weights: list[float], rng: random.Random, jobs: int, share: float,
+           home: list[str] | None = None) -> list[float]:
+    """Re-weights units so `share` of the unit weight is on `jobs` jobs: the class's home jobs if
+    given, otherwise picked in proportion to how many units have them. The total unit weight stays
+    the same, so cards without a job keep their share of the deck."""
     counts = Counter(c.traits[0] for c in pool if c.traits)
     if len(counts) <= jobs:
         return weights
-    focus = set()
+    focus = set(home or ())
     while len(focus) < jobs:
         focus.add(rng.choices(list(counts), list(counts.values()))[0])
     on = sum(w for c, w in zip(pool, weights) if c.traits and c.traits[0] in focus)

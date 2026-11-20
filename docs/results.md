@@ -709,6 +709,66 @@ action draw 1.62 → 2.18; unit static lord 0.71 → 0.25, unit buff 0.19 → 0.
 
 Rounds: `data/price_loop/set_1000_c_v7c_best/`; log `data/price_loop_v7c_best.log`.
 
+### Home jobs: each class leans to two jobs (2026-11-20, heuristic)
+
+In `set_1000_c`, jobs are drawn evenly whatever the class. Moss, Meadow and Glow have 45–50% of
+their cards naming a job (Ember, Bog, Frost 13–22%), but those payoffs spread over all six jobs
+(the top two take 46–51%), and Moss's best deck has payoffs with only 1–2 units of their job.
+With home jobs (`generate_card_set(home_jobs=True)`), each style on the ring has one of the set's
+jobs and a class card's job choices lean 4× to its class's two; class decks focus on them. A
+class's payoffs then name a home job 60–67% of the time.
+
+Two new sets from seed 0 and today's code: `set_1000_cj` (home jobs) and `set_1000_cn` (the
+control, without). Each was searched like `set_1000_c_share` (per-class MAP-Elites, ring axes,
+30,000 evaluations: cj 521 elites, 90% of cells; cn similar), then the 10 fittest elites per class
+went into a metagame table (40 games a pair). Each class's mean against the other five, and in
+its smoothed-equilibrium best deck, its job payoffs / the mean number of units of their job:
+
+| Class | `set_1000_c` | control `set_1000_cn` | home jobs `set_1000_cj` |
+|---|---|---|---|
+| Ember | 61.5% (4 / 3.5) | 66.8% (1 / 4.0) | 57.1% (9 / 7.0) |
+| Bog | 66.3% (4 / 8.5) | 53.2% (5 / 5.2) | 51.6% (2 / 5.0) |
+| Frost | 55.5% (4 / 5.5) | 57.2% (7 / 5.3) | 53.5% (4 / 8.5) |
+| Glow | 46.9% (9 / 7.8) | 34.7% (2 / 10.0) | 53.0% (7 / 6.9) |
+| Moss | 33.7% (7 / 4.9) | 43.6% (10 / 4.4) | 45.2% (8 / 6.1) |
+| Meadow | 36.2% (9 / 7.7) | 44.5% (7 / 4.1) | 39.6% (13 / 6.2) |
+| Spread (std) | 32.6 (12.2) | 32.1 (10.4) | 17.5 (5.8) |
+| Smoothed mix | Bog 79%, Ember 19% | Ember 58%, Frost 40% | Ember 56%, Bog 23%, Glow 16%, Frost 5% |
+
+- On seed 0, home jobs halved the spread between classes (32 → 17.5 points), and the equilibrium
+  used four classes instead of two. Payoffs in the best decks find about 6–7 units of their job,
+  against 4–5 without.
+- **Set-to-set noise is large:** the control differs from `set_1000_c` only by the Guard/Elusive
+  ban, yet Bog moves 13 points and Glow 12.
+
+**Three seeds** (seeds 1 and 2 searched and played the same way; spread = best class mean −
+worst, "in mix" = effective number of classes in the smoothed equilibrium, job support = units of
+a payoff's job in the best decks):
+
+| Set | Ember | Bog | Moss | Meadow | Glow | Frost | Spread | In mix | Job support |
+|---|---|---|---|---|---|---|---|---|---|
+| cn (seed 0) | 66.8 | 53.2 | 43.6 | 44.5 | 34.7 | 57.2 | 32.1 | 2.1 | 5.0 |
+| cn1 | 55.1 | 57.3 | 51.3 | 33.6 | 42.5 | 60.3 | 26.7 | 3.2 | 4.9 |
+| cn2 | 64.1 | 58.8 | 43.9 | 32.7 | 42.5 | 58.1 | 31.4 | 2.4 | 5.8 |
+| cj (seed 0) | 57.1 | 51.6 | 45.2 | 39.6 | 53.0 | 53.5 | 17.5 | 3.0 | 6.6 |
+| cj1 | 58.9 | 53.4 | 46.4 | 47.2 | 42.7 | 51.4 | 16.2 | 3.9 | 7.2 |
+| cj2 | 65.4 | 68.0 | 39.8 | 35.0 | 49.7 | 42.1 | 33.0 | 1.4 | 7.0 |
+| **control mean** | 62.0 | 56.4 | 46.3 | 36.9 | 39.9 | 58.5 | 30.1 ± 2.4 | 2.6 | 5.2 |
+| **home-jobs mean** | 60.5 | 57.7 | 43.8 | 40.6 | 48.5 | 49.0 | 22.2 ± 7.6 | 2.8 | 6.9 |
+
+- **Job support rises every time** (5.2 → 6.9 units), so the mechanism works: payoffs find their
+  jobs.
+- **Balance improves on two seeds of three, not on the third:** cj2 is as lopsided as the
+  controls (Bog and Ember on top again). The mean spread falls 30 → 22, but with a ±7.6 swing
+  it's suggestive, not proven.
+- **It doesn't fix Moss** (46 → 44) and barely helps Meadow (37 → 41). Glow gains (+9) and Frost
+  loses (−9). The control-and-spells classes (Ember, Bog) stay on top in both arms: that's the
+  prices (draw and removal), which home jobs don't touch, so the growth classes' weakness isn't
+  mainly job scatter.
+
+Archives `data/elites/set_1000_{cj,cn}{,1,2}.json`; tables
+`data/metagame/set_1000_{cj,cn}{,1,2}.heuristic.json`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and
