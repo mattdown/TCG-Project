@@ -678,6 +678,37 @@ agent). Class means (the row's mean win rate in the class table), before and aft
 Tables: `data/metagame/heldout_200_c_p1.heuristic.json`, `heldout_200_c_p1.tcgnet_v7c_best.json`;
 log `data/price_loop_validation.log`.
 
+**With v7c_best playing the table** (2026-11-19; `scripts.price_loop --resume
+data/price_loop/set_1000_c_share --agent models/tcgnet_v7c_best.pt --search-agent heuristic
+--population 36 --games 20 --rounds 6`; about 40 minutes a round). It starts from the heuristic
+loop's prices and 36 of its decks; the heuristic still searches the best responses.
+
+| Round | Effective decks | Effective classes | Top class | Best deck vs field | Class means | Moss |
+|---|---|---|---|---|---|---|
+| 1 | 8.1 | 2.3 | Bog 57% | 68.5% | 44.5–64.6% | 33.4% |
+| 2 | 16.6 | 4.5 | Frost 34% | 64.9% | 51.4–55.2% | 33.2% |
+| 3 | 15.6 | 3.8 | Frost 42% | 64.2% | 44.1–55.6% | 38.6% |
+| 4 | 12.1 | 3.4 | Frost 41% | 63.9% | 45.5–55.9% | 37.4% |
+| 5 | 11.3 | 2.9 | Frost 62% | 64.2% | 42.8–56.5% | 39.0% |
+| 6 | 11.5 | 2.8 | Frost 57% | 63.3% | 47.1–58.4% | 38.5% |
+| final table | 11.9 | 3.0 | Frost 54% | 61.4% | | |
+
+(Class means leave Moss out; it has its own column.) Prices it moved most, from the heuristic
+loop's: action deal_damage 6.09 → 8.96, unit draw 2.16 → 4.73, unit static debuff 2.02 → 2.47,
+action draw 1.62 → 2.18; unit static lord 0.71 → 0.25, unit buff 0.19 → 0.09, action buff 0.49 →
+0.32, unit freeze 2 → 0.90.
+
+- **The model's first table agrees with the held-out check:** the heuristic's prices leave Bog on
+  top (64.6%), and the model wants removal and draw dearer still. After that Bog falls to 42–54%
+  and five classes sit within about 10 points.
+- **Moss doesn't move** (33–39% every round), though lords, 28 of its 119 cards, got 4× cheaper.
+  Its decks are 15% lords and lose anyway, so Moss's weakness isn't a price group prices can fix.
+- **It hasn't settled:** unit draw and action removal rose almost every round. The signal is a
+  correlation across all decks, so a group gets the credit or blame for its class's strength;
+  the lord price keeps falling because Moss keeps losing.
+
+Rounds: `data/price_loop/set_1000_c_v7c_best/`; log `data/price_loop_v7c_best.log`.
+
 ## Training findings
 
 - **The eval curve flattens, slowly rising.** v6b's 100-game evals averaged a score (held-out and

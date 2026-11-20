@@ -45,11 +45,6 @@ loop runs with the heuristic.
   judged with `scripts.benchmark --decks` on `heldout_200_c`'s elites (v7c2, fine-tuned on
   random decks only, lost its lead there; results.md, 2026-11-19). Re-search or re-score that
   archive with the model (`--agent`), since heuristic-found elites suit the heuristic.
-- [ ] Literature check before the blog claims the combined loop is new: "Metagame Autobalancing
-  for Competitive Multiplayer Games" (Hernandez et al., about 2020) tunes game parameters to a
-  target metagame, and "Evolving the Hearthstone meta" changes card stats by simulation. Ours adds
-  generated cards, prices that carry to the generator, and double-oracle deck search in the loop.
-  The same search covers play-style-conditioned generation.
 
 ## Later: a stronger and faster agent (part 2, plan section 6)
 

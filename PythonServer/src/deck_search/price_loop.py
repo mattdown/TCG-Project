@@ -17,7 +17,8 @@ so the signal also lifts weak classes and holds back strong ones. (Usage in the 
 set's supply was tried first and fails: a group only some classes can play looks unused when
 those classes are out of the mix, and a class out of the mix never gets a signal at all.)
 The agent stays fixed (the heuristic by default): it's the cheap inner loop, and the agent is
-retrained in the outer one. Groups without an ability (vanilla and keyword units) and small
+retrained in the outer one. A model can play the table (it sets the prices) while the heuristic
+searches the best responses, which a model is too slow for. Groups without an ability (vanilla and keyword units) and small
 groups keep their prices.
 """
 import json
@@ -39,7 +40,8 @@ from src.game.decks import deck_class
 @dataclass
 class LoopConfig:
     rounds: int = 8
-    agent: str = "heuristic"
+    agent: str = "heuristic"  # plays the table, so it sets the prices
+    search_agent: str = ""  # plays the best-response search (default: the agent; the heuristic is ~120x faster)
     games: int = 40  # per pair in the table
     temperature: float = 0.02  # the smoothed equilibrium's
     step: float = 0.5  # a group's log scale moves by step × the correlation of its count with value
@@ -104,7 +106,7 @@ def best_responses(card_set: CardSet, decks: list[Deck], mix: np.ndarray, cfg: L
     field_ = mix_field(decks, mix, cfg.opponents, rng)
     search = Config(budget=cfg.search_budget, initial=max(200, len(decks)), opponents=cfg.opponents, per_class=True,
                     rings=4, seed=rng.randrange(2**31))
-    with Evaluator(card_set, field_, cfg.agent, cfg.workers) as evaluate:
+    with Evaluator(card_set, field_, cfg.search_agent or cfg.agent, cfg.workers) as evaluate:
         result = map_elites(card_set, evaluate, search, log=None, start=list(decks))
     best = {}
     for _, e in result.elites():
@@ -166,7 +168,8 @@ def run(card_set: CardSet, decks: list[Deck], cfg: LoopConfig, out_dir: Path, lo
     b = final["balance"]
     log(f"final prices: {b['decks']:.1f} effective decks, {b['effective_classes']:.1f} effective classes, "
         f"top class {b['top_class']:.0%}, best deck {b['best_vs_field']:.1%} against the field")
-    (out_dir / "final.json").write_text(json.dumps({"scales": scales_of(card_set), "after": final,
+    (out_dir / "final.json").write_text(json.dumps({"cards": card_set.name, "scales": scales_of(card_set),
+                                                    "after": final,
                                                     "decks": [list(d) for d in decks],
                                                     "table": np.round(table, 4).tolist(),
                                                     "mix": np.round(mix, 5).tolist()}))
