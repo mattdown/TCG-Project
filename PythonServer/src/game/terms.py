@@ -29,6 +29,9 @@ ASPECT_DESCRIPTIONS = {
 NEUTRAL = "neutral"  # the key for cards with no aspect
 NEUTRAL_NAME = "Neutral"
 NEUTRAL_DESCRIPTION = "No habitat: any deck can use it."
+# A class's two play styles (src/cards/classes.py), as the deck choice shows them.
+STYLE_NAMES = {"aggro": "Aggro", "swarm": "Swarm", "growth": "Growth", "fortress": "Fortress",
+               "control": "Control", "spells": "Spells"}
 
 # Keyword → whether it carries a number ("Duelist +2") or is just present ("Guard").
 KEYWORDS = {"guard": False, "elusive": False, "charge": False, "duelist": True, "armor": True}

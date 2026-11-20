@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 // JSON shapes of the game server's requests and responses: docs/client-protocol.md.
@@ -19,13 +20,28 @@ namespace Tcg.Protocol
         public int human_seat;
         public int? seed;
         public JObject scenario;  // optional: chosen cards in hand and in play, mana, hero health
-        public NewGameRequest(string opponent, int humanSeat, int? seed, JObject scenario = null) : base("new_game")
+        public DeckChoice deck;   // optional: the human's deck; null for the server's default (a random class deck)
+        public NewGameRequest(string opponent, int humanSeat, int? seed, JObject scenario = null, DeckChoice deck = null)
+            : base("new_game")
         {
             this.opponent = opponent;
             human_seat = humanSeat;
             this.seed = seed;
             this.scenario = scenario;
+            this.deck = deck;
         }
+    }
+
+    /// <summary>new_game's deck: random cards from the whole set, or a class's random or best deck.</summary>
+    public class DeckChoice
+    {
+        public string mode;  // "random" or "class"
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public string aspect;  // class: aspect_1 … aspect_6
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public string pick;    // class: "random" or "best"
+
+        public static DeckChoice RandomCards() => new DeckChoice { mode = "random" };
+        public static DeckChoice Class(string aspect, bool best) =>
+            new DeckChoice { mode = "class", aspect = aspect, pick = best ? "best" : "random" };
     }
 
     public class ActRequest : Request
@@ -79,11 +95,28 @@ namespace Tcg.Protocol
         public string rule;
     }
 
+    /// <summary>Reply to deck_options: the decks the human can choose before a game.</summary>
+    public class DeckOptionsResponse : Response
+    {
+        public bool random;                  // random cards from the whole set
+        public List<DeckClassOption> classes;  // empty for a set without classes
+    }
+
+    /// <summary>A class the human can play: its habitat's name, its two play styles, and whether it has a best deck.</summary>
+    public class DeckClassOption
+    {
+        public string aspect;
+        public string name;
+        public List<string> styles;
+        public bool best;  // the server has a MAP-Elites archive with a deck of this class
+    }
+
     /// <summary>Reply to new_game, state, act, ai_move and ai_turn; the fields not sent stay null.</summary>
     public class StateResponse : Response
     {
         public GameState state;
         public string opponent;            // new_game: the AI's name
+        public List<string> deck;          // new_game: your deck's card ids, sorted
         public GameAction action;          // act, ai_move
         public List<GameAction> actions;   // ai_turn
     }

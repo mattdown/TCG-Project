@@ -5,7 +5,8 @@ truth: the client renders the state it's given, shows the legal actions, and sen
 index of the one the player picks. It never applies rules itself.
 
 - Start the server from `PythonServer/`: `uv run python -m scripts.server` (port 5555;
-  `--port`, `--cards`, `--model` to override).
+  `--port`, `--cards`, `--model` to override; `--elites ARCHIVE` offers each class's best deck,
+  see [`deck_options`](#deck_options-the-decks-the-human-can-choose)).
 - Transport: ZeroMQ **REQ/REP** on `tcp://localhost:5555`. Each request is one JSON string,
   and each gets exactly one JSON string back. REQ sockets must strictly alternate send /
   receive.
@@ -124,11 +125,38 @@ list). The client's help screen shows them; colours stay in the client.
 
 Legal attack actions and their previews already account for all of these.
 
+### `deck_options`: the decks the human can choose
+
+Before a game the client offers random cards, or a class and then its random deck or its best
+one. Captured on `set_1000_c` with `--elites data/elites/set_1000_c_share.json`:
+
+```json
+→ {"type": "deck_options"}
+← {"status": "ok", "random": true, "classes": [
+     {"aspect": "aspect_1", "name": "Ember", "styles": ["Spells", "Aggro"], "best": true},
+     {"aspect": "aspect_2", "name": "Bog", "styles": ["Control", "Spells"], "best": true},
+     {"aspect": "aspect_3", "name": "Moss", "styles": ["Growth", "Fortress"], "best": true},
+     {"aspect": "aspect_4", "name": "Meadow", "styles": ["Swarm", "Growth"], "best": true},
+     {"aspect": "aspect_5", "name": "Glow", "styles": ["Aggro", "Swarm"], "best": true},
+     {"aspect": "aspect_6", "name": "Frost", "styles": ["Fortress", "Control"], "best": true}]}
+```
+
+- `classes`: one per class (aspect), with its player-facing name and its two play styles
+  (`src/cards/classes.py`). Empty for a set without classes (e.g. `keywords_200`): there is
+  nothing to choose, so the client starts straight away.
+- `best`: whether the class has a best deck, which needs the server to run with `--elites`
+  (a MAP-Elites archive of the set, from `scripts.map_elites`). The best deck is the one the
+  smoothed equilibrium of the archive's metagame table plays most among the class's decks
+  (`--metagame FILE`, by default `data/metagame/<archive>.<model>.json` or
+  `<archive>.heuristic.json` from `scripts.metagame`, if there is one), or else the class's
+  fittest elite.
+- Allowed before `new_game`.
+
 ### `new_game`: start a game on random decks
 
 ```json
 → {"type": "new_game", "opponent": "neural", "human_seat": 0, "seed": 7}
-← {"status": "ok", "opponent": "tcgnet+search", "state": {…}}
+← {"status": "ok", "opponent": "tcgnet+search", "deck": ["K1-011", "K1-011", "K1-015", …], "state": {…}}
 ```
 
 - `opponent`: `"neural"` (needs a trained model in `models/tcgnet.pt`), `"heuristic"` or
@@ -137,6 +165,33 @@ Legal attack actions and their previews already account for all of these.
 - `human_seat`: 0 or 1 (default 0). Who goes first is random: see `active_player`.
 - `seed`: optional, makes decks and shuffles reproducible.
 - `opponent` in the response is the AI's name (the model file name for neural agents, with `+search` when it searches).
+- `deck` in the response is the human's own deck list, card IDs sorted (not in draw order). The
+  AI's deck is never sent.
+- `deck` in the request: optional, the human's deck choice (see `deck_options`). Without it the
+  deck is random: one class's cards plus neutral ones on a set with classes, the whole set
+  otherwise. The AI always gets a random deck that way.
+
+  ```json
+  "deck": {"mode": "random"}                                         random cards from the whole set
+  "deck": {"mode": "class", "aspect": "aspect_3", "pick": "random"}  a random Moss deck (class cards and neutrals)
+  "deck": {"mode": "class", "aspect": "aspect_3", "pick": "best"}    Moss's best deck
+  ```
+
+  Captured on `set_1000_c` with seed 7:
+
+  ```json
+  → {"type": "new_game", "opponent": "neural", "human_seat": 0, "seed": 7,
+     "deck": {"mode": "class", "aspect": "aspect_3", "pick": "best"}}
+  ← {"status": "ok", "opponent": "tcgnet_v7c_best+search",
+     "deck": ["S3-024", "S3-041", "S3-047", "S3-061", "S3-149", "S3-217", "S3-221", "S3-221", …], "state": {…}}
+  ```
+
+  An unknown mode, class or pick, a class on a set without classes, or `"best"` when the
+  class has none, is an error:
+
+  ```json
+  ← {"status": "error", "msg": "no best deck for Moss: start the server with --elites"}
+  ```
 - `scenario`: optional, for checking single cards by hand. The game skips both mulligans and
   starts on the human's first turn with chosen cards (IDs from `card_set`):
 
@@ -489,10 +544,10 @@ your end_turn: "result": {…, "moves": [{"uid": null, "card_id": null, "player"
 ## Client flow
 
 ```
-startup:   card_set → cache card definitions by id
-new game:  new_game → render state
+startup:   card_set → cache card definitions by id; deck_options
+new game:  the deck choice (skipped if there are no classes) → new_game with "deck" → render state
 loop:
-  if state.game_over:                       show the winner, offer a new game
+  if state.game_over:                       show the winner, offer a new game (back to the deck choice)
   elif decision_player == human_seat and state.pending:
                                             show the choice prompt; on an answer → act(index)
   elif decision_player == human_seat:       show legal_actions; on a choice → act(index)

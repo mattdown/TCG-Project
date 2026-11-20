@@ -1,9 +1,11 @@
+import json
 from dataclasses import replace
 
 import pytest
 
 from src.cards.art import art_key
 from src.cards.coverage import generate_coverage_set
+from src.cards.generate import generate_card_set
 from src.cards.schema import Card, CardSet
 from src.cards.vanilla import generate_vanilla_set
 from src.model.registry import create_model, save_model
@@ -480,3 +482,126 @@ def test_unusable_actions_and_options_say_so():
     play = next(a for a in state["legal_actions"] if a["type"] == "play" and a["card"] == hand["CHARM"]["uid"])
     pending = session.handle({"type": "act", "action_index": play["index"]})["state"]["pending"]
     assert [o["usable"] for o in pending["options"]] == [False, True]
+
+
+# --- deck choice
+
+@pytest.fixture(scope="module")
+def class_set():
+    return generate_card_set(200, seed=3, classes=True, prefix="T")
+
+
+def elite(aspect, cards):
+    return {"class": aspect, "deck": [c.id for c in cards], "fitness": 0.0}
+
+
+@pytest.fixture
+def elites(tmp_path, class_set):
+    """An archive with two elites of aspect_1 (the fitter second) and one of aspect_2."""
+    def deck(aspect, skip):
+        own = [c for c in class_set.cards if c.aspects == (aspect,)]
+        return (own[skip:skip + 15] * 2)[:30]
+    archive = {"cards": "cardsets/test.json", "elites": [
+        {**elite("aspect_1", deck("aspect_1", 0)), "fitness": 1.0},
+        {**elite("aspect_1", deck("aspect_1", 5)), "fitness": 2.0},
+        {**elite("aspect_2", deck("aspect_2", 0)), "fitness": 1.0}]}
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(archive))
+    return path, archive
+
+
+def deal(session, deck, seat=0, seed=1):
+    response = session.handle({"type": "new_game", "opponent": "random", "human_seat": seat, "seed": seed,
+                               "deck": deck})
+    assert response["status"] == "ok", response
+    return response
+
+
+def human_deck(session):
+    g = session.game
+    return [g.card(uid).card for uid in g.state.players[session.human_seat].deck + g.state.players[session.human_seat].hand]
+
+
+@pytest.mark.parametrize("seat", [0, 1])
+def test_a_random_class_deck_is_that_class_and_neutrals(class_set, seat):
+    s = GameSession(class_set)
+    response = deal(s, {"mode": "class", "aspect": "aspect_3", "pick": "random"}, seat)
+    cards = human_deck(s)
+    assert len(cards) == 30 and all(c.aspects in ((), ("aspect_3",)) for c in cards)
+    assert any(c.aspects for c in cards) and any(not c.aspects for c in cards)
+    assert response["deck"] == sorted(c.id for c in cards)
+    assert response["state"]["players"][seat]["aspect"] == "aspect_3"
+
+
+def test_random_cards_draw_from_the_whole_set(class_set):
+    s = GameSession(class_set)
+    aspects = set()
+    for seed in range(5):
+        deal(s, {"mode": "random"}, seed=seed)
+        aspects |= {c.aspects[0] for c in human_deck(s) if c.aspects}
+    assert len(aspects) >= 4
+
+
+def test_no_deck_choice_deals_as_before(class_set):
+    a, b = GameSession(class_set), GameSession(class_set)
+    a.handle({"type": "new_game", "opponent": "random", "seed": 7})
+    deal(b, None, seed=7)
+    assert [c.card.id for c in a.game.state.cards] == [c.card.id for c in b.game.state.cards]
+
+
+def test_the_best_deck_is_the_fittest_elite(class_set, elites):
+    path, archive = elites
+    s = GameSession(class_set, elites=path)
+    response = deal(s, {"mode": "class", "aspect": "aspect_1", "pick": "best"})
+    assert response["deck"] == sorted(archive["elites"][1]["deck"])
+    assert sorted(c.id for c in human_deck(s)) == response["deck"]
+
+
+def test_the_best_deck_follows_the_metagame(class_set, elites, tmp_path):
+    path, archive = elites
+    decks = [e["deck"] for e in archive["elites"]]
+    # The first (less fit) aspect_1 deck beats everything, so the equilibrium plays it.
+    saved = {"archive": str(path), "decks": decks, "classes": ["aspect_1", "aspect_1", "aspect_2"],
+             "table": [[0.5, 0.9, 0.9], [0.1, 0.5, 0.5], [0.1, 0.5, 0.5]]}
+    table = tmp_path / "test.heuristic.json"
+    table.write_text(json.dumps(saved))
+    s = GameSession(class_set, elites=path, metagame=table)
+    assert deal(s, {"mode": "class", "aspect": "aspect_1", "pick": "best"})["deck"] == sorted(decks[0])
+    assert deal(s, {"mode": "class", "aspect": "aspect_2", "pick": "best"})["deck"] == sorted(decks[2])
+
+
+def test_deck_options(class_set, elites):
+    response = GameSession(class_set, elites=elites[0]).handle({"type": "deck_options"})
+    assert response["status"] == "ok" and response["random"]
+    classes = {c["aspect"]: c for c in response["classes"]}
+    assert len(classes) == 6
+    assert classes["aspect_1"] == {"aspect": "aspect_1", "name": "Ember", "styles": ["Spells", "Aggro"], "best": True}
+    assert [a for a, c in classes.items() if c["best"]] == ["aspect_1", "aspect_2"]
+    assert not any(c["best"] for c in GameSession(class_set).handle({"type": "deck_options"})["classes"])
+    assert GameSession(generate_vanilla_set()).handle({"type": "deck_options"})["classes"] == []
+
+
+@pytest.mark.parametrize("deck", [
+    {"mode": "class", "aspect": "aspect_9", "pick": "random"},
+    {"mode": "class", "aspect": "aspect_3", "pick": "best"},  # no archive
+    {"mode": "class", "aspect": "aspect_1", "pick": "fittest"},
+    {"mode": "deluxe"},
+    "random",
+])
+def test_bad_deck_choices_are_errors(class_set, deck):
+    s = GameSession(class_set)
+    response = s.handle({"type": "new_game", "opponent": "random", "deck": deck})
+    assert response["status"] == "error" and s.game is None
+
+
+def test_a_class_deck_needs_a_set_with_classes():
+    response = GameSession(generate_vanilla_set()).handle(
+        {"type": "new_game", "opponent": "random", "deck": {"mode": "class", "aspect": "aspect_1"}})
+    assert response["status"] == "error"
+
+
+def test_an_archive_must_exist_and_match_the_set(class_set, elites, tmp_path):
+    with pytest.raises(ValueError):
+        GameSession(class_set, elites=tmp_path / "missing.json")
+    with pytest.raises(ValueError):
+        GameSession(generate_vanilla_set(), elites=elites[0])

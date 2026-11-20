@@ -128,6 +128,14 @@ namespace Tcg.View
         public const string HelpNoteFresh = "A unit can’t attack the turn it’s played (unless it has {0}).";
         public const string HelpNoteFrozen = "<color=#BFE9FF><b>❄ Frozen</b></color> units skip their next attack.";
 
+        // Deck choice, before each game. Class names and play styles come from the server's deck_options.
+        public const string DeckTitle = "Choose your deck";
+        public const string DeckHelp = "A class plays its own cards and neutral ones. Best deck: the strongest one the deck search found for that class.";
+        public const string RandomCards = "Random cards";
+        public const string RandomDeck = "Random deck";
+        public const string BestDeck = "Best deck";
+        public const string StyleSeparator = " · ";
+
         // Mulligan and game over.
         public const string MulliganTitle = "Choose cards to put back";
         public const string MulliganText = "Tap the cards to put back (tap again to keep one). You draw a new card for each.";

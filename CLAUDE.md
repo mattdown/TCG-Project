@@ -122,7 +122,8 @@ uv run python -m scripts.metagame data/elites/heldout_200_c.json   # matchup tab
                                             # its equilibria and balance targets (~1 min; --agent MODEL, --load)
 uv run python -m scripts.price_loop data/elites/set_1000_c_share.json --rounds 8   # prices from the metagame
                                             # (~6 min a round); writes data/price_loop/<archive>/
-uv run python -m scripts.server            # tcp://*:5555 for the Unity client; the AI searches its turn (--no-search: raw policy)
+uv run python -m scripts.server            # tcp://*:5555 for the Unity client; the AI searches its turn (--no-search: raw policy);
+                                            # --elites ARCHIVE offers each class's best deck (data/elites/set_1000_c_share.json)
 ```
 
 Blog tools, from the repository root:
@@ -183,8 +184,8 @@ the command in `caffeinate -ims` (and `nohup ... &`) so the Mac doesn't sleep. T
   main-thread dispatcher), `Protocol/` (JSON models, snake_case like the protocol), `View/`
   (`CardView`, palette, `Ui` building blocks and `UiTheme`, the client's few chrome strings in
   `UiText`), `Board/` (`BoardView` renders a state and animates action results,
-  `BoardInteraction` handles drags, drop zones and taps, `Overlays.cs` has inspect, mulligan
-  and game over, `GameController` runs the request flow and steps the AI with `ai_move`).
+  `BoardInteraction` handles drags, drop zones and taps, `Overlays.cs` has inspect, mulligan,
+  game over and the deck choice (from `deck_options`, before each game), `GameController` runs the request flow and steps the AI with `ai_move`).
   The human's decisions are commands (`Commands.cs`): each step picks its action from the
   latest `legal_actions`, so a multi-step choice like the mulligan is picked locally and sent
   in one go, and indexes never go stale.

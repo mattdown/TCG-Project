@@ -4,9 +4,13 @@ Every request is a JSON object with a "type"; every response has "status" ("ok" 
 "error") and, where relevant, "state": the game as the human player sees it.
 
   {"type": "card_set"}                         → all card definitions
+  {"type": "deck_options"}                     → the decks the human can choose: random cards, or a class's
+                                                 random or best deck (best: needs a MAP-Elites archive)
   {"type": "new_game", "human_seat": 0,        → starts a game on random decks
    "opponent": "neural"|"heuristic"|"random",   (neural: the network with search within a turn)
    "seed": 123,
+   "deck": {"mode": "random"}                  → optional: the human's deck, random cards from the whole set,
+     or {"mode": "class", "aspect": "aspect_3", "pick": "random"|"best"}   or a class's (see _deck)
    "scenario": {...}}                          → optional: skip the mulligan and set up chosen cards (see _set_up)
   {"type": "state"}                            → current state
   {"type": "act", "action_index": 3}           → applies the human's choice from state.legal_actions
@@ -16,9 +20,12 @@ Every request is a JSON object with a "type"; every response has "status" ("ok" 
   {"type": "graph_node", "node": 12}           → one node of it: input features, stages and each layer's messages
   {"type": "graph_layer", "node": 12, "layer": 2} → one layer for that node, step by step (needs a GNN model)
 
-The state never includes the AI's hand or either deck's contents.
+The state never includes the AI's hand or either deck's contents; new_game returns the human's
+own deck list.
 """
+import json
 import random
+from pathlib import Path
 
 from src.agents.base import Agent
 from src.agents.heuristic_agent import HeuristicAgent
@@ -27,14 +34,15 @@ from src.agents.random_agent import RandomAgent
 from src.agents.search_agent import SearchAgent
 from src.cards.abilities import Renderer, render
 from src.cards.art import art_key
-from src.cards.schema import CardSet
+from src.cards.schema import Card, CardSet
 from src.cards.tokens import tokens_of
+from src.deck_search.metagame import best_decks
 from src.game.actions import Action, ActionType
-from src.game.decks import random_deck
+from src.game.decks import has_classes, random_deck
 from src.game.engine import Game, Move, StepResult, describe_action
 from src.game.state import Phase, Zone
 from src.game.terms import (ASPECT_DESCRIPTIONS, ASPECT_NAMES, ASPECTS, KEYWORD_NAMES, KEYWORD_RULES, KEYWORDS,
-                            NEUTRAL, NEUTRAL_DESCRIPTION, NEUTRAL_NAME)
+                            NEUTRAL, NEUTRAL_DESCRIPTION, NEUTRAL_NAME, STYLE_NAMES)
 from src.model.registry import load_model
 from src.server.graph_view import graph_view, layer_view, node_view
 
@@ -43,11 +51,16 @@ PUBLIC_ZONES = (Zone.PLAY, Zone.DISCARD)
 
 
 class GameSession:
-    def __init__(self, card_set: CardSet, model_path=None, search: bool = True):
-        """With `search` the neural opponent searches its turn (SearchAgent); without, it plays the raw policy."""
+    def __init__(self, card_set: CardSet, model_path=None, search: bool = True, elites: Path | None = None,
+                 metagame: Path | None = None):
+        """With `search` the neural opponent searches its turn (SearchAgent); without, it plays the raw policy.
+        `elites` (a MAP-Elites archive of this set) offers each class's best deck: the one the smoothed
+        equilibrium of `metagame` (a scripts.metagame table of that archive) plays most, or else its
+        fittest elite."""
         self.card_set = card_set
         self.model_path = model_path
         self.search = search
+        self.best = self._load_best(elites, metagame) if elites is not None else {}
         self.game: Game | None = None
         self.human_seat = 0
         self.ai: Agent | None = None
@@ -56,6 +69,7 @@ class GameSession:
     def handle(self, request: dict) -> dict:
         handler = {
             "card_set": self._card_set,
+            "deck_options": self._deck_options,
             "new_game": self._new_game,
             "state": self._state,
             "act": self._act,
@@ -67,7 +81,7 @@ class GameSession:
         }.get(request.get("type"))
         if handler is None:
             return {"status": "error", "msg": f"unknown request type {request.get('type')!r}"}
-        if handler not in (self._card_set, self._new_game) and self.game is None:
+        if handler not in (self._card_set, self._deck_options, self._new_game) and self.game is None:
             return {"status": "error", "msg": "no game in progress: send new_game first"}
         try:
             return handler(request)
@@ -88,17 +102,69 @@ class GameSession:
         aspects[NEUTRAL] = {"name": NEUTRAL_NAME, "description": NEUTRAL_DESCRIPTION}
         return {"status": "ok", "name": self.card_set.name, "cards": cards, "keywords": keywords, "aspects": aspects}
 
+    def _deck_options(self, _):
+        classes = self.card_set.notes.get("classes", {}) if has_classes(self.card_set) else {}
+        return {"status": "ok", "random": True,
+                "classes": [{"aspect": a, "name": ASPECT_NAMES[a], "styles": [STYLE_NAMES[s] for s in classes[a]],
+                             "best": a in self.best} for a in ASPECTS if a in classes]}
+
     def _new_game(self, request):
         seed = request.get("seed")
         rng = random.Random(seed)
         self.human_seat = int(request.get("human_seat", 0))
         self.ai = self._make_agent(request.get("opponent", "neural"), rng.randrange(2**31))
         scenario = request.get("scenario")
-        self.game = Game(random_deck(self.card_set, rng), random_deck(self.card_set, rng), seed=rng.randrange(2**31),
-                         first_player=self.human_seat if scenario else None)
+        # Seat order, so a game without deck choices deals what it always did. The AI's deck is
+        # random; an "opponent_deck" choice would go in its place.
+        choices = {self.human_seat: request.get("deck"), 1 - self.human_seat: None}
+        decks = [self._deck(choices[seat], rng) for seat in (0, 1)]
+        self.game = Game(*decks, seed=rng.randrange(2**31), first_player=self.human_seat if scenario else None)
         if scenario:
             self._set_up(scenario)
-        return {"status": "ok", "opponent": self.ai.name, "state": self.view()}
+        return {"status": "ok", "opponent": self.ai.name, "deck": sorted(c.id for c in decks[self.human_seat]),
+                "state": self.view()}
+
+    def _deck(self, choice: dict | None, rng: random.Random) -> list[Card]:
+        """A deck from a deck choice: None for the default (a random class deck on a set with
+        classes, random cards otherwise), {"mode": "random"} for random cards from the whole set,
+        {"mode": "class", "aspect": ..., "pick": "random"|"best"} for a class's random or best deck."""
+        if choice is None:
+            return random_deck(self.card_set, rng)
+        if not isinstance(choice, dict):
+            raise ValueError("deck must be an object with a mode")
+        mode = choice.get("mode")
+        if mode == "random":
+            return random_deck(self.card_set, rng, one_aspect=False)
+        if mode != "class":
+            raise ValueError(f"unknown deck mode {mode!r}: random or class")
+        if not has_classes(self.card_set):
+            raise ValueError(f"the card set {self.card_set.name} has no classes")
+        aspect, pick = choice.get("aspect"), choice.get("pick", "random")
+        if aspect not in ASPECTS:
+            raise ValueError(f"unknown class {aspect!r}")
+        if pick == "random":
+            return random_deck(self.card_set, rng, aspect=aspect)
+        if pick != "best":
+            raise ValueError(f"unknown deck pick {pick!r}: random or best")
+        if aspect not in self.best:
+            raise ValueError(f"no best deck for {ASPECT_NAMES[aspect]}: start the server with --elites")
+        return [self.card_set[i] for i in self.best[aspect]]
+
+    def _load_best(self, elites: Path, metagame: Path | None) -> dict[str, list[str]]:
+        """Each class's best deck from a MAP-Elites archive (and its metagame table, if given)."""
+        if not elites.exists():
+            raise ValueError(f"no MAP-Elites archive at {elites}")
+        archive = json.loads(elites.read_text())
+        saved = None
+        if metagame is not None:
+            saved = json.loads(metagame.read_text())
+            if Path(saved["archive"]).stem != elites.stem:
+                raise ValueError(f"{metagame} is the metagame of {saved['archive']}, not {elites}")
+        best = best_decks(archive, saved)
+        ids = {c.id for c in self.card_set.cards}
+        if any(i not in ids for deck in best.values() for i in deck):
+            raise ValueError(f"{elites} has decks of {archive.get('cards')}, not of the card set {self.card_set.name}")
+        return best
 
     def _set_up(self, scenario: dict):
         """Starts the human's first turn with chosen cards, for checking single cards by hand.

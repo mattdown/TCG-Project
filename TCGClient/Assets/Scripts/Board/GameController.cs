@@ -8,7 +8,8 @@ using UnityEngine;
 namespace Tcg.Board
 {
     /// <summary>
-    /// The client flow from docs/client-protocol.md: card_set, new_game, then render each state.
+    /// The client flow from docs/client-protocol.md: card_set, deck_options and the deck choice,
+    /// new_game, then render each state.
     /// The human acts by dragging, by the inspect buttons, or with END TURN; the AI's decisions
     /// run one ai_move at a time so each can be shown, animated from the server's action results.
     /// </summary>
@@ -37,6 +38,9 @@ namespace Tcg.Board
         JObject _scenario;  // the dev panel's last scenario: NEW GAME replays it
         int? _scenarioSeed;
         GraphOverlay _graph;
+        DeckOptionsResponse _deckOptions;  // what the deck choice offers; no classes: no choice
+        DeckChoice _deck;                  // the last deck chosen; dev scenarios reuse it
+        DeckChoiceView _deckChoice;
 
         void Start()
         {
@@ -48,7 +52,7 @@ namespace Tcg.Board
                 if (spore != null) Execute(new ActionCommand(spore));
             });
             Interaction.CommandIssued += Execute;
-            Interaction.NewGameRequested += () => NewGame(Opponent);
+            Interaction.NewGameRequested += () => ChooseDeck();
             Interaction.ScenarioRequested += (scenario, seed) =>
             {
                 _scenario = scenario;
@@ -102,19 +106,52 @@ namespace Tcg.Board
             CardText.Keywords = r.keywords ?? new Dictionary<string, KeywordInfo>();
             CardText.Aspects = r.aspects ?? new Dictionary<string, AspectInfo>();
             Debug.Log($"Card set {r.name}: {_cards.Count} cards");
-            NewGame(Opponent);
+            Network.Send<DeckOptionsResponse>(new Request("deck_options"), options =>
+            {
+                // An older server without deck_options: no choice, its default deck.
+                _deckOptions = options.Ok ? options : null;
+                ChooseDeck();
+            });
+        }
+
+        /// <summary>Opens the deck choice, or starts straight away when the set has no classes to choose from.</summary>
+        void ChooseDeck(string error = null)
+        {
+            if (_deckOptions == null || _deckOptions.classes == null || _deckOptions.classes.Count == 0)
+            {
+                if (error == null) NewGame(Opponent);
+                return;
+            }
+            if (_deckChoice == null)
+            {
+                _deckChoice = DeckChoiceView.Create(Board.Root);
+                _deckChoice.Chosen += deck =>
+                {
+                    _deck = deck;
+                    NewGame(Opponent);
+                };
+            }
+            SetBusy(true);
+            Board.ShowMessage(null);
+            _deckChoice.Show(_deckOptions, error);
         }
 
         void NewGame(string opponent)
         {
             SetBusy(true);
             int? seed = _scenarioSeed ?? (Seed >= 0 ? Seed : (int?)null);
-            Network.Send<StateResponse>(new NewGameRequest(opponent, HumanSeat, seed, _scenario), r =>
+            Network.Send<StateResponse>(new NewGameRequest(opponent, HumanSeat, seed, _scenario, _deck), r =>
             {
                 if (!r.Ok && opponent != FallbackOpponent && !string.IsNullOrEmpty(FallbackOpponent))
                 {
                     Debug.LogWarning($"new_game with {opponent} failed ({r.msg}); trying {FallbackOpponent}");
                     NewGame(FallbackOpponent);
+                    return;
+                }
+                if (!r.Ok && _deck != null)
+                {
+                    Debug.LogWarning($"Server error: {r.msg}");
+                    ChooseDeck(r.msg);  // pick another deck
                     return;
                 }
                 if (!Check(r)) return;

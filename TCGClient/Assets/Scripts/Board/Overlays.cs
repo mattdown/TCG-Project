@@ -367,4 +367,97 @@ namespace Tcg.Board
 
         public void Hide() => gameObject.SetActive(false);
     }
+
+    /// <summary>
+    /// The deck choice before a game: random cards from every class, or a class (a tile in its
+    /// habitat's colour with its two play styles) and then its random deck or the best one the deck
+    /// search found. What's on offer comes from the server's deck_options.
+    /// </summary>
+    public class DeckChoiceView : MonoBehaviour
+    {
+        const float TileW = 360, TileH = 172, Gap = 20, GridX = 80, GridY = 150;
+
+        public event Action<DeckChoice> Chosen;
+        public bool IsOpen => gameObject.activeSelf;
+
+        RectTransform _grid;
+        TMP_Text _error;
+        readonly List<GameObject> _built = new List<GameObject>();
+
+        public static DeckChoiceView Create(RectTransform parent)
+        {
+            var root = Ui.Stretch("DeckChoice", parent, 0, 0, 0, 0);
+            var view = root.gameObject.AddComponent<DeckChoiceView>();
+            Ui.Scrim(root, "Scrim", 0.85f).interactable = false;
+
+            // Laid out on the 1280x720 design, centred on wider screens.
+            var page = Ui.Node("Page", root);
+            Ui.Anchor(page, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1280, 720));
+            Ui.Panel(Ui.Box("Panel", page, 24, 24, 1232, 672), 22, Palette.Lantern.WithAlpha(0.4f), 0.94f);
+            var title = Ui.Display(Ui.Box("Title", page, 0, 52, 1280, 50), UiText.DeckTitle, 38);
+            title.characterSpacing = 6f;
+            Ui.Text(Ui.Box("Help", page, 0, 104, 1280, 26), UiText.DeckHelp, Ui.Theme.Body, 16, Palette.SubtleText,
+                TextAlignmentOptions.Center);
+            view._grid = Ui.Box("Classes", page, 0, 0, 1280, 720);
+
+            var random = Ui.Box("RandomCards", page, 490, GridY + 2 * TileH + Gap + 34, 300, 60);
+            Ui.Button(random, UiText.RandomCards, Palette.Lantern, 20, out _, true)
+                .onClick.AddListener(() => view.Choose(DeckChoice.RandomCards()));
+            view._error = Ui.Text(Ui.Box("Error", page, 0, 652, 1280, 24), "", Ui.Theme.BodyBold, 15,
+                Palette.StatDown, TextAlignmentOptions.Center);
+            root.gameObject.SetActive(false);
+            return view;
+        }
+
+        /// <summary>Opens the choice with the server's options; <paramref name="error"/> says why the last game didn't start.</summary>
+        public void Show(DeckOptionsResponse options, string error = null)
+        {
+            foreach (var go in _built) Destroy(go);
+            _built.Clear();
+            gameObject.SetActive(true);
+            transform.SetAsLastSibling();
+            _error.text = error ?? "";
+            var classes = options.classes ?? new List<DeckClassOption>();
+            for (int i = 0; i < classes.Count; i++)
+                Tile(classes[i], GridX + (i % 3) * (TileW + Gap), GridY + (i / 3) * (TileH + Gap));
+        }
+
+        public void Hide() => gameObject.SetActive(false);
+
+        void Choose(DeckChoice choice)
+        {
+            Hide();
+            Chosen?.Invoke(choice);
+        }
+
+        void Tile(DeckClassOption option, float x, float y)
+        {
+            var colour = Palette.Aspect(Palette.AspectNumber(option.aspect));
+            var tile = Ui.Box(option.name, _grid, x, y, TileW, TileH);
+            Ui.Panel(tile, 16, colour.WithAlpha(0.8f), 0.85f);
+            Ui.Rounded(Ui.Stretch("Wash", tile, 0, 0, 0, 0), colour.WithAlpha(0.06f), 16);
+
+            var swatch = Ui.Box("Swatch", tile, 20, 22, 40, 40);
+            Ui.Rounded(swatch, colour.WithAlpha(0.3f), Ui.Round);
+            Ui.Rim(Ui.Stretch("Rim", swatch, 0, 0, 0, 0), colour, Ui.Round);
+            Ui.Rounded(Ui.Stretch("Light", swatch, 12, 12, 12, 12), colour, Ui.Round);
+            Ui.Display(Ui.Box("Name", tile, 76, 16, TileW - 96, 34), option.name, 28, TextAlignmentOptions.Left);
+            string styles = option.styles != null ? string.Join(UiText.StyleSeparator, option.styles) : "";
+            Ui.Text(Ui.Box("Styles", tile, 76, 52, TileW - 96, 22), styles, Ui.Theme.BodyBold, 16,
+                Color.Lerp(colour, Color.white, 0.55f), TextAlignmentOptions.Left);
+
+            // Random deck, and the best deck when the server has one for this class.
+            float w = option.best ? (TileW - 52) / 2 : TileW - 40;
+            var random = Ui.Box("RandomDeck", tile, 20, TileH - 72, w, 52);
+            Ui.Button(random, UiText.RandomDeck, colour, 16, out _)
+                .onClick.AddListener(() => Choose(DeckChoice.Class(option.aspect, false)));
+            if (option.best)
+            {
+                var best = Ui.Box("BestDeck", tile, 32 + w, TileH - 72, w, 52);
+                Ui.Button(best, UiText.BestDeck, colour, 16, out _, true)
+                    .onClick.AddListener(() => Choose(DeckChoice.Class(option.aspect, true)));
+            }
+            _built.Add(tile.gameObject);
+        }
+    }
 }

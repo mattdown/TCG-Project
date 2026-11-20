@@ -40,18 +40,22 @@ def deck_class(deck) -> str | None:
 
 def random_deck(card_set: CardSet, rng: random.Random, deck_size: int = DECK_SIZE,
                 max_copies: int = MAX_COPIES, one_aspect: bool | None = ONE_ASPECT, focus_jobs: int = FOCUS_JOBS,
-                focus_share: float = FOCUS_SHARE, class_share: float = CLASS_SHARE) -> list[Card]:
+                focus_share: float = FOCUS_SHARE, class_share: float = CLASS_SHARE,
+                aspect: str | None = None) -> list[Card]:
     """Cards drawn with a mild preference for cheap ones: from one aspect plus neutral cards
     when `one_aspect` (every card if the set is too small), otherwise from the whole set, and
     with `focus_share` of the units from `focus_jobs` jobs. A one-aspect deck puts `class_share`
     of its draw weight on the class's cards: neutrals outnumber a class's cards about 2.5 to 1,
-    so drawing them alike gave decks only a third class cards."""
+    so drawing them alike gave decks only a third class cards. `aspect` picks the class (one aspect
+    implied); otherwise it's random."""
     pool = list(card_set.cards)
-    if one_aspect is None:
+    if aspect is not None:
+        one_aspect = True
+    elif one_aspect is None:
         one_aspect = has_classes(card_set)
     if one_aspect:
-        aspect = rng.choice(ASPECTS)
-        pool = [c for c in card_set.cards if c.aspects in ((), (aspect,))]
+        aspect = aspect or rng.choice(ASPECTS)
+        pool = class_pool(card_set, aspect)
     if len(pool) * max_copies < deck_size:  # a small set (e.g. a coverage set): use every aspect
         pool = list(card_set.cards)
     if len(pool) * max_copies < deck_size:

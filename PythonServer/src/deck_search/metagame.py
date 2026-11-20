@@ -210,3 +210,17 @@ def top_elites(archive: dict, top: int) -> list[dict]:
     for e in archive["elites"]:
         groups[e.get("class")].append(e)
     return [e for c in sorted(groups, key=str) for e in sorted(groups[c], key=lambda e: -e["fitness"])[:top]]
+
+
+def best_decks(archive: dict, saved: dict | None = None, temperature: float = 0.02) -> dict[str, list[str]]:
+    """The best deck of each class: with a saved metagame table of this archive (scripts.metagame),
+    the class's deck the smoothed equilibrium plays most; otherwise its fittest elite. The table
+    covers only the top elites, but those are the ones worth offering."""
+    if saved is not None:
+        mix = qre(np.array(saved["table"]), temperature)
+        best: dict[str, tuple[float, list[str]]] = {}
+        for weight, deck, aspect in zip(mix, saved["decks"], saved["classes"]):
+            if aspect and (aspect not in best or weight > best[aspect][0]):
+                best[aspect] = (float(weight), list(deck))
+        return {a: deck for a, (_, deck) in sorted(best.items())}
+    return {e["class"]: list(e["deck"]) for e in top_elites(archive, 1) if e.get("class")}
