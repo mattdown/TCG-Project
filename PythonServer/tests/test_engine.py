@@ -128,11 +128,18 @@ def test_elusive_hides_until_it_attacks():
     assert Action(ActionType.ATTACK, attacker, sneaky) in game.legal_actions()
 
 
-def test_hidden_guard_doesnt_force_attacks():
+def test_guard_overrides_elusive():
     game = started_game()
     attacker = put_in_play(game, 0, unit(power=2, health=3))
-    put_in_play(game, 1, unit(guard=1, elusive=1))
-    assert Action(ActionType.ATTACK_HERO, attacker) in game.legal_actions()
+    guard = put_in_play(game, 1, unit(guard=1, elusive=1))
+    put_in_play(game, 1, unit())
+    attacks = [a for a in game.legal_actions() if a.card == attacker]
+    assert attacks == [Action(ActionType.ATTACK, attacker, guard)] and not game.hidden(guard)
+    freeze = put_in_hand(game, 0, action({"choose": {"count": 1, "filter": {"owner": "opponent"}}, "as": "it"},
+                                         {"effect": "freeze", "target": {"ref": "it"}}))
+    give_mana(game, 0, 1)
+    game.step(Action(ActionType.PLAY, freeze))
+    assert guard in {a.target for a in game.legal_actions() if a.type == ActionType.CHOOSE_TARGET}
 
 
 def test_attack_deals_damage_both_ways_and_defeats():

@@ -110,6 +110,17 @@ ARCHETYPE_KEYWORDS = {
 }
 
 
+# Keywords that work against each other on one card. A Guard that's also Elusive can't be
+# attacked or chosen and doesn't force attacks, so it could sit untouchable without ever acting.
+CLASHING_KEYWORDS = {frozenset(("guard", "elusive"))}
+
+
+def second_keyword_options(weights: dict[str, int], keywords: dict) -> dict[str, int]:
+    """The weights for another keyword: not the ones the card has, and 0 for ones that clash with them."""
+    return {k: 0 if any(frozenset((k, h)) in CLASHING_KEYWORDS for h in keywords) else w
+            for k, w in weights.items() if k not in keywords}
+
+
 def keyword_value(keywords: dict[str, int]) -> int:
     return sum(KEYWORD_VALUE[k] * v for k, v in keywords.items())
 
@@ -137,7 +148,7 @@ def generate_keyword_set(n: int = 200, seed: int = 0, keyword_rate: float = 0.45
         keywords = {}
         wanted = (1 + (rng.random() < 0.15)) if rng.random() < keyword_rate else 0
         for _ in range(wanted):
-            options = {k: w for k, w in ARCHETYPE_KEYWORDS[archetype].items() if w and k not in keywords}
+            options = {k: w for k, w in second_keyword_options(ARCHETYPE_KEYWORDS[archetype], keywords).items() if w}
             name = rng.choices(list(options), list(options.values()))[0]
             lo, hi = KEYWORD_RANGE.get(name, (1, 1))
             value = rng.randint(lo, hi)

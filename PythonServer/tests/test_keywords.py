@@ -1,7 +1,8 @@
 import pytest
 
 from src.cards.schema import Card
-from src.cards.vanilla import generate_keyword_set, keyword_value, stat_budget, stat_value
+from src.cards.generate import generate_card_set
+from src.cards.vanilla import CLASHING_KEYWORDS, generate_keyword_set, keyword_value, stat_budget, stat_value
 from src.game.actions import Action, ActionType
 from src.game.state import Zone
 from tests.helpers import fixture_set, give_mana, put_in_hand, put_in_play, started_game, unit
@@ -81,6 +82,12 @@ def test_keyword_set_spends_budget_on_keywords():
         value = stat_value(card.power, card.health) + keyword_value(dict(card.keywords))
         assert abs(value - stat_budget(card.cost)) <= 1
         assert card.traits and card.power >= 1 and card.health >= 1
+
+
+def test_no_generated_card_has_clashing_keywords():
+    sets = [*(generate_keyword_set(360, seed=s) for s in range(4)), generate_card_set(600, seed=5, keyword_share=0.6, classes=True)]
+    pairs = {frozenset(k for k, _ in c.keywords) for s in sets for c in s.cards if len(c.keywords) == 2}
+    assert len(pairs) > 3 and not pairs & CLASHING_KEYWORDS
 
 
 def test_granted_armor_lasts_through_the_opponents_turn():

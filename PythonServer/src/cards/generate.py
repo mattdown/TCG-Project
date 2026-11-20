@@ -20,7 +20,7 @@ from src.cards.quality import ACTION_COMPLEXITY, MAX_COMPLEXITY, complexity, qua
 from src.cards.schema import Card, CardSet
 from src.cards.theme import JOBS, SPECIES
 from src.cards.vanilla import (ARCHETYPES, ARCHETYPE_KEYWORDS, COST_WEIGHTS, KEYWORD_RANGE, MIN_STATS_VALUE,
-                               _allocate, keyword_value, stat_budget)
+                               _allocate, keyword_value, second_keyword_options, stat_budget)
 from src.game.terms import ASPECTS, keyword_text
 
 STAGES = ("grammar", "quality", "card", "duplicate", "variety")  # where an attempt can be stopped
@@ -227,7 +227,7 @@ class CardGenerator:
         keywords = {}
         if kind == "keywords":
             for _ in range(2 if t.chance("Two keywords?", 0.15) else 1):
-                options = {k: w for k, w in ARCHETYPE_KEYWORDS[archetype].items() if k not in keywords}
+                options = second_keyword_options(ARCHETYPE_KEYWORDS[archetype], keywords)
                 keyword = t.weighted("Keyword", options, f"weighted for a {archetype}")
                 lo, hi = KEYWORD_RANGE.get(keyword, (1, 1))
                 keywords[keyword] = t.randint("Keyword value", lo, hi)

@@ -39,7 +39,7 @@ KEYWORD_NAMES = {"guard": "Guard", "elusive": "Elusive", "charge": "Charge", "du
 # Reminder text for each keyword, shown when a card is inspected. N is the keyword's number.
 KEYWORD_RULES = {
     "guard": "Enemy units must attack a Guard unit if they can.",
-    "elusive": "Can't be attacked or chosen by enemy abilities until it attacks.",
+    "elusive": "Can't be attacked or chosen by enemy abilities until it attacks. Guard overrides it.",
     "charge": "Can attack the turn it's played.",
     "duelist": "+N power while attacking.",
     "armor": "Takes N less damage from attacks, never below 0.",

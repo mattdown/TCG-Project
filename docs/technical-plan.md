@@ -106,7 +106,7 @@ module (`src/game/terms.py`), so a rename is a single change.
   | Charge | Can attack the turn it's played |
   | Duelist +N | +N power while attacking |
   | Armor +N | Takes N less damage from attacks |
-  | Elusive | Can't be attacked or chosen by enemy abilities until it attacks |
+  | Elusive | Can't be attacked or chosen by enemy abilities until it attacks; Guard overrides it |
 
 **Aspects and jobs.** Aspects are classes (deckbuilding and, later, a strategic identity);
 jobs are tribes that cross aspects (the synergies abilities refer to). Vanilla and keyword-only

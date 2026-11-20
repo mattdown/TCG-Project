@@ -476,3 +476,9 @@ for checking the engine and client. It uses the same pipeline.
   with a one-stat-point tax. In class mode the variety stage compares only draws in the first
   draw's price group, since comparing across groups favoured damage (it has the most shapes).
   New sets `set_1000_c`, `heldout_200_c`, `armor_heavy_c` (194 cards: Armor is now Fortress only).
+- **2026-11-20, clashing keywords.** A unit's second keyword can't clash with its first
+  (`CLASHING_KEYWORDS` in `src/cards/vanilla.py`: Guard and Elusive). A playtest found an Elusive
+  Guard that couldn't be attacked or chosen and didn't force attacks. The rules now let Guard
+  override Elusive, so the one or two such cards in the saved sets play as plain Guards (their
+  Elusive is wasted cost); the saved sets aren't regenerated, since any change to the draws
+  reshuffles a whole set.

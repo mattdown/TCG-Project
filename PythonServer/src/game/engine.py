@@ -135,8 +135,10 @@ class Game:
         return any(e.uid == uid and e.kind == "freeze" for e in self.state.effects)
 
     def hidden(self, uid: int) -> bool:
-        """Elusive and hasn't attacked yet: enemies can't attack it or choose it."""
-        return bool(self.keyword(uid, "elusive")) and not self.card(uid).revealed
+        """Elusive and hasn't attacked yet: enemies can't attack it or choose it. Guard overrides
+        Elusive, or a Guard could sit untouchable without ever acting."""
+        return (bool(self.keyword(uid, "elusive")) and not self.card(uid).revealed
+                and not self.keyword(uid, "guard"))
 
     def play_cost(self, uid: int) -> int:
         c = self.card(uid)
