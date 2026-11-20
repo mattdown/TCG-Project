@@ -332,6 +332,8 @@ Why this form works for both consumers:
   `heldout_200_g2`, `armor_heavy_g2`) are the same seeds and recipes with P2's first grammar
   batch; the old ones stay for comparisons with earlier models. The `_c` versions (`set_1000_c`,
   `heldout_200_c`, `armor_heavy_c`) are the same seeds and recipes with classes.
+  `set_1000_cjp` and `heldout_200_cjp` add home jobs and the price loop's prices (`set_1000_cj`
+  and the held-out recipe, repriced with the loop's final scales); v8 trains and is judged on them.
 - **Generated sets:** the output of part c.
 
 ## 4. Rules engine (`src/game/`, `src/cards/`)

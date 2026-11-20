@@ -246,6 +246,28 @@ class cards. Against the heuristic on `heldout_200_c`, with the same deck mix: v
 more against the heuristic with more class cards (v6b 68.8% → 74.2%). Logs: `train_v7c2.log`,
 `class_share_runs.log`.
 
+### v8: v7c_best fine-tuned on the home-jobs set (2026-11-20, 400 paired games, seed 0)
+
+300 iterations from v7c_best (seed 4, 4 workers) on `set_1000_cjp`: the home-jobs class set with
+the heuristic price loop's final prices (above). Decks are one class plus neutrals, 65% class
+cards, focused on the class's home jobs. Judged on `heldout_200_cjp` (`heldout_200_c`'s seed and
+recipe with home jobs, repriced with the same scales: 27 of 200 cards change).
+
+| Model | Against the heuristic | Against v7c_best |
+|---|---|---|
+| v7c_best | 68.0% | |
+| v8 (final) | **76.0%** | 54.0% |
+| v8_best | 67.8% | 52.2% |
+
+v8 beats v8_best 53.8%.
+
+- **The final checkpoint is the one to keep:** +8 points on the heuristic (about 3 standard
+  errors) and 54% head to head (1.6). v8_best was picked by a 100-game eval at iteration 100
+  (78%), which was noise; the 100-game training evals ranged 67–78%.
+- Not yet checked on elite decks (`--decks`), where v7c2's lead over v7c_best disappeared.
+
+Logs: `PythonServer/data/train_v8.log`, `bench_v8.log`.
+
 ### Class models on elite decks (2026-11-19, 400 paired games, seed 0)
 
 `scripts.benchmark --decks`: the 10 fittest elites per class (60 decks) from a MAP-Elites archive,
@@ -768,6 +790,43 @@ a payoff's job in the best decks):
 
 Archives `data/elites/set_1000_{cj,cn}{,1,2}.json`; tables
 `data/metagame/set_1000_{cj,cn}{,1,2}.heuristic.json`.
+
+### Prices from the metagame on the home-jobs set (2026-11-20, heuristic, `set_1000_cj`)
+
+The new default class set (home jobs, seed 0: card for card `set_1000_cj`) through the same loop
+as `set_1000_c` above: `scripts.price_loop data/elites/set_1000_cj.json --rounds 8`, from its
+per-class archive's top 10 elites per class (about 6 minutes a round).
+
+| Round | Effective decks | Effective classes | Top class | Best deck vs field | Class means | Moss | Meadow |
+|---|---|---|---|---|---|---|---|
+| 1 | 11.3 | 3.4 | Ember 55% | 64.0% | 40.7–55.9% | 46.9% | 40.7% |
+| 2 | 16.0 | 3.8 | Glow 51% | 64.2% | 41.8–57.0% | 46.7% | 41.8% |
+| 3 | 15.9 | 3.6 | Glow 57% | 64.4% | 45.6–55.9% | 45.6% | 47.7% |
+| 4 | 18.1 | 4.9 | Bog 31% | 66.3% | 48.0–51.7% | 49.4% | 48.0% |
+| 5 | 20.9 | 5.2 | Frost 28% | 65.7% | 48.6–52.1% | 48.8% | 49.4% |
+| 6 | 24.2 | 5.2 | Bog 28% | 64.0% | 48.0–51.7% | 49.2% | 51.2% |
+| 7 | 27.3 | 5.3 | Moss 24% | 62.7% | 48.3–52.6% | 49.2% | 50.3% |
+| 8 | 25.6 | 5.5 | Bog 25% | 61.2% | 48.2–52.1% | 50.3% | 50.6% |
+| final table | 25.5 | 5.5 | | 59.6% | | | |
+
+Against `set_1000_c`'s loop (start 36.0–63.5%, end 48.1–51.6%, 4.3 effective classes, best
+deck 62.4%, 15% of cards used):
+
+- **It starts closer and ends wider:** round 1's spread is 15 points instead of 27, and the final
+  mix uses all six classes (5.5 effective, every class 7–25%) and 22% of the cards. Meadow is the
+  only class at the bottom of round 1, and it's level by round 4.
+- **Prices move much less.** Action removal, which `set_1000_c` needed 1.77× dearer (3.45 →
+  6.09), ends at 3.50; draw rises less too (action 1.7 → 2.29, unit 1.23 → 1.61). The
+  growth groups get cheaper as before (summon on units 0.57 → 0.40, lords 1 → 0.63, discounts 1 →
+  0.55). With home jobs, less of the imbalance was the prices.
+- **Discard keeps climbing** (3.44 → 5.20, every round from 5 on, a few cards each time): a small
+  group whose decks keep winning. Watch it if the loop runs longer.
+
+Final scales: action buff 0.69, deal_damage 3.50, draw 2.29, summon 0.53; unit buff 0.18,
+damage_hero 1.12, deal_damage 3.54, discard 5.20, draw 1.61, freeze 2.0, gain_crystal 1.35,
+grant_keyword 0.19, heal_hero 0.72, modify_stat 0.27, summon 0.40, static discount 0.55, lord 0.63,
+debuff 0.62, self_situational 0.33 (the rest unchanged). Rounds and the repriced set:
+`data/price_loop/set_1000_cj/`; log `data/price_loop_set_1000_cj.log`.
 
 ## Training findings
 

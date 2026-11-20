@@ -34,9 +34,10 @@ loop runs with the heuristic.
   few rounds (about 70 minutes for a 60-deck table at 20 games a pair; fewer decks, or the
   surrogate from M2, would cut that), starting from the loop's scales; then re-search the growth
   classes' decks with the model before blaming their prices. If the model and heuristic disagree
-  for good, the prices follow the model. Class sets now have home jobs by default (results.md,
-  2026-11-20), but `set_1000_c` and the models predate them: generate the next class set with them
-  (`--kind set --classes`) and move the loop and the fine-tune onto it.
+  for good, the prices follow the model. Class sets now have home jobs by default; the heuristic loop on
+  the home-jobs set (`set_1000_cj`) ends with all six classes in the mix and moves prices less
+  (results.md, 2026-11-20). Next on it: a held-out home-jobs set to check the prices carry, a
+  model-played table (v7c_best predates home jobs; a fine-tune on the repriced set first?).
 - [ ] **4. The learned cost model** (card features → the price the loop settled on), so new
   generated sets start near balance. Checks: does it find the deliberately mis-costed cards
   (`notes.budget_delta`, ±1 on ~30% of cards)? Is it self-consistent (a stable value for +1 power
