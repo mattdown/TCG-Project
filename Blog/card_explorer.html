@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Outfit:wght@500;700;800&display=swap">
+<style>
+/* The Lantern look (docs/client-design.md), as in the card lab. */
+:root {
+  --shadow: #06100D; --night: #0B1612; --glass: #091310; --lantern: #7EF0D8; --text: #E6FBF4;
+  --gold: #F4C76B; --muted: #A9C9BC; --parchment: #4A3726; --ink: #1C1209; --coral: #FF6A5C; --down: #FF8A96;
+  --rim: rgba(160, 235, 215, .3); --pane: rgba(9, 19, 16, .8);
+}
+* { box-sizing: border-box; }
+html { background: #050C0A; }
+body { margin: 0; min-height: 100vh; color: var(--text); font: 500 15px/1.45 Outfit, system-ui, sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+#bg { position: fixed; inset: -30px; z-index: -1; background: var(--night) center / cover no-repeat; filter: blur(7px) brightness(.32) saturate(.85); }
+#bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 40% 30%, rgba(11, 22, 18, .1) 0%, rgba(5, 12, 10, .8) 100%); }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 40px 16px 80px; }
+
+h1 { font: 400 54px/1 "Marcellus SC", serif; margin: 0; text-shadow: 0 3px 10px var(--shadow); }
+.sub { color: var(--muted); margin: 14px 0 0; max-width: 860px; font-size: 18px; line-height: 1.4; }
+.crumbs { font: 700 12px Outfit; color: var(--lantern); letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.panel { background: var(--pane); border: 1.5px solid var(--rim); border-radius: 14px; backdrop-filter: blur(6px); }
+
+/* Classes: one tile each, in ring order, then neutral. */
+.classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 28px 0 18px; }
+.cls { padding: 12px 14px; cursor: pointer; text-align: left; transition: border-color .15s, box-shadow .15s; border-left: 6px solid var(--c); }
+.cls .s { font: 400 22px "Marcellus SC", serif; }
+.cls .styles { font-size: 13px; color: var(--muted); }
+.cls .n { font: 800 26px/1.1 Outfit; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.cls .l { font-size: 12px; color: var(--muted); }
+.cls[aria-pressed="true"] { border-color: var(--c); box-shadow: 0 0 16px color-mix(in srgb, var(--c) 55%, transparent); }
+
+.filters { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row .crumbs { width: 64px; flex: none; }
+.chip { padding: 3px 13px; border-radius: 999px; border: 1.5px solid rgba(126, 240, 216, .35); background: var(--glass);
+  font: 400 15px "Marcellus SC", serif; color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--lantern); color: var(--text); box-shadow: 0 0 12px rgba(126, 240, 216, .4); }
+select, .search { padding: 5px 14px; border-radius: 999px; border: 1.5px solid var(--rim); background: var(--glass); outline: none; }
+select:focus, .search:focus { border-color: var(--lantern); }
+.search { flex: 1 1 220px; }
+.search::placeholder { color: var(--muted); opacity: .7; }
+.btn { font: 400 15px "Marcellus SC", serif; background: var(--glass); color: var(--muted); border: 1.5px solid var(--rim);
+  border-radius: 999px; padding: 3px 14px; cursor: pointer; }
+
+/* What the filter holds: count, mix and the cost curve. */
+.stats { display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: flex-end; padding: 14px 16px; margin-bottom: 26px; }
+.stats .big { font: 800 30px/1 Outfit; font-variant-numeric: tabular-nums; }
+.stats .l { font-size: 13px; color: var(--muted); }
+.curve { display: flex; gap: 4px; align-items: flex-end; height: 64px; }
+.curve div { width: 22px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 11px; color: var(--muted); }
+.curve i { display: block; width: 100%; background: var(--lantern); border-radius: 3px 3px 0 0; opacity: .8; }
+.curve span { margin-top: 2px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 26px 12px; justify-items: center; }
+.slot { display: flex; flex-direction: column; align-items: center; padding: 16px 0 4px; border: 0; background: none; cursor: pointer; transition: transform .14s; }
+.slot .pcard { --w: 200px; }
+.slot:hover { transform: translateY(-6px); }
+.slot:hover .frame { filter: drop-shadow(0 0 8px rgba(244, 199, 107, .85)) drop-shadow(0 calc(var(--u) * 4) 0 rgba(5, 10, 8, .5)); }
+.cap { margin-top: 18px; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); display: inline-block; }
+.was { color: var(--gold); }
+.pcard .ph { position: absolute; inset: 0; background: radial-gradient(circle at 50% 55%, var(--aspect) 0%,
+  color-mix(in srgb, var(--aspect) 30%, var(--night)) 75%); }
+.pcard .ph svg { position: absolute; left: 50%; bottom: 22%; width: 72%; transform: translateX(-50%); }
+.empty { color: var(--muted); padding: 30px 0; }
+#more { height: 1px; }
+
+.scrim { position: fixed; inset: 0; background: rgba(5, 12, 10, .6); opacity: 0; pointer-events: none; transition: opacity .15s; }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: rgba(9, 19, 16, .92); backdrop-filter: blur(14px);
+  border-left: 1.5px solid var(--rim); transform: translateX(100%); transition: transform .2s; overflow-y: auto; padding: 26px 24px 48px; }
+.drawer.open { transform: none; }
+.drawer .close { position: absolute; right: 18px; top: 20px; }
+.drawer h2 { font: 400 32px/1.1 "Marcellus SC", serif; margin: 0 70px 4px 0; text-shadow: 0 2px 8px var(--shadow); }
+.drawer .subtitle { color: var(--muted); font-style: italic; font-size: 17px; }
+.drawer h3 { margin: 28px 0 10px; font-size: 13px; }
+.drawer .hero { display: flex; justify-content: center; padding: 34px 0 18px; }
+.drawer .hero .pcard { --w: 300px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 700; }
+pre { background: rgba(6, 16, 13, .9); border: 1.5px solid var(--rim); border-radius: 12px; padding: 12px 14px; margin: 0; overflow-x: auto;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #BFE9DC; }
+
+@media (max-width: 600px) {
+  h1 { font-size: 40px; }
+  .row .crumbs { width: 100%; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 22px 8px; }
+  .slot .pcard { --w: 150px; }
+  .drawer .hero .pcard { --w: 240px; }
+}
+@media (max-width: 420px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 8px; }
+  .slot .pcard { --w: 136px; }
+}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<!--LAB_DATA-->
+<div class="wrap">
+  <h1>Card Explorer</h1>
+  <p class="sub" id="intro"></p>
+  <div class="classes" id="classes"></div>
+  <div class="filters panel">
+    <div class="row"><span class="crumbs">Type</span><span id="types"></span></div>
+    <div class="row"><span class="crumbs">Cost</span><span id="costs"></span></div>
+    <div class="row"><span class="crumbs">Ability</span><span id="kinds"></span></div>
+    <div class="row"><span class="crumbs">More</span>
+      <select id="job"><option value="">Any job</option></select>
+      <select id="keyword"><option value="">Any keyword</option></select>
+      <select id="group"><option value="">Any price group</option></select>
+      <select id="sort"><option value="cost">Sort by cost</option><option value="class">Sort by class</option>
+        <option value="name">Sort by name</option><option value="set">Set order</option></select>
+      <span id="changed"></span>
+    </div>
+    <div class="row"><span class="crumbs">Search</span>
+      <input class="search" id="search" type="search" placeholder="Names, subtitles and card text…">
+      <button class="btn" id="reset" type="button">Clear filters</button></div>
+  </div>
+  <div class="stats panel" id="stats"></div>
+  <div class="grid" id="grid"></div>
+  <div id="more"></div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <button class="btn close" id="close" type="button">✕</button>
+  <div id="detail"></div>
+</aside>
+
+<!--CARD_KIT-->
+<!--PAINTED_CARD-->
+<!--CARD_ART-->
+<script>
+const D = window.LAB_DATA;
+const ASPECT_COLOURS = { aspect_1: "#F0533A", aspect_2: "#2F86E8", aspect_3: "#43B04F", aspect_4: "#F5B52E", aspect_5: "#9152E0", aspect_6: "#22BCC9" };
+const NEUTRAL_COLOUR = "#8A93AD";
+const KIND_TEXT = { triggered: "Triggered", static: "Static", on_resolve: "Action", keywords: "Keyword-only", vanilla: "Vanilla" };
+const COSTS = ["1", "2", "3", "4", "5", "6", "7+"];
+const PAGE = 90;  // cards drawn at a time; more as you scroll
+const $ = (id) => document.getElementById(id);
+const blank = () => ({ cls: null, type: "", cost: "", kind: "", job: "", keyword: "", group: "", changed: false, search: "" });
+const state = Object.assign(blank(), { sort: "cost", shown: 0, list: [] });
+const classOf = (c) => c.aspect || "neutral";
+const className = (a) => a === "neutral" ? "Neutral" : D.classes.find((k) => k.aspect === a).name;
+const colour = (a) => ASPECT_COLOURS[a] || NEUTRAL_COLOUR;
+const order = [...D.classes.map((k) => k.aspect), "neutral"];
+
+function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
+
+function mushroom(name, col) {
+  // Placeholder art, as in the card lab: the cap and spots vary with the name.
+  const h = hash(name), w = 30 + (h % 9), top = 6 + ((h >> 4) % 10), spots = [];
+  for (let i = 0; i < 2 + ((h >> 8) % 3); i++) {
+    const x = 50 + (((h >> (10 + i * 3)) % 9) - 4) * 6, y = 22 + ((h >> (12 + i * 2)) % 3) * 7;
+    spots.push(`<ellipse cx="${x}" cy="${y}" rx="${4 + ((h >> i) % 3)}" ry="3.2" fill="#FFF8EC" opacity=".92"/>`);
+  }
+  return `<div class="ph" style="--aspect:${col}"><svg viewBox="0 0 100 80" aria-hidden="true">
+    <ellipse cx="50" cy="75" rx="26" ry="4.5" fill="rgba(0,0,0,.3)"/>
+    <path d="M41 44 Q38 64 35 74 L65 74 Q62 64 59 44 Z" fill="#F7EBD8" stroke="#06100D" stroke-width="3" stroke-linejoin="round"/>
+    <ellipse cx="45" cy="58" rx="2.2" ry="3.4" fill="#06100D"/><ellipse cx="55" cy="58" rx="2.2" ry="3.4" fill="#06100D"/>
+    <path d="M${50 - w - 6} 47 Q${50 - w} ${top} 50 ${top} Q${50 + w} ${top} ${50 + w + 6} 47 Q50 55 ${50 - w - 6} 47 Z"
+      fill="color-mix(in srgb, var(--aspect) 80%, #fff)" stroke="#06100D" stroke-width="3" stroke-linejoin="round"/>
+    ${spots.join("")}</svg></div>`;
+}
+
+const cardHtml = (c) => paintedCard({ ...c, art: true, placeholder: mushroom(c.name, colour(c.aspect)) }, c.kind, c.art);
+const was = (c) => c.before ? `was ${c.before.cost}${c.type === "unit" ? ` · ${c.before.power}/${c.before.health}` : ""}` : "";
+
+function chips(id, items, key) {
+  $(id).innerHTML = items.map(([v, label]) => `<button class="chip" data-key="${key}" data-v="${v}">${esc(label)}</button> `).join("");
+}
+
+function setup() {
+  $("intro").textContent = `All ${D.cards.length} cards of ${D.source}` + (D.before ? `, with the cost and stats each changed card had in ${D.before}.` : ".") +
+    " Each class takes two neighbouring play styles on the ring; neutral cards go in any deck. Tap a card for its details.";
+  chips("types", [["", "All"], ["unit", "Units"], ["action", "Actions"]], "type");
+  chips("costs", [["", "All"], ...COSTS.map((c) => [c, c])], "cost");
+  chips("kinds", [["", "All"], ...Object.entries(KIND_TEXT)], "kind");
+  const fill = (id, values) => values.forEach((v) => $(id).insertAdjacentHTML("beforeend", `<option>${esc(v)}</option>`));
+  fill("job", D.jobs);
+  fill("keyword", [...new Set(D.cards.flatMap((c) => c.keyword_names))].sort());
+  fill("group", D.groups);
+  if (D.before) $("changed").innerHTML = `<button class="chip" data-key="changed" data-v="1">Changed only (${D.cards.filter((c) => c.before).length})</button>`;
+  if (window.CARD_ART.background) $("bg").style.backgroundImage = `url(${window.CARD_ART.background})`;
+}
+
+function matches(c, skipClass) {
+  const s = state;
+  if (!skipClass && s.cls && classOf(c) !== s.cls) return false;
+  if (s.type && c.type !== s.type) return false;
+  if (s.cost && (s.cost === "7+" ? c.cost < 7 : c.cost !== +s.cost)) return false;
+  if (s.kind && c.kind !== s.kind) return false;
+  if (s.job && !c.traits.includes(s.job)) return false;
+  if (s.keyword && !c.keyword_names.includes(s.keyword)) return false;
+  if (s.group && c.group !== s.group) return false;
+  if (s.changed && !c.before) return false;
+  if (s.search) {
+    const q = s.search.toLowerCase();
+    if (![c.name, c.subtitle, c.text, c.keywords.join(" "), c.traits.join(" ")].some((t) => (t || "").toLowerCase().includes(q))) return false;
+  }
+  return true;
+}
+
+function renderClasses() {
+  // Counts follow the other filters, so you can compare classes on, say, 2-mana actions.
+  const pool = D.cards.filter((c) => matches(c, true));
+  $("classes").innerHTML = order.map((a) => {
+    const cs = pool.filter((c) => classOf(c) === a), k = D.classes.find((x) => x.aspect === a);
+    const acts = cs.filter((c) => c.type === "action").length;
+    return `<button class="cls panel" data-cls="${a}" style="--c:${colour(a)}" aria-pressed="${state.cls === a}">
+      <div class="s">${className(a)}</div><div class="styles">${k ? k.styles.map((s) => s[0].toUpperCase() + s.slice(1)).join(" · ") : "Any deck"}</div>
+      <div class="n">${cs.length}</div><div class="l">${cs.length - acts} units · ${acts} actions</div></button>`;
+  }).join("");
+}
+
+function renderStats(list) {
+  const n = list.length, units = list.filter((c) => c.type === "unit");
+  const avg = n ? (list.reduce((t, c) => t + c.cost, 0) / n).toFixed(1) : "–";
+  const per = COSTS.map((k) => list.filter((c) => k === "7+" ? c.cost >= 7 : c.cost === +k).length);
+  const top = Math.max(1, ...per);
+  const kinds = Object.entries(KIND_TEXT).map(([k, t]) => [t, list.filter((c) => c.kind === k).length]).filter(([, v]) => v);
+  const stat = (big, l) => `<div><div class="big">${big}</div><div class="l">${l}</div></div>`;
+  $("stats").innerHTML = stat(n, "cards") + stat(avg, "average cost") +
+    stat(units.length ? (units.reduce((t, c) => t + c.power + c.health, 0) / units.length).toFixed(1) : "–", "average unit stats") +
+    `<div><div class="curve">${per.map((v, i) => `<div title="${v} cards">${v || ""}<i style="height:${(v / top) * 46}px"></i><span>${COSTS[i]}</span></div>`).join("")}</div>
+      <div class="l">cost curve</div></div>` +
+    `<div class="l" style="max-width:360px">${kinds.map(([t, v]) => `${t} ${Math.round(100 * v / Math.max(1, n))}%`).join(" · ")}</div>`;
+}
+
+function sorted(list) {
+  const by = {
+    cost: (a, b) => a.cost - b.cost || a.type.localeCompare(b.type) || a.name.localeCompare(b.name),
+    class: (a, b) => order.indexOf(classOf(a)) - order.indexOf(classOf(b)) || a.cost - b.cost,
+    name: (a, b) => a.name.localeCompare(b.name), set: () => 0,
+  };
+  return [...list].sort(by[state.sort]);
+}
+
+function render() {
+  state.list = sorted(D.cards.filter((c) => matches(c)));
+  state.shown = 0;
+  $("grid").innerHTML = state.list.length ? "" : `<div class="empty">No cards match.</div>`;
+  renderClasses(); renderStats(state.list); more(); syncChips();
+}
+
+function more() {
+  const next = state.list.slice(state.shown, state.shown + PAGE);
+  if (!next.length) return;
+  const at = state.shown;
+  state.shown += next.length;
+  const html = next.map((c, i) => `<button class="slot" data-i="${at + i}">${cardHtml(c)}
+    <div class="cap"><span class="dot" style="--c:${colour(c.aspect)}"></span>${className(classOf(c))} · ${KIND_TEXT[c.kind]}
+    ${c.before ? `<span class="was">${was(c)}</span>` : ""}</div></button>`).join("");
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  const slots = [...box.children];
+  $("grid").append(...slots);
+  slots.forEach((s) => fitPainted(s));
+}
+
+function syncChips() {
+  document.querySelectorAll("[data-key]").forEach((b) => {
+    const v = state[b.dataset.key];
+    b.setAttribute("aria-pressed", b.dataset.key === "changed" ? String(v) : String(v === b.dataset.v));
+  });
+}
+
+function showDetail(c) {
+  const k = D.classes.find((x) => x.aspect === c.aspect);
+  $("detail").innerHTML = `<h2>${esc(c.name)}</h2>${c.subtitle ? `<div class="subtitle">${esc(c.subtitle)}</div>` : ""}
+    <div class="hero">${cardHtml(c)}</div>
+    <dl class="kv">
+      <dt>Class</dt><dd>${className(classOf(c))}${k ? ` (${k.styles.join(" and ")})` : ""}</dd>
+      <dt>Card</dt><dd>${c.type}, ${c.cost} mana${c.type === "unit" ? `, ${c.power}/${c.health}` : ""}</dd>
+      ${c.before ? `<dt>In ${esc(D.before)}</dt><dd class="was">${c.before.cost} mana${c.type === "unit" ? `, ${c.before.power}/${c.before.health}` : ""}</dd>` : ""}
+      ${c.traits.length ? `<dt>Job</dt><dd>${c.traits.map(esc).join(", ")}</dd>` : ""}
+      ${c.keywords.length ? `<dt>Keywords</dt><dd>${c.keywords.map(esc).join(", ")}</dd>` : ""}
+      <dt>Ability</dt><dd>${KIND_TEXT[c.kind]}</dd>
+      <dt>Price group</dt><dd>${esc(c.group)}</dd>
+      <dt>ID</dt><dd>${esc(c.id)}</dd>
+      <dt>Art</dt><dd>${window.CARD_IMAGES[c.art] ? "painted" : "placeholder"}</dd></dl>
+    ${c.tree ? `<h3 class="crumbs">Ability tree</h3><pre>${esc(JSON.stringify(c.tree, null, 2))}</pre>` : ""}`;
+  $("drawer").classList.add("open"); $("scrim").classList.add("open"); $("drawer").setAttribute("aria-hidden", "false");
+  $("drawer").scrollTop = 0;
+  fitPainted($("detail").querySelector(".hero"));
+}
+
+function closeDetail() { $("drawer").classList.remove("open"); $("scrim").classList.remove("open"); $("drawer").setAttribute("aria-hidden", "true"); }
+
+document.addEventListener("click", (e) => {
+  const cls = e.target.closest("[data-cls]"), chip = e.target.closest("[data-key]"), slot = e.target.closest(".slot");
+  if (cls) { state.cls = state.cls === cls.dataset.cls ? null : cls.dataset.cls; render(); }
+  else if (chip) {
+    const key = chip.dataset.key;
+    state[key] = key === "changed" ? !state.changed : chip.dataset.v;
+    render();
+  } else if (slot) showDetail(state.list[+slot.dataset.i]);
+});
+for (const id of ["job", "keyword", "group", "sort"]) $(id).addEventListener("change", (e) => { state[id] = e.target.value; render(); });
+$("search").addEventListener("input", (e) => { state.search = e.target.value; render(); });
+$("reset").addEventListener("click", () => {
+  Object.assign(state, blank());
+  for (const id of ["job", "keyword", "group", "search"]) $(id).value = "";
+  render();
+});
+$("close").addEventListener("click", closeDetail);
+$("scrim").addEventListener("click", closeDetail);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
+new IntersectionObserver((es) => { if (es[0].isIntersecting) more(); }, { rootMargin: "800px" }).observe($("more"));
+document.fonts.addEventListener("loadingdone", () => document.querySelectorAll(".slot").forEach((s) => fitPainted(s)));
+
+setup();
+render();
+</script>
+</body>
+</html>

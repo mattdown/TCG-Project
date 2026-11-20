@@ -74,3 +74,21 @@ def test_describe_gives_a_page_a_summary():
     assert "<title>Card Lab</title>" in html and "Old" not in html
     assert '<meta name="description" content="Cards &amp; &quot;draws&quot; &lt;thrown away>">' in html
     assert html.index("<noscript>") > html.index("<script>") and html.endswith("</noscript>\n</body></html>")
+
+
+def test_card_explorer_shows_every_card_and_what_repricing_changed():
+    """Every card of the set, with its class's styles; with a before set, only changed cards carry their old numbers."""
+    from card_explorer import PAGE, explorer_data
+    from card_lab import bake
+    from src.cards.generate import generate_card_set
+    from src.cards.reprice import reprice
+    cards = generate_card_set(120, seed=5, classes=True, prefix="T")
+    repriced, changes = reprice(cards, {"unit, deal_damage": 6.0, "action, draw": 4.0})
+    data = explorer_data(repriced, cards)
+    assert [c["id"] for c in data["cards"]] == [c.id for c in cards.cards]
+    assert {c["id"] for c in data["cards"] if "before" in c} == {ch.card for ch in changes}
+    assert all(len(k["styles"]) == 2 for k in data["classes"])
+    assert all(c["text"] for c in data["cards"] if c["kind"] not in ("vanilla", "keywords"))
+    assert all(c["aspect"] for c in data["cards"] if c["type"] == "action")  # neutrals are units only
+    html = bake(PAGE, data, set())
+    assert "window.LAB_DATA" in html and "<!--" + "CARD_KIT-->" not in html
